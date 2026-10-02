@@ -1,0 +1,50 @@
+# Unity가 다시 만드는 폴더(올리지 않는다)
+/[Ll]ibrary/
+/[Tt]emp/
+/[Oo]bj/
+/[Bb]uild/
+/[Bb]uilds/
+/[Ll]ogs/
+/[Uu]ser[Ss]ettings/
+/[Mm]emoryCaptures/
+/[Rr]ecordings/
+
+# 편집기·IDE가 만드는 파일
+.vs/
+.vscode/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.slnx
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+
+# 운영체제
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# 크래시 기록
+sysinfo.txt
+
+# 빌드 결과물
+*.apk
+*.aab
+*.unitypackage
+*.app
+
+# 작업 중 검수 사진(게임 내용 아님)
+/QA/

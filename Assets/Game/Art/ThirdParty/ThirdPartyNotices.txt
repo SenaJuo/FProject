@@ -1,0 +1,28 @@
+﻿외부 무료 에셋 출처와 사용 조건 (2026-10-02 내려받음)
+
+1. Quaternius — Universal Animation Library [Standard]
+   파일: Animations/Quaternius/UAL1_Standard.fbx (잽 Punch_Jab, 크로스 Punch_Cross 사용)
+   출처: https://opengameart.org/content/universal-animation-library  (https://quaternius.com)
+   라이선스: CC0 1.0 (공개 도메인, 상업 사용 가능, 출처 표기 의무 없음) — License_UAL1.txt
+
+2. Motifect — Combat Motion Pack v1.0
+   파일: Animations/Motifect/roundhouse_kick_right.fbx(돌려차기), hit_react_face.fbx(얼굴 맞음), hit_react_chest.fbx(몸통 맞음)
+   출처: https://motifect.itch.io/motifect-combat-motion-pack  (https://motifect.io)
+   라이선스: 개인·상업 프로젝트에 무료 사용 가능. 원본 애니메이션 파일만 따로 재배포·판매 금지 — README_Motifect.txt
+
+3. VARCO Sound (NC AI) — AI 효과음 생성 (2026-10-02 생성)
+   파일: Resources/Sfx/Hit/*.wav (주먹·발차기 타격음, 휘두르는 소리, 신음, 총알 맞는 소리, 테이프 늘어지는 소리)
+   출처: https://sound.varco.ai 에서 사용자 계정으로 생성한 결과를 잘라 다듬음 (Editor/SfxTool.cs)
+   사용 조건: VARCO Sound 이용약관을 따른다 — 상업 출시 전 약관의 생성물 이용 범위를 다시 확인할 것
+
+4. VARCO Sound (NC AI) — AI 음악 생성 (2026-10-02 생성)
+   파일: Resources/Music/*.mp3 (가게 테이프 3개 × 3곡: late_radio, rain_jazz, citypop_1), Resources/Sfx/Hit/potion-*.wav (회복약)
+   출처: https://sound.varco.ai 음악 모드로 사용자 계정에서 생성(곡마다 후보 2곡 중 박자·크기를 재서 골랐다)
+   사용 조건: VARCO Sound 이용약관을 따른다 — 상업 출시 전 생성물 이용 범위를 다시 확인할 것
+
+5. VARCO 3D (NC AI, "바로크") — AI 3D 소품 생성 (2026-10-02 생성)
+   파일: Art/Baroque/Props/RecordCrate, Turntable, CashRegister, ParkBin, Flashlight, MedKit (.glb)
+   출처: https://3d.varco.ai 작업 흐름(그림 생성 → 3D 생성)으로 사용자 계정에서 생성
+   사용 조건: VARCO 3D 이용약관을 따른다
+
+게임 안 설정은 Assets/Game/Editor/CombatAnimationSetup.cs (메뉴 Game/Animation/Setup Combat Clips) 에 있다.
