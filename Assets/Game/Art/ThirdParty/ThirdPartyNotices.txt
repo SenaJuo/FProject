@@ -1,4 +1,4 @@
-﻿외부 무료 에셋 출처와 사용 조건 (2026-10-02 내려받음)
+﻿외부 에셋·생성물 출처와 사용 조건 (2026-10-06 갱신)
 
 1. Quaternius — Universal Animation Library [Standard]
    파일: Animations/Quaternius/UAL1_Standard.fbx (잽 Punch_Jab, 크로스 Punch_Cross 사용)
@@ -22,9 +22,21 @@
    출처: https://sound.varco.ai 음악 모드로 사용자 계정에서 생성(곡마다 후보 2곡 중 박자·크기를 재서 골랐다)
    사용 조건: VARCO Sound 이용약관을 따른다 — 상업 출시 전 생성물 이용 범위를 다시 확인할 것
 
-5. VARCO 3D (NC AI, "바로크") — AI 3D 소품 생성 (2026-10-02 생성)
-   파일: Art/Baroque/Props/RecordCrate, Turntable, CashRegister, ParkBin, Flashlight, MedKit (.glb)
+5. VARCO 3D (NC AI, "바로크") — AI 3D 생성 (2026-09-30 ~ 10-02 생성)
+   소품 33개: Art/Baroque/Props/*.glb
+     집·거리(9/30~10/1): AcUnit, Bed, BusStop, CassetteShelf, CassetteTape, CctvCamera, ConstructionBarrier, CrtTv, Desk, Dumpster,
+       EScooter, FireHydrant, Hedge, Mailbox, OpenedParcel, ParcelBox, ParcelLocker, PedestrianLight, Pistol, RecyclingBins,
+       Sedan, Sofa, StreetLampLed, StreetTree, TrashPile, VendingMachine, Walkman
+     레코드 가게·공원(10/2): RecordCrate, Turntable, CashRegister, ParkBin, Flashlight, MedKit
+   캐릭터 3명: Art/Baroque/Characters/Protagonist(레이), Friend(대니), Enforcer(조직원)
+     — 리깅된 FBX와 GLB에서 뽑은 텍스처를 URP 머티리얼로 다시 묶었다(Editor/BaroqueCharacterSetup.cs)
    출처: https://3d.varco.ai 작업 흐름(그림 생성 → 3D 생성)으로 사용자 계정에서 생성
-   사용 조건: VARCO 3D 이용약관을 따른다
+   사용 조건: VARCO 3D 이용약관을 따른다 — 상업 출시 전 생성물 이용 범위를 다시 확인할 것
+
+6. Unity Technologies — Starter Assets: Third Person
+   파일: Assets/Starter Assets/ (Idle·Walk·Run·Jump·Land 애니메이션을 Animation/HumanoidLocomotionIK.controller에서 쓴다)
+   출처: Unity 에셋 스토어 "Starter Assets - ThirdPerson" (Unity 공식 무료 에셋)
+   사용 조건: Unity 에셋 스토어 표준 이용약관(EULA) — Unity 게임에 포함해 배포 가능, 에셋만 따로 재배포 금지.
+   상업 출시 전 에셋 스토어 페이지의 라이선스 표기를 다시 확인할 것
 
 게임 안 설정은 Assets/Game/Editor/CombatAnimationSetup.cs (메뉴 Game/Animation/Setup Combat Clips) 에 있다.
