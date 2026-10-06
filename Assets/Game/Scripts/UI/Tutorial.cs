@@ -108,6 +108,39 @@ public static class Tutorial
                     $"맞았다면 {H("R")}로 되감아 다시 해 볼 수 있습니다."),
             },
         },
+        ["shield"] = new Entry
+        {
+            id = "shield", category = "전투", title = "방패 경찰",
+            pages = new[]
+            {
+                new Page("방패를 든 적",
+                    $"방패 경찰은 {H("정면")}에서 오는 주먹을 방패로 막습니다(금속 소리가 나고 피해가 들어가지 않습니다).\n\n" +
+                    $"연속 공격의 {H("세 번째 돌려차기")}는 방패를 쳐내 잠시 {H("무방비")}로 만듭니다. " +
+                    $"아니면 {H("옆 · 뒤")}로 돌아가 치세요."),
+            },
+        },
+        ["takedown"] = new Entry
+        {
+            id = "takedown", category = "잠입", title = "몰래 제압",
+            pages = new[]
+            {
+                new Page("등 뒤에서 한 번에",
+                    $"아직 {H("눈치채지 못한 적")}의 {H("등 뒤")}로 바짝 다가가면 {H("Q: 몰래 제압")}이 뜹니다.\n\n" +
+                    $"{H("Q")}를 누르면 뒤에서 한 번에 쓰러뜨립니다. 소리를 내지 않아 {H("근처 적이 몰려오지 않습니다")}. " +
+                    $"손전등 순찰은 의심 막대가 다 차기 전, 옥상의 저격수는 조준경을 보는 동안 등 뒤에서 제압할 수 있습니다."),
+            },
+        },
+        ["sniper"] = new Entry
+        {
+            id = "sniper", category = "전투", title = "저격수",
+            pages = new[]
+            {
+                new Page("멀리서 겨누는 총",
+                    $"옥상의 저격수는 멀리서도 {H("굵은 붉은 조준선")}으로 겨누고, 약 2초 뒤 {H("크게 아픈 한 발")}을 쏩니다.\n\n" +
+                    $"조준선이 보이면 {H("노점 방수포 · 트럭 · 팔레트")}처럼 사람 키보다 높은 것 뒤로 숨으세요. " +
+                    $"맞았다면 {H("R")}로 되감아 엄폐물 뒤로 돌아갈 수 있습니다. 골목의 {H("철계단")}으로 옥상에 올라가 가까이 붙어 치면 겨누기가 끊깁니다."),
+            },
+        },
         ["stealth"] = new Entry
         {
             id = "stealth", category = "잠입", title = "손전등과 숨기",
@@ -175,8 +208,12 @@ public class TutorialUI : MonoBehaviour
     float toastStart;
     int page;
     readonly Dictionary<string, Texture2D> images = new();
-    GUIStyle tiny, small, body, bold, heading, key, centre;
+    GUIStyle tiny, small, body, bold, heading, key, centre, glyphStyle, closeStyle;
     float styleScale = -1f;
+    readonly Dictionary<(GUIStyle, TextAnchor), GUIStyle> midStyles = new();
+    static readonly Dictionary<string, string> shadowTexts = new();
+
+    void Awake() => useGUILayout = false; // GUILayout을 쓰지 않는다 → OnGUI 배치 단계를 건너뛴다
 
     public static TutorialUI Ensure()
     {
@@ -228,6 +265,8 @@ public class TutorialUI : MonoBehaviour
         bool busy = StoryState.CutsceneActive || StoryState.Fade > 0.05f;
         if (toast == null && !busy && queue.Count > 0) { toast = queue.Dequeue(); toastStart = Time.unscaledTime; }
         if (toast == null) return;
+        // 컷신·페이드·메뉴에 가려진 동안은 알림 시간이 흐르지 않는다(보지도 못하고 사라지면 다시 뜨지 않는다)
+        if (busy || StoryState.Paused) toastStart += Time.unscaledDeltaTime;
         if (Time.unscaledTime - toastStart > ToastSeconds) { toast = null; return; }
         // 다른 것이 시간을 멈추거나 늦춘 동안(타격 멈춤·슬로모션·인벤토리·가게·사망 화면)에는 열지 않는다:
         // 닫을 때 그 시간 속도를 되살리면서 게임이 슬로모션에 갇히거나 가게 창 뒤로 세상이 움직였다
@@ -273,6 +312,7 @@ public class TutorialUI : MonoBehaviour
 
     void OnGUI()
     {
+        if (open == null && (toast == null || StoryState.CutsceneActive)) return; // 그릴 것이 없으면 바로 끝
         float s = Screen.height / 1080f;
         BuildStyles(s);
         GUI.depth = -10; // HUD 위에
@@ -309,8 +349,7 @@ public class TutorialUI : MonoBehaviour
         Frame(r, Tint(Line, alpha), 2f * s);
         // 분류마다 다른 표시: 카세트 플레이어 = 되감기 기호, 그 밖 = 마름모
         string glyph = category == "카세트 플레이어" ? "◀◀" : "◆";
-        var style = new GUIStyle(centre) { fontSize = Mathf.RoundToInt(30 * s), alignment = TextAnchor.MiddleCenter };
-        Label(r, glyph, style, Tint(Paper, alpha));
+        Label(r, glyph, glyphStyle, Tint(Paper, alpha));
     }
 
     void DrawPopup(Tutorial.Entry e, float s)
@@ -325,7 +364,7 @@ public class TutorialUI : MonoBehaviour
         Label(new Rect(win.x + 36 * s, win.y + 14 * s, w, 60 * s), $"{e.category} 튜토리얼", Mid(heading, TextAnchor.MiddleLeft), Paper);
         var close = new Rect(win.xMax - 78 * s, win.y + 22 * s, 48 * s, 40 * s);
         Fill(close, Close);
-        Label(close, "✕", new GUIStyle(centre) { fontSize = Mathf.RoundToInt(26 * s), alignment = TextAnchor.MiddleCenter }, Color.white);
+        Label(close, "✕", closeStyle, Color.white);
         if (Clicked(close)) { ClosePopup(); return; }
 
         var p = e.pages[page];
@@ -374,7 +413,13 @@ public class TutorialUI : MonoBehaviour
     }
 
     /// <summary>한 줄 글씨를 칸 안에서 세로 가운데로(칸 높이를 넉넉히 주면 작은 화면에서도 잘리지 않는다)</summary>
-    static GUIStyle Mid(GUIStyle style, TextAnchor anchor) => new(style) { alignment = anchor, clipping = TextClipping.Overflow };
+    GUIStyle Mid(GUIStyle style, TextAnchor anchor)
+    {
+        // 매 OnGUI마다 새 스타일을 만들지 않게 한 번 만든 것을 다시 쓴다(크기가 바뀌면 BuildStyles가 비운다)
+        if (!midStyles.TryGetValue((style, anchor), out var mid))
+            midStyles[(style, anchor)] = mid = new GUIStyle(style) { alignment = anchor, clipping = TextClipping.Overflow };
+        return mid;
+    }
 
     Texture2D Image(string name)
     {
@@ -402,6 +447,9 @@ public class TutorialUI : MonoBehaviour
         heading = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(32 * s), fontStyle = FontStyle.Bold };
         key = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(15 * s), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
         centre = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.UpperCenter };
+        glyphStyle = new GUIStyle(centre) { fontSize = Mathf.RoundToInt(30 * s), alignment = TextAnchor.MiddleCenter };
+        closeStyle = new GUIStyle(centre) { fontSize = Mathf.RoundToInt(26 * s), alignment = TextAnchor.MiddleCenter };
+        midStyles.Clear();
     }
 
     static Color Tint(Color c, float a) => new(c.r, c.g, c.b, c.a * a);
@@ -410,7 +458,13 @@ public class TutorialUI : MonoBehaviour
     {
         if (!shadow) { style.normal.textColor = color; GUI.Label(r, text, style); return; }
         // 그림자 + 글씨(강조 색 태그는 그대로 두고, 그림자는 색 태그를 지운 글씨로)
-        var shadowText = System.Text.RegularExpressions.Regex.Replace(text, "<.*?>", "");
+        // 색 태그를 지운 글씨는 한 번만 만든다(정규식을 매 프레임 돌리지 않게)
+        if (!shadowTexts.TryGetValue(text, out var shadowText))
+        {
+            shadowText = text.IndexOf('<') < 0 ? text : System.Text.RegularExpressions.Regex.Replace(text, "<.*?>", "");
+            if (shadowTexts.Count > 256) shadowTexts.Clear();
+            shadowTexts[text] = shadowText;
+        }
         style.normal.textColor = new Color(0f, 0f, 0f, Shadow.a * color.a);
         GUI.Label(new Rect(r.x + 2, r.y + 2, r.width, r.height), shadowText, style);
         style.normal.textColor = color;

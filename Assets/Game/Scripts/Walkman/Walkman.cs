@@ -40,6 +40,8 @@ public class Walkman : MonoBehaviour
     public bool PlayingBack => phase == Phase.Playback;
     public bool Rewinding => phase is Phase.Playback or Phase.Recover;
     public bool InventoryOpen { get; private set; }
+    /// <summary>어느 워크맨이든 인벤토리를 연 중(대사·알림을 멈추는 데 쓴다)</summary>
+    public static bool InventoryShown { get; private set; }
     public int InventorySelected { get; private set; }
     public float RewoundSeconds { get; private set; }
     public float MaxRewind { get; private set; }
@@ -85,6 +87,7 @@ public class Walkman : MonoBehaviour
         music.volume = musicVolume;
         music.ignoreListenerPause = false;
         Inserted = tapes.Count > 0 ? tapes[0] : null;
+        InventoryShown = false;
         TimeRewind.Clear();
     }
 
@@ -180,7 +183,7 @@ public class Walkman : MonoBehaviour
 
     void OpenInventory()
     {
-        InventoryOpen = true;
+        InventoryOpen = InventoryShown = true;
         InventorySelected = Mathf.Max(0, tapes.IndexOf(Inserted));
         navigationHeld = Vector2Int.one;
         Time.timeScale = 0f;
@@ -190,7 +193,7 @@ public class Walkman : MonoBehaviour
 
     void CloseInventory()
     {
-        InventoryOpen = false;
+        InventoryOpen = InventoryShown = false;
         Time.timeScale = 1f;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;

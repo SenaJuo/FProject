@@ -47,6 +47,19 @@ public class EnemyAI : MonoBehaviour, IRewindable
     public HumanoidIK aimIK;
     [Tooltip("총을 처음 겨눌 때 한 번 알린다(되감기 안내용)")]
     public System.Action FirstAim;
+    [Tooltip("제자리를 지킨다(옥상 저격수): 다가가거나 물러나지 않고 그 자리에서 겨눈다")]
+    public bool holdPosition;
+    [Tooltip("겨누는 중에도 맞으면 겨누기가 끊긴다(가까이 붙으면 저격수를 제압할 수 있게)")]
+    public bool aimInterruptible;
+    [Tooltip("0보다 크면 앞쪽 ±이 각도 안의 표적만 본다(조준경을 들여다보는 저격수: 등 뒤로 돌아가면 눈치채지 못한다)")]
+    public float awarenessArc;
+    [Tooltip("조준선 굵기 배율(멀리서도 보이게)")]
+    public float laserWidth = 1f;
+    [Tooltip("총소리(Resources/Sfx/World/이름). 비우면 기본 총성")]
+    public string shotSound;
+    public float shotVolume = 0.9f;
+    [Tooltip("쥔 총의 손잡이에서 총구까지(m). 권총 0.16, 저격총은 더 길다")]
+    public float muzzleDistance = 0.16f;
 
     /// <summary>소속 CombatZone이 시작될 때 설정된다. 활성화된 적은 구역 안 어디서든 플레이어를 추적한다.</summary>
     public bool IsActive { get; private set; }
@@ -133,7 +146,9 @@ public class EnemyAI : MonoBehaviour, IRewindable
 
         // 스냅샷 시점에 살아 있었다 — 그 뒤에 죽었다면 되살린다.
         gameObject.SetActive(true);
-        foreach (var c in GetComponentsInChildren<Collider>(true)) c.enabled = true;
+        // 쓰러질 때 끈 충돌체만 다시 켠다(그사이 몸에 붙은 다른 충돌체 — 예: 떨어졌다 다시 쥔 방패의 상자 — 는 건드리지 않는다)
+        foreach (var c in disabledOnDeath) if (c) c.enabled = true;
+        disabledOnDeath.Clear();
         agent.enabled = true;
         agent.Warp(s.pose.position);
         transform.rotation = s.pose.rotation;
@@ -214,13 +229,16 @@ public class EnemyAI : MonoBehaviour, IRewindable
                     if (Time.time >= repathTime)
                     {
                         // 사이 거리인데 가려서 못 쏘면 다가가서 쏠 자리를 찾는다(엄폐물 앞에서 영원히 서 있던 문제)
-                        Vector3 dest = distance > shootRange * 0.75f ? player.position
+                        Vector3 dest = holdPosition ? transform.position
+                                     : distance > shootRange * 0.75f ? player.position
                                      : distance < 5f ? transform.position - toPlayer.normalized * 3f
                                      : HasLineOfSight() ? transform.position : player.position;
                         agent.SetDestination(dest);
                         repathTime = Time.time + 0.25f;
                     }
-                    if (distance >= 5f && distance <= shootRange) Face(toPlayer, 360f);
+                    // 시야각이 정해진 적(저격수)은 등 뒤의 레이를 보지 못한다
+                    if (awarenessArc > 0f && Vector3.Angle(transform.forward, toPlayer) > awarenessArc) break;
+                    if ((distance >= 5f || holdPosition) && distance <= shootRange) Face(toPlayer, 360f);
                     if (distance <= shootRange && Time.time >= nextAttackTime && HasLineOfSight()) BeginWindup(false);
                     break;
                 }
@@ -311,7 +329,7 @@ public class EnemyAI : MonoBehaviour, IRewindable
     {
         if (!IsActive) Activate();
         if (state == State.Idle) state = State.Chase;
-        if (!staggerable || state == State.Windup || state == State.Dead) return;
+        if (!staggerable || (state == State.Windup && !aimInterruptible) || state == State.Dead) return;
 
         state = State.Stagger;
         timer = 0f;
@@ -331,7 +349,9 @@ public class EnemyAI : MonoBehaviour, IRewindable
         ClearTelegraph();
         StopMoving();
         agent.enabled = false;
-        foreach (var c in GetComponentsInChildren<Collider>()) c.enabled = false;
+        disabledOnDeath.Clear();
+        foreach (var c in GetComponentsInChildren<Collider>())
+            if (c.enabled) { c.enabled = false; disabledOnDeath.Add(c); }
         HideLaser();
         if (aimIK) aimIK.aim = false;
         if (ragdoll)
@@ -359,15 +379,20 @@ public class EnemyAI : MonoBehaviour, IRewindable
         return chestPoint;
     }
 
-    Vector3 Muzzle() => aimIK && aimIK.heldItem ? aimIK.heldItem.position + aimIK.heldItem.forward * 0.16f + aimIK.heldItem.up * 0.04f
+    Vector3 Muzzle() => aimIK && aimIK.heldItem ? aimIK.heldItem.position + aimIK.heldItem.forward * muzzleDistance + aimIK.heldItem.up * 0.04f
                                                : transform.position + Vector3.up * 1.45f + transform.forward * 0.5f;
+
+    readonly List<Collider> disabledOnDeath = new();
+    static readonly RaycastHit[] sightHits = new RaycastHit[32]; // 매 프레임 배열을 새로 만들지 않는다
 
     bool HasLineOfSight()
     {
         Vector3 from = transform.position + Vector3.up * 1.5f, to = PlayerChest().position;
-        foreach (var hit in Physics.RaycastAll(from, (to - from).normalized, Vector3.Distance(from, to), ~0, QueryTriggerInteraction.Ignore))
+        int n = Physics.RaycastNonAlloc(from, (to - from).normalized, sightHits, Vector3.Distance(from, to), ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < n; i++)
         {
-            if (hit.collider.transform.IsChildOf(transform) || hit.collider.GetComponentInParent<PlayerController>()) continue;
+            var hit = sightHits[i];
+            if (hit.collider.transform.IsChildOf(transform) || hit.collider.transform.IsChildOf(player)) continue;
             if (hit.rigidbody) continue; // 쓰러진 몸(래그돌)은 가리지 않는다
             return false;
         }
@@ -388,7 +413,7 @@ public class EnemyAI : MonoBehaviour, IRewindable
             laser.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         }
         laser.enabled = true;
-        laser.widthMultiplier = Mathf.Lerp(0.004f, 0.018f, strength);
+        laser.widthMultiplier = Mathf.Lerp(0.004f, 0.018f, strength) * laserWidth;
         laser.SetPosition(0, Muzzle());
         laser.SetPosition(1, PlayerChest().position);
     }
@@ -402,7 +427,8 @@ public class EnemyAI : MonoBehaviour, IRewindable
     {
         HideLaser();
         Vector3 from = Muzzle(), to = PlayerChest().position;
-        ProceduralSfx.PlayAt(ProceduralSfx.Gunshot, from, 0.9f, 0.7f);
+        var clip = string.IsNullOrEmpty(shotSound) ? null : ProceduralSfx.Recorded(shotSound);
+        ProceduralSfx.PlayAt(clip ? clip : ProceduralSfx.Gunshot, from, shotVolume, clip ? 0.35f : 0.7f); // 저격 총성은 멀리서도 크게 울린다
         StartCoroutine(Flash(from));
         // 회피(무적) 중이거나 그새 엄폐물 뒤로 숨었으면 빗나간다
         if (HasLineOfSight()) playerHealth.TakeDamage(shotDamage, transform.position);

@@ -25,7 +25,17 @@ public class HUD : MonoBehaviour
     Camera cam;
     Texture2D circle;
     GUIStyle small, smallCentre, smallRight, smallWrap, normal, normalBold, normalCentre, right, big, title, labelInk;
+    GUIStyle letterHead, letterText;
     float styleScale = -1f;
+
+    // 매 OnGUI마다 같은 글자를 새로 만들지 않게 값이 바뀔 때만 다시 만든다
+    string hpText, potionText, objectiveText, subtitleText, subtitleSpeaker, subtitleLine, objectiveStory, objectiveFinal;
+    int hpCurrent = -1, hpMax = -1, potionCount = -1, objectiveCleared = -2, objectiveRemaining = -2;
+    ZoneGate objectiveGate;
+    bool objectiveFighting, objectiveValid;
+    readonly string[] helpTexts = new string[4];
+
+    void Awake() => useGUILayout = false; // GUILayout을 쓰지 않는다 → OnGUI 배치 단계를 건너뛴다
 
     void Start()
     {
@@ -54,18 +64,21 @@ public class HUD : MonoBehaviour
 
         // 플레이어 상태 (좌상단)
         Bar(new Rect(40 * s, 40 * s, 460 * s, 16 * s), (float)health.Current / health.Max, Paper);
-        ShadowLabel(new Rect(40 * s, 60 * s, 600 * s, 34 * s), $"HP {health.Current} / {health.Max}", normal);
+        if (health.Current != hpCurrent || health.Max != hpMax) { hpCurrent = health.Current; hpMax = health.Max; hpText = $"HP {hpCurrent} / {hpMax}"; }
+        ShadowLabel(new Rect(40 * s, 60 * s, 600 * s, 34 * s), hpText, normal);
         if (walkman && (walkman.potions > 0 || !StoryState.RewindLocked) && !StoryState.CutsceneActive)
-            ShadowLabel(new Rect(40 * s, 96 * s, 600 * s, 30 * s), $"회복약 {walkman.potions}개   [1]", small); // 프롤로그 첫 회차(아직 모름)에는 숨긴다
+        {
+            if (walkman.potions != potionCount) { potionCount = walkman.potions; potionText = $"회복약 {potionCount}개   [1]"; }
+            ShadowLabel(new Rect(40 * s, 96 * s, 600 * s, 30 * s), potionText, small);
+        } // 프롤로그 첫 회차(아직 모름)에는 숨긴다
 
         // 목표 (우상단) + 웨이포인트
         if (gm && !gm.StageCleared)
         {
             var gate = gm.CurrentGate;
             // 이야기 목표가 있으면 그것이 우선이다(프롤로그처럼 관문이 없는 구간)
-            string objective = StoryState.Objective ?? (gate ? $"{gate.objective}  ({gate.ClearedCount}/{gate.requiredZones.Length})" : gm.finalObjective);
             bool fighting = gm.CurrentZone && !gm.CurrentZone.IsCleared;
-            if (fighting) objective += $"\n교전 중 · 남은 적 {gm.CurrentZone.Remaining}";
+            string objective = ObjectiveText(gm, gate, fighting);
             ShadowLabel(new Rect(Screen.width - 740 * s, 40 * s, 700 * s, 80 * s), objective, right);
 
             Vector3? waypoint = StoryState.Objective != null
@@ -87,6 +100,8 @@ public class HUD : MonoBehaviour
             ShadowLabel(new Rect(0, Screen.height * 0.62f, Screen.width, 34 * s), $"F: {TapeShop.Nearby.shopName}", normalCentre);
         else if (StoryState.Nearby && !player.IsDead && !menu)
             ShadowLabel(new Rect(0, Screen.height * 0.62f, Screen.width, 34 * s), $"F: {StoryState.Nearby.prompt}", normalCentre);
+        if (Takedown.Target && !player.IsDead && !menu)
+            ShadowLabel(new Rect(0, Screen.height * 0.58f, Screen.width, 34 * s), "Q: 몰래 제압", normalCentre);
 
         // 중앙 메시지
         bool rewindUi = walkman && (walkman.PromptOpen || walkman.Rewinding);
@@ -96,8 +111,9 @@ public class HUD : MonoBehaviour
         if (!menu)
         {
             // 아직 쓸 수 없는 조작은 안내에서 뺀다(프롤로그 첫 회차에는 공격·되감기를 모른다)
-            string help = "WASD 이동  마우스 시점"
-                          + (StoryState.CombatLocked ? "" : "  좌클릭 공격")
+            int helpIndex = (StoryState.CombatLocked ? 1 : 0) + (StoryState.RewindLocked ? 2 : 0);
+            string help = helpTexts[helpIndex] ??= "WASD 이동  마우스 시점"
+                          + (StoryState.CombatLocked ? "" : "  좌클릭 공격  Q 몰래 제압")
                           + "  우클릭 회피  Space 점프  Shift 달리기"
                           + (StoryState.RewindLocked ? "" : "  R 되감기  I 인벤토리  2 테이프 교체  1 회복약")
                           + "  F 상호작용";
@@ -165,9 +181,13 @@ public class HUD : MonoBehaviour
     void DrawSubtitle(float s, float y)
     {
         if (!StoryState.LineVisible) return;
-        string text = string.IsNullOrEmpty(StoryState.Speaker)
-            ? StoryState.Line
-            : $"<color=#E8C46A>{StoryState.Speaker}</color>   {StoryState.Line}";
+        if (!ReferenceEquals(subtitleSpeaker, StoryState.Speaker) || !ReferenceEquals(subtitleLine, StoryState.Line))
+        {
+            subtitleSpeaker = StoryState.Speaker;
+            subtitleLine = StoryState.Line;
+            subtitleText = string.IsNullOrEmpty(subtitleSpeaker) ? subtitleLine : $"<color=#E8C46A>{subtitleSpeaker}</color>   {subtitleLine}";
+        }
+        string text = subtitleText;
         normalCentre.richText = true;
         ShadowLabel(new Rect(80 * s, y, Screen.width - 160 * s, 60 * s), text, normalCentre);
     }
@@ -190,8 +210,8 @@ public class HUD : MonoBehaviour
         Fill(r, new Color(0.90f, 0.87f, 0.79f));
         Fill(new Rect(r.x + 40 * s, r.y + 104 * s, w - 80 * s, 2 * s), new Color(0.55f, 0.5f, 0.42f, 0.5f)); // 제목 아래 가는 선
         var ink = new Color(0.16f, 0.17f, 0.24f);
-        var head = new GUIStyle(normalBold) { fontSize = Mathf.RoundToInt(28 * s), alignment = TextAnchor.UpperCenter };
-        var text = new GUIStyle(normal) { fontSize = Mathf.RoundToInt(25 * s), wordWrap = true, richText = true };
+        var head = letterHead;
+        var text = letterText;
         head.normal.textColor = ink;
         text.normal.textColor = ink;
         GUI.Label(new Rect(r.x, r.y + 44 * s, w, 50 * s), StoryState.LetterHeading ?? "", head);
@@ -330,8 +350,9 @@ public class HUD : MonoBehaviour
             Bar(new Rect(mx - 2 * s, y - 8 * s, 4 * s, 22 * s), 1f, seconds >= mark - 0.01f ? Accent : Paper);
             ShadowLabel(new Rect(mx - 50 * s, y + 18 * s, 100 * s, 26 * s), $"-{mark:0}초", smallCentre);
         }
+        // 기록이 5초보다 짧으면 실제로 감기는 만큼만 적는다
         ShadowLabel(new Rect(0, y + 50 * s, Screen.width, 30 * s),
-            $"정지 지점: {walkman.NotchesSoFar * walkman.secondsPerCharge:0}초 전" + (StoryState.FreeRewind ? "" : $" (되감기 {walkman.NotchesSoFar}회 사용)"), smallCentre);
+            $"정지 지점: {Mathf.Min(walkman.NotchesSoFar * walkman.secondsPerCharge, walkman.MaxRewind):0}초 전" + (StoryState.FreeRewind ? "" : $" (되감기 {walkman.NotchesSoFar}회 사용)"), smallCentre);
     }
 
     void DrawTapeNoise(float s)
@@ -557,6 +578,26 @@ public class HUD : MonoBehaviour
         labelInk.alignment = TextAnchor.UpperLeft;
     }
 
+    /// <summary>오른쪽 위 목표 글씨(이야기 목표·관문 진행·교전 중). 바뀔 때만 새로 만든다</summary>
+    string ObjectiveText(GameManager gm, ZoneGate gate, bool fighting)
+    {
+        int cleared = StoryState.Objective == null && gate ? gate.ClearedCount : -1;
+        int remaining = fighting ? gm.CurrentZone.Remaining : -1;
+        if (objectiveValid && ReferenceEquals(objectiveStory, StoryState.Objective) && objectiveGate == gate && objectiveCleared == cleared
+            && objectiveFighting == fighting && objectiveRemaining == remaining && ReferenceEquals(objectiveFinal, gm.finalObjective))
+            return objectiveText;
+        objectiveValid = true;
+        objectiveStory = StoryState.Objective;
+        objectiveGate = gate;
+        objectiveCleared = cleared;
+        objectiveFighting = fighting;
+        objectiveRemaining = remaining;
+        objectiveFinal = gm.finalObjective;
+        string objective = StoryState.Objective ?? (gate ? $"{gate.objective}  ({cleared}/{gate.requiredZones.Length})" : gm.finalObjective);
+        if (fighting) objective += $"\n교전 중 · 남은 적 {remaining}";
+        return objectiveText = objective;
+    }
+
     void BuildStyles(float s)
     {
         if (Mathf.Approximately(s, styleScale)) return;
@@ -572,6 +613,8 @@ public class HUD : MonoBehaviour
         big = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(56 * s), alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = true };
         title = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(30 * s), fontStyle = FontStyle.Bold };
         labelInk = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, clipping = TextClipping.Clip };
+        letterHead = new GUIStyle(normalBold) { fontSize = Mathf.RoundToInt(28 * s), alignment = TextAnchor.UpperCenter };
+        letterText = new GUIStyle(normal) { fontSize = Mathf.RoundToInt(25 * s), wordWrap = true, richText = true };
     }
 
     static Color Tint(Color c, float alpha) => new(c.r, c.g, c.b, c.a * alpha);

@@ -35,7 +35,23 @@ public static class TimeRewind
 
     static readonly List<IRewindable> registered = new();
     static readonly List<WorldSnapshot> history = new();
+    static readonly Stack<WorldSnapshot> pool = new(); // 지난 스냅샷을 다시 써서 초당 20번의 할당을 없앤다
     static float sinceLastRecord;
+
+    /// <summary>되감기·기록 지우기마다 1씩 는다. 진행 중이던 동작이 "그 사이 시간이 바뀌었는지" 알아보는 데 쓴다</summary>
+    public static int Generation { get; private set; }
+
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void OnPlayStart()
+    {
+        // 도메인 다시 읽기를 끈 설정에서도 지난 플레이의 기록·되감기 중 표시가 남지 않게
+        registered.Clear();
+        history.Clear();
+        pool.Clear();
+        Clock = sinceLastRecord = 0f;
+        PlayingBack = false;
+        LastLanded = null;
+    }
 
     public static float Clock { get; private set; }
     public static bool PlayingBack { get; set; }
@@ -61,10 +77,16 @@ public static class TimeRewind
     public static void RecordNow()
     {
         sinceLastRecord = 0f;
-        var snapshot = new WorldSnapshot { Time = Clock, RealTime = UnityEngine.Time.realtimeSinceStartup };
+        var snapshot = pool.Count > 0 ? pool.Pop() : new WorldSnapshot();
+        snapshot.Time = Clock;
+        snapshot.RealTime = UnityEngine.Time.realtimeSinceStartup;
         foreach (var r in registered) snapshot.States[r] = r.CaptureState();
         history.Add(snapshot);
-        while (history.Count > 1 && Clock - history[0].Time > HistoryLength) history.RemoveAt(0);
+        int expired = 0;
+        while (expired < history.Count - 1 && Clock - history[expired].Time > HistoryLength) expired++;
+        if (expired == 0) return;
+        for (int i = 0; i < expired; i++) Recycle(history[i]);
+        history.RemoveRange(0, expired);
     }
 
     /// <summary><paramref name="time"/> 시점 또는 그 이전의 가장 최근 스냅샷. 기록이 그보다 짧으면 가장 오래된 스냅샷이다.</summary>
@@ -80,16 +102,30 @@ public static class TimeRewind
     public static void RewindTo(WorldSnapshot snapshot)
     {
         Apply(snapshot, false);
-        history.RemoveAll(h => h.Time > snapshot.Time);
+        while (history.Count > 0 && history[^1].Time > snapshot.Time)
+        {
+            Recycle(history[^1]);
+            history.RemoveAt(history.Count - 1);
+        }
         Clock = snapshot.Time;
+        Generation++;
         sinceLastRecord = 0f;
         LastLanded = snapshot;
     }
 
     public static void Clear()
     {
+        foreach (var h in history) Recycle(h);
         history.Clear();
         sinceLastRecord = 0f;
+        Generation++;
+    }
+
+    static void Recycle(WorldSnapshot snapshot)
+    {
+        if (snapshot == LastLanded) return; // 밖에서 아직 들여다볼 수 있다
+        snapshot.States.Clear();
+        pool.Push(snapshot);
     }
 
     static void Apply(WorldSnapshot snapshot, bool preview)

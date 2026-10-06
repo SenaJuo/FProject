@@ -18,7 +18,15 @@ public class ZoneGate : MonoBehaviour, IRewindable
     public string openMessage;
 
     public bool IsOpen => open;
-    public int ClearedCount => requiredZones.Count(z => z.IsCleared);
+    public int ClearedCount
+    {
+        get
+        {
+            int n = 0; // HUD가 매 프레임 부른다 — LINQ 할당 없이 센다
+            foreach (var z in requiredZones) if (z && z.IsCleared) n++;
+            return n;
+        }
+    }
     public bool RequirementsMet => ClearedCount == requiredZones.Length;
 
     Vector3 closedPosition;
@@ -45,6 +53,9 @@ public class ZoneGate : MonoBehaviour, IRewindable
 
     void Update()
     {
-        transform.position = Vector3.MoveTowards(transform.position, open ? OpenPosition : closedPosition, speed * Time.deltaTime);
+        // 다 움직였으면 건드리지 않는다(위치를 쓰면 물리가 정적 충돌체를 매번 다시 맞춘다)
+        Vector3 target = open ? OpenPosition : closedPosition;
+        if (transform.position == target) return;
+        transform.position = Vector3.MoveTowards(transform.position, target, speed * Time.deltaTime);
     }
 }

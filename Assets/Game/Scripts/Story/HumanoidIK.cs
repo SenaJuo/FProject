@@ -22,6 +22,15 @@ public class HumanoidIK : MonoBehaviour
     public Transform heldItem;
     public bool aim;
 
+    [Header("왼손으로 쥐기(방패)")]
+    [Tooltip("왼손이 붙잡을 자리(방패 손잡이). 위치와 방향을 그대로 따른다")]
+    public Transform leftGrip;
+    public bool holdLeft;
+    [Tooltip("왼손 회전을 leftGrip에 맞추는 정도(0이면 위치만 맞추고 손목은 동작 그대로)")]
+    [Range(0f, 1f)] public float leftRotationWeight = 0.8f;
+    [Tooltip("왼팔 팔꿈치가 향할 자리(방패를 들 때 팔꿈치를 바깥 아래로)")]
+    public Transform leftElbowHint;
+
     [Header("시선")]
     public Transform lookTarget;
     public bool look;
@@ -30,13 +39,14 @@ public class HumanoidIK : MonoBehaviour
     public float blendSpeed = 6f;
 
     Animator animator;
-    float carryWeight, aimWeight, lookWeight;
-    Transform rightHand;
+    float carryWeight, aimWeight, lookWeight, leftWeight;
+    Transform rightHand, rightLowerArm;
 
     void Awake()
     {
         animator = GetComponent<Animator>();
         rightHand = animator.GetBoneTransform(HumanBodyBones.RightHand);
+        rightLowerArm = animator.GetBoneTransform(HumanBodyBones.RightLowerArm);
     }
 
     void Update()
@@ -46,6 +56,7 @@ public class HumanoidIK : MonoBehaviour
         carryWeight = Mathf.Lerp(carryWeight, carry && carryPoint ? 1f : 0f, k);
         aimWeight = Mathf.Lerp(aimWeight, aim && aimTarget ? 1f : 0f, k);
         lookWeight = Mathf.Lerp(lookWeight, look && lookTarget ? 1f : 0f, k);
+        leftWeight = Mathf.Lerp(leftWeight, holdLeft && leftGrip ? 1f : 0f, k);
     }
 
     void OnAnimatorIK(int layerIndex)
@@ -56,6 +67,19 @@ public class HumanoidIK : MonoBehaviour
             // 손바닥이 상자 옆면을 향하도록: 왼손은 오른쪽(+x), 오른손은 왼쪽(-x)을 본다
             SetHand(AvatarIKGoal.LeftHand, carryPoint.position - side, Quaternion.LookRotation(carryPoint.forward, carryPoint.right), carryWeight);
             SetHand(AvatarIKGoal.RightHand, carryPoint.position + side, Quaternion.LookRotation(carryPoint.forward, -carryPoint.right), carryWeight);
+        }
+
+        if (leftGrip && leftWeight > 0.001f)
+        {
+            animator.SetIKPositionWeight(AvatarIKGoal.LeftHand, leftWeight);
+            animator.SetIKRotationWeight(AvatarIKGoal.LeftHand, leftWeight * leftRotationWeight);
+            animator.SetIKPosition(AvatarIKGoal.LeftHand, leftGrip.position);
+            animator.SetIKRotation(AvatarIKGoal.LeftHand, leftGrip.rotation);
+            if (leftElbowHint)
+            {
+                animator.SetIKHintPositionWeight(AvatarIKHint.LeftElbow, leftWeight);
+                animator.SetIKHintPosition(AvatarIKHint.LeftElbow, leftElbowHint.position);
+            }
         }
 
         if (aimTarget && aimWeight > 0.001f)
@@ -91,6 +115,13 @@ public class HumanoidIK : MonoBehaviour
         if (heldItem && rightHand)
         {
             heldItem.position = rightHand.position + rightHand.rotation * new Vector3(0f, -0.02f, 0.06f);
+            if (!animator.enabled && rightLowerArm)
+            {
+                // 쓰러져 물리로 넘어간 몸(래그돌): 쥔 물건을 팔뚝 방향으로 눕힌다(허공에 수평으로 떠 있지 않게)
+                Vector3 arm = rightHand.position - rightLowerArm.position;
+                if (arm.sqrMagnitude > 0.0001f) heldItem.rotation = Quaternion.LookRotation(arm, Vector3.up);
+                return;
+            }
             Vector3 forward = aimTarget && aimWeight > 0.5f ? aimTarget.position - heldItem.position : transform.forward;
             heldItem.rotation = Quaternion.LookRotation(forward, Vector3.up);
         }

@@ -29,6 +29,8 @@ public static class StoryState
     public static bool MenuOpen;
 
     public static bool InputLocked => CutsceneActive || ControlLocked || MenuOpen;
+    /// <summary>메뉴(설명 팝업·인벤토리·가게)가 게임을 멈춘 중</summary>
+    public static bool Paused => MenuOpen || Walkman.InventoryShown || TapeShop.Current;
 
     /// <summary>null이 아니면 화면 가운데에 편지를 크게 펼쳐 보여 준다(편지 뒷면 읽기)</summary>
     public static string LetterHeading, LetterText;
@@ -64,6 +66,12 @@ public static class StoryState
     }
 
     public static void ClearLine() => lineUntil = 0f;
+
+    /// <summary>떠 있는 자막을 그만큼 더 띄운다(메뉴로 멈춘 동안 사라지지 않게)</summary>
+    public static void HoldLine(float seconds)
+    {
+        if (LineVisible) lineUntil += seconds;
+    }
 
     public static void ResetAll()
     {

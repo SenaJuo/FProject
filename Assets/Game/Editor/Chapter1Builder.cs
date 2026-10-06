@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Unity.Cinemachine;
@@ -21,7 +21,7 @@ using P = PrologueBuilder;
 ///         남쪽은 공사 철망(z -8)으로 막고, 북쪽 z 112에서 (이어서 계속).
 /// 사람·트리거·경로점은 내비메시를 굽는 루트 밖에 둔다(트리거가 바닥으로 구워지지 않게).
 /// </summary>
-public static class Chapter1Builder
+public static partial class Chapter1Builder
 {
     const string ScenePath = "Assets/Game/Scenes/Chapter1.unity";
     const string NavMeshPath = "Assets/Game/Scenes/Chapter1_NavMesh.asset";
@@ -54,6 +54,14 @@ public static class Chapter1Builder
         public CombatZone exitZone;
         public EnemyAI exitGunner;
         public TapeShop shop;
+        // 구역 2(시장 광장)
+        public Transform zone2Start, checkpointCam, checkpointLook, gate, gateOpen, stairsFoot, roofTop, harborEnd;
+        public Transform[] vanPath;
+        public GameObject van;
+        public CombatZone checkpointZone, roofZone;
+        public StoryTrigger checkpointView, squareTrigger, harborTrigger;
+        public EnemyAI sniper;
+        public Bounds square;
     }
 
     public static void Build()
@@ -81,6 +89,7 @@ public static class Chapter1Builder
         var player = P.CreatePlayer(b.zoneStart, out _, out _, out var pocketWalkman, out _);
 
         BuildThugs(people, routes, triggers, b);
+        BuildMarketSquare(M, X, triggers, people, routes, b);
 
         // ---------- 카메라 ----------
         var mainCam = Object.FindAnyObjectByType<Camera>();
@@ -136,6 +145,24 @@ public static class Chapter1Builder
         d.shopSave = b.shopSave;
         d.northEnd = b.northEnd;
         d.endTrigger = b.endTrigger;
+        d.zone2Start = b.zone2Start;
+        d.checkpointView = b.checkpointView;
+        d.checkpointCam = b.checkpointCam;
+        d.checkpointLook = b.checkpointLook;
+        d.van = b.van;
+        d.vanPath = b.vanPath;
+        d.gate = b.gate;
+        d.gateOpen = b.gateOpen;
+        d.checkpointZone = b.checkpointZone;
+        d.squareTrigger = b.squareTrigger;
+        d.square = b.square;
+        d.sniper = b.sniper;
+        d.stairsFoot = b.stairsFoot;
+        d.roofTop = b.roofTop;
+        d.roofZone = b.roofZone;
+        d.harborTrigger = b.harborTrigger;
+        d.harborEnd = b.harborEnd;
+        d.dynamicB = P.VCam(cams, "Shot_Dynamic_B", Vector3.zero, Vector3.forward, 40f);
 
         P.SetupEnvironment(VolumePath);
         // 1장은 숨어 다니는 구간이 넓다: 프롤로그보다 주변광을 조금 올려 어둠 속 길과 생울타리 윤곽이 보이게 한다
@@ -677,15 +704,14 @@ public static class Chapter1Builder
         P.Building(g, "Block_W0", new Vector3(147.5f, 8f, 98f), new Vector3(15f, 16f, 24f), M["FacadeB"], M["BuildingBack"], Vector3.right);
         P.Building(g, "Block_W1", new Vector3(147.5f, 10f, 136f), new Vector3(15f, 20f, 48f), M["FacadeC"], M["BuildingBack"], Vector3.right);
         P.Building(g, "Block_W2", new Vector3(147.5f, 7f, -34f), new Vector3(15f, 14f, 12f), M["FacadeA"], M["BuildingBack"], Vector3.right);
-        // 북쪽 끝: 길 끝을 막는 건물(시야를 닫는다)
-        P.Building(g, "Block_North", new Vector3(AveX, 11f, z1 + 7f), new Vector3(AveE - AveW + 6f, 22f, 12f), M["FacadeA"], M["BuildingBack"], Vector3.back);
+        // 북쪽 끝은 시장 광장(구역 2)으로 이어진다(BuildMarketSquare)
         // 남쪽: 도로 공사로 막혀 있다
         P.Fence(g, new Vector3(AveW, 0f, -8f), new Vector3(AveE, 0f, -8f), 2.6f, M);
         foreach (float x in new[] { 159.5f, 162.6f, 165.7f, 168.8f }) P.Prop("ConstructionBarrier", g, new Vector3(x, 0f, -6.6f), 0f);
         P.AddLight(g, "WorkLight_Ave", new Vector3(AveX, 2.4f, -7f), LightType.Point, new Color(1f, 0.6f, 0.25f), 3f, 9f);
 
-        b.northEnd = P.Marker(triggers, "NorthEnd", new Vector3(AveX, 1.4f, 112f), 0f);
-        b.endTrigger = Trigger(triggers, "EndTrigger", new Vector3(AveX - 1.5f, 1.5f, 112f), new Vector3(AveE - AveW + 2f, 3f, 4f));
+        b.northEnd = P.Marker(triggers, "NorthEnd", new Vector3(AveX, 1.4f, 128f), 0f);
+        b.endTrigger = Trigger(triggers, "EndTrigger", new Vector3(AveX - 1.5f, 1.5f, 128f), new Vector3(AveE - AveW + 2f, 3f, 4f)); // 검문소가 보이는 자리(구역 2 시작)
     }
 
     static void AveLamp(Transform parent, Vector3 pos, float yaw, Dictionary<string, Material> M) => ParkLamp(parent, pos, yaw, M);
@@ -865,9 +891,11 @@ public static class Chapter1Builder
         Patrol(people, routes, "Thug_Pavilion", new Vector3(78f, G, 52f), 0f,
             new Vector3(78f, G, 52f), new Vector3(78f, G, 68f), new Vector3(90f, G, 68f), new Vector3(90f, G, 52f));
 
-        // 공원 출구를 지키는 세 명(피할 수 없는 싸움)
-        var e1 = Fighter(people, "Thug_Exit_A", new Vector3(142.8f, G, 57.6f), -90f, false);
-        var e2 = Fighter(people, "Thug_Exit_B", new Vector3(143.0f, G, 62.8f), -100f, false);
+        // 공원 출구를 지키는 세 명: 둘은 출구 앞을 손전등으로 짧게 오가며 지키고(등 뒤로 몰래 제압할 틈이 생긴다), 총잡이는 출구 옆에서 망을 본다
+        var e1 = Patrol(people, routes, "Thug_Exit_A", new Vector3(142.8f, G, 56.6f), -90f,
+            new Vector3(142.8f, G, 56.6f), new Vector3(137.2f, G, 55.4f)).GetComponent<EnemyAI>();
+        var e2 = Patrol(people, routes, "Thug_Exit_B", new Vector3(143.0f, G, 63.6f), -100f,
+            new Vector3(143.0f, G, 63.6f), new Vector3(137.4f, G, 65.0f)).GetComponent<EnemyAI>();
         var gun = Fighter(people, "Thug_Exit_Gunner", new Vector3(147.8f, G, 64.6f), -120f, true);
         b.exitGunner = gun;
         var zoneGo = new GameObject("ExitZone");
@@ -909,9 +937,13 @@ public static class Chapter1Builder
         return ai;
     }
 
-    static PatrolSight Patrol(Transform parent, Transform routes, string name, Vector3 pos, float yaw, params Vector3[] route)
+    static PatrolSight Patrol(Transform parent, Transform routes, string name, Vector3 pos, float yaw, params Vector3[] route) =>
+        PatrolAs("Enforcer", parent, routes, name, pos, yaw, route);
+
+    /// <summary>손전등 순찰. character = 바로크 캐릭터 폴더 이름(조직원 Enforcer, 진압 경찰 RiotCop)</summary>
+    static PatrolSight PatrolAs(string character, Transform parent, Transform routes, string name, Vector3 pos, float yaw, Vector3[] route)
     {
-        var ai = P.CreateThug(parent, name, pos, yaw);
+        var ai = P.CreateThug(parent, name, pos, yaw, character);
         SetCombat(ai, false);
         var ik = ai.aimIK;
         // 총 대신 손전등을 든다

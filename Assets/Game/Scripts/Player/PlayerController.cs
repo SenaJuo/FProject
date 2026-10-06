@@ -62,11 +62,15 @@ public class PlayerController : MonoBehaviour, IRewindable
         new AttackStep { duration = 0.6f, hitTime = 0.26f, damageMultiplier = 2f, lunge = 1.2f, radius = 1.6f, hitStop = 0.09f, swingFrom = new Vector3(-80f, 0f, 0f), swingTo = new Vector3(40f, 0f, 0f) },
     };
 
-    enum State { Move, Attack, Dodge, Hurt, Dead }
+    enum State { Move, Attack, Dodge, Hurt, Dead, Busy }
 
     public bool IsDead => state == State.Dead;
     /// <summary>공격 동작 중(손가락 쥐기 등에서 쓴다)</summary>
     public bool IsAttacking => state == State.Attack;
+    /// <summary>서서 아무것도 안 하는 중(몰래 제압 같은 특수 동작을 시작할 수 있다)</summary>
+    public bool CanAct => state == State.Move && controller && controller.isGrounded;
+    /// <summary>특수 동작(BeginBusy) 중</summary>
+    public bool IsBusy => state == State.Busy;
 
     State state;
     CharacterController controller;
@@ -77,7 +81,7 @@ public class PlayerController : MonoBehaviour, IRewindable
     InputAction moveAction, jumpAction, sprintAction, attackAction, dodgeAction;
     float verticalVelocity, stateTimer, dodgeReadyTime;
     int comboIndex;
-    float lungeDistance;
+    float lungeDistance, busyDuration;
     Transform lungeTarget;
     bool attackQueued, hitDone;
     Vector3 dodgeDirection, hurtPush;
@@ -112,6 +116,7 @@ public class PlayerController : MonoBehaviour, IRewindable
         health.Damaged += OnDamaged;
         health.Died += OnDied;
         TimeRewind.Register(this);
+        if (!GetComponent<Takedown>()) gameObject.AddComponent<Takedown>(); // Q 몰래 제압(모든 장면 공통)
     }
 
     void OnDestroy() => TimeRewind.Unregister(this);
@@ -143,6 +148,7 @@ public class PlayerController : MonoBehaviour, IRewindable
             State.Attack => UpdateAttack(input, dt),
             State.Dodge => UpdateDodge(dt),
             State.Hurt => UpdateHurt(dt),
+            State.Busy => UpdateBusy(dt),
             _ => Vector3.zero,
         };
 
@@ -274,12 +280,15 @@ public class PlayerController : MonoBehaviour, IRewindable
     {
         AttackStep step = combo[comboIndex];
         stateTimer += dt;
-        if (attackAction.WasPressedThisFrame()) attackQueued = true;
+        // 컷신이 시작되면 이어 치기를 멈춘다(누르고 있던 콤보가 컷신 속으로 이어지지 않게)
+        bool attackLocked = StoryState.InputLocked || StoryState.CombatLocked;
+        if (attackLocked) attackQueued = false;
+        else if (attackAction.WasPressedThisFrame()) attackQueued = true;
 
         // 타격이 들어간 뒤에는 회피로 휘두르기를 끊을 수 있고, 미리 눌러 둔 입력이 다음 단계로 이어진다.
         if (hitDone)
         {
-            if (dodgeAction.WasPressedThisFrame() && Time.time >= dodgeReadyTime) { BeginDodge(input); return Vector3.zero; }
+            if (!attackLocked && dodgeAction.WasPressedThisFrame() && Time.time >= dodgeReadyTime) { BeginDodge(input); return Vector3.zero; }
             if (attackQueued && comboIndex < combo.Length - 1 && stateTimer >= step.hitTime + 0.1f) { BeginAttack(comboIndex + 1, input); return Vector3.zero; }
         }
 
@@ -400,6 +409,25 @@ public class PlayerController : MonoBehaviour, IRewindable
         state = State.Move;
         health.Invulnerable = false;
         if (tint) tint.SetTint(dodgeTint, 0f);
+    }
+
+    // ---------- 특수 동작(몰래 제압 등) ----------
+
+    /// <summary>seconds 동안 제자리에서 clip 동작을 한다(이동·공격 입력을 받지 않는다)</summary>
+    public void BeginBusy(float seconds, string clip)
+    {
+        state = State.Busy;
+        stateTimer = 0f;
+        busyDuration = seconds;
+        attackQueued = false;
+        if (animator && !string.IsNullOrEmpty(clip)) animator.CrossFadeInFixedTime(clip, 0.06f);
+    }
+
+    Vector3 UpdateBusy(float dt)
+    {
+        stateTimer += dt;
+        if (stateTimer >= busyDuration) state = State.Move;
+        return Vector3.zero;
     }
 
     // ---------- 피해 / 사망 ----------

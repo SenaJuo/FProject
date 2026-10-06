@@ -121,6 +121,15 @@
                     "processors": "",
                     "interactions": "",
                     "initialStateCheck": false
+                },
+                {
+                    "name": "Takedown",
+                    "type": "Button",
+                    "id": "5739e949-e40d-4023-9722-509bf4c68e01",
+                    "expectedControlType": "Button",
+                    "processors": "",
+                    "interactions": "",
+                    "initialStateCheck": false
                 }
             ],
             "bindings": [
@@ -583,6 +592,28 @@
                     "processors": "",
                     "groups": "Gamepad",
                     "action": "Heal",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "59eca9cf-506a-456e-b20f-2fae4dfeafdb",
+                    "path": "<Keyboard>/q",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Keyboard&Mouse",
+                    "action": "Takedown",
+                    "isComposite": false,
+                    "isPartOfComposite": false
+                },
+                {
+                    "name": "",
+                    "id": "b18646e0-4f9c-46bb-82e0-2a91f2165cea",
+                    "path": "<Gamepad>/rightStickPress",
+                    "interactions": "",
+                    "processors": "",
+                    "groups": "Gamepad",
+                    "action": "Takedown",
                     "isComposite": false,
                     "isPartOfComposite": false
                 }

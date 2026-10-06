@@ -24,6 +24,8 @@ public class FingerPose : MonoBehaviour
     public Joint[] joints;
     [Tooltip("공격이 끝난 뒤에도 주먹을 유지하는 시간(초) — 연타 사이에 손이 펴지지 않게")]
     public float holdFist = 1.2f;
+    [Tooltip("늘 주먹을 쥔다(방패 손잡이를 쥔 경찰 등)")]
+    public bool alwaysFist;
 
     PlayerController player;
     EnemyAI enemy;
@@ -40,7 +42,7 @@ public class FingerPose : MonoBehaviour
     {
         if (joints == null) return;
         bool fighting = player ? player.IsAttacking : enemy && enemy.IsActive && !enemy.Health.IsDead;
-        if (fighting) fistUntil = Time.time + holdFist;
+        if (fighting || alwaysFist) fistUntil = Time.time + holdFist;
         float target = Time.time < fistUntil ? 1f : 0f;
         grip = Mathf.MoveTowards(grip, target, Time.unscaledDeltaTime * 8f);
         foreach (var j in joints)

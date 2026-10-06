@@ -17,14 +17,25 @@ public class StoryInteractable : MonoBehaviour
 
     InputAction interact;
     PlayerController inside;
+    Collider own, insideCollider;
+    Walkman insideWalkman;
 
-    void Awake() => GetComponent<Collider>().isTrigger = true;
+    void Awake()
+    {
+        own = GetComponent<Collider>();
+        own.isTrigger = true;
+    }
 
     void Start() => interact = InputSystem.actions.FindAction("Player/Interact", true);
 
     void OnTriggerEnter(Collider other)
     {
-        if (other.TryGetComponent(out PlayerController player)) inside = player;
+        if (other.TryGetComponent(out PlayerController player))
+        {
+            inside = player;
+            insideCollider = other;
+            insideWalkman = player.GetComponent<Walkman>();
+        }
     }
 
     void OnTriggerExit(Collider other)
@@ -41,10 +52,11 @@ public class StoryInteractable : MonoBehaviour
     void Update()
     {
         // 순간 이동(문 전환·되감기)으로 범위를 벗어나면 OnTriggerExit가 오지 않는다 → 안내가 남지 않게 직접 확인한다
-        if (inside && !GetComponent<Collider>().bounds.Intersects(inside.GetComponent<Collider>().bounds)) inside = null;
+        if (inside && (!insideCollider || !own.bounds.Intersects(insideCollider.bounds))) inside = null;
 
+        var w = insideWalkman;
         bool usable = inside && !inside.IsDead && !StoryState.InputLocked && !TapeShop.Current
-                      && !(inside.TryGetComponent(out Walkman w) && (w.InventoryOpen || w.Rewinding || w.PromptOpen));
+                      && !(w && (w.InventoryOpen || w.Rewinding || w.PromptOpen));
         if (usable) StoryState.Nearby = this;
         else if (StoryState.Nearby == this) StoryState.Nearby = null;
 

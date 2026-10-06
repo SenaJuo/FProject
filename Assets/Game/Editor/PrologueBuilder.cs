@@ -540,7 +540,7 @@ public static class PrologueBuilder
         return player;
     }
 
-    internal static EnemyAI CreateThug(Transform parent, string name, Vector3 position, float yaw)
+    internal static EnemyAI CreateThug(Transform parent, string name, Vector3 position, float yaw, string character = "Enforcer")
     {
         var go = new GameObject(name);
         go.transform.SetParent(parent);
@@ -565,7 +565,7 @@ public static class PrologueBuilder
         ai.damage = 0; // 1회차 추격에서는 붙잡기만 한다(총은 붙잡은 뒤 컷신에서)
         ai.attackRange = 1.4f;
 
-        var model = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(BaroqueCharacterSetup.CharacterRoot + "/Enforcer/Enforcer_Model.prefab"), go.transform);
+        var model = (GameObject)PrefabUtility.InstantiatePrefab(AssetDatabase.LoadAssetAtPath<GameObject>(BaroqueCharacterSetup.CharacterRoot + $"/{character}/{character}_Model.prefab"), go.transform);
         model.name = "Model";
         model.transform.localPosition = Vector3.zero;
         model.transform.localRotation = Quaternion.identity;

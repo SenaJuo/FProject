@@ -17,6 +17,10 @@ public class Health : MonoBehaviour, IRewindable
 
     /// <summary>피해량과 피해가 가해진 월드 위치.</summary>
     public event Action<int, Vector3> Damaged;
+    /// <summary>막았다(방패 등): 피해량과 위치. 피해는 들어가지 않았다</summary>
+    public event Action<int, Vector3> Blocked;
+    /// <summary>있으면 맞기 직전에 묻는다: true를 돌려주면 막은 것(피해 없음)</summary>
+    public Func<int, Vector3, bool> Blocks;
     public event Action Died;
 
     float invulnerableUntil;
@@ -43,6 +47,7 @@ public class Health : MonoBehaviour, IRewindable
     public bool TakeDamage(int amount, Vector3 source)
     {
         if (IsDead || Invulnerable || Time.time < invulnerableUntil || amount <= 0) return false;
+        if (Blocks != null && Blocks(amount, source)) { Blocked?.Invoke(amount, source); return false; }
 
         Current = Mathf.Max(0, Current - amount);
         invulnerableUntil = Time.time + invulnerableAfterHit;

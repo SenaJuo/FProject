@@ -486,12 +486,22 @@ public class PrologueDirector : MonoBehaviour
         StoryState.Waypoint = null;
 
         // 다가가거나 먼저 때리면 알아챈다
-        yield return new WaitUntil(() => roomThugs.Any(t => t.IsActive)
-                                         || roomThugs.Any(t => FlatDistance(t.transform.position, player.transform.position) < 4.5f));
+        // (매 프레임 부르는 조건이라 LINQ 대신 직접 센다)
+        bool Noticed()
+        {
+            foreach (var t in roomThugs) if (t.IsActive || FlatDistance(t.transform.position, player.transform.position) < 4.5f) return true;
+            return false;
+        }
+        bool AllDown()
+        {
+            foreach (var t in roomThugs) if (!t.Health.IsDead) return false;
+            return true;
+        }
+        yield return new WaitUntil(Noticed);
         StoryState.Say(Thug, "뭐야, 너 어떻게…!", 2f);
         foreach (var t in roomThugs) t.Activate();
 
-        yield return new WaitUntil(() => roomThugs.All(t => t.Health.IsDead));
+        yield return new WaitUntil(AllDown);
         yield return new WaitForSeconds(1f);
         StoryState.Say(Ray, "하아… 하아…", 2f);
         yield return Wait(2f);
@@ -703,13 +713,16 @@ public class PrologueDirector : MonoBehaviour
         Place(cam, best, focus, 52f);
     }
 
+    static readonly RaycastHit[] castHits = new RaycastHit[32]; // 떨어지는 워크맨을 따라가는 동안 매 프레임 쓴다
+
     /// <summary>두 점 사이를 벽·문·가구가 막는지(사람 몸은 가림으로 치지 않는다)</summary>
     static bool ClearLine(Vector3 from, Vector3 to)
     {
         Vector3 d = to - from;
         float length = d.magnitude;
-        foreach (var hit in Physics.RaycastAll(from, d / length, length, ~0, QueryTriggerInteraction.Ignore))
-            if (!hit.rigidbody && !hit.collider.GetComponentInParent<Health>()) return false;
+        int n = Physics.RaycastNonAlloc(from, d / length, castHits, length, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < n; i++)
+            if (!castHits[i].rigidbody && !castHits[i].collider.GetComponentInParent<Health>()) return false;
         return true;
     }
 
@@ -720,8 +733,10 @@ public class PrologueDirector : MonoBehaviour
         if (wanted > 0.01f)
         {
             float allowed = wanted;
-            foreach (var hit in Physics.SphereCastAll(lookAt, 0.12f, dir / wanted, wanted, ~0, QueryTriggerInteraction.Ignore))
+            int n = Physics.SphereCastNonAlloc(lookAt, 0.12f, dir / wanted, castHits, wanted, ~0, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
             {
+                var hit = castHits[i];
                 if (hit.distance <= 0f || hit.rigidbody || hit.collider.GetComponentInParent<Health>()) continue;
                 allowed = Mathf.Min(allowed, hit.distance - 0.1f);
             }
@@ -847,7 +862,12 @@ public class PrologueDirector : MonoBehaviour
     static IEnumerator Wait(float seconds)
     {
         float until = Time.unscaledTime + seconds;
-        while (Time.unscaledTime < until && !StoryState.SkipRequested) yield return null;
+        while (Time.unscaledTime < until && !StoryState.SkipRequested)
+        {
+            // 메뉴(설명 팝업·인벤토리·가게)를 연 동안은 대사도 멈춘다 — 엿듣던 통화가 멈춘 화면 뒤에서 흘러가 버리지 않게
+            if (StoryState.Paused) { until += Time.unscaledDeltaTime; StoryState.HoldLine(Time.unscaledDeltaTime); }
+            yield return null;
+        }
     }
     static Vector3 Flat(Vector3 v) => new(v.x, 0f, v.z);
     static float FlatDistance(Vector3 a, Vector3 b) => Flat(a - b).magnitude;

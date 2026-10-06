@@ -16,19 +16,23 @@
    사용 조건: VARCO Sound 이용약관을 따른다 — 상업 출시 전 약관의 생성물 이용 범위를 다시 확인할 것
    추가(2026-10-06): Resources/Sfx/World/*.wav (빗소리 반복, 총성, 문 열림, 쓰러짐, 워크맨 떨어짐, 버튼, 되감기 반복, 정지음, 차 문)
    — 코드로 합성하던 세상 효과음을 대신한다. 종류마다 후보 3개 중 스펙트로그램·파형을 보고 골랐다
+   추가(2026-10-06, 1장 구역 2): Resources/Sfx/World/ShieldBlock.wav(방패 막기), SniperShot.wav(저격 총성), VanPass.wav(승합차 지나감)
 
 4. VARCO Sound (NC AI) — AI 음악 생성 (2026-10-02 생성)
    파일: Resources/Music/*.mp3 (가게 테이프 3개 × 3곡: late_radio, rain_jazz, citypop_1), Resources/Sfx/Hit/potion-*.wav (회복약)
    출처: https://sound.varco.ai 음악 모드로 사용자 계정에서 생성(곡마다 후보 2곡 중 박자·크기를 재서 골랐다)
    사용 조건: VARCO Sound 이용약관을 따른다 — 상업 출시 전 생성물 이용 범위를 다시 확인할 것
 
-5. VARCO 3D (NC AI, "바로크") — AI 3D 생성 (2026-09-30 ~ 10-02 생성)
-   소품 33개: Art/Baroque/Props/*.glb
+5. VARCO 3D (NC AI, "바로크") — AI 3D 생성 (2026-09-30 ~ 10-06 생성)
+   소품 48개: Art/Baroque/Props/*.glb
      집·거리(9/30~10/1): AcUnit, Bed, BusStop, CassetteShelf, CassetteTape, CctvCamera, ConstructionBarrier, CrtTv, Desk, Dumpster,
        EScooter, FireHydrant, Hedge, Mailbox, OpenedParcel, ParcelBox, ParcelLocker, PedestrianLight, Pistol, RecyclingBins,
        Sedan, Sofa, StreetLampLed, StreetTree, TrashPile, VendingMachine, Walkman
      레코드 가게·공원(10/2): RecordCrate, Turntable, CashRegister, ParkBin, Flashlight, MedKit
-   캐릭터 3명: Art/Baroque/Characters/Protagonist(레이), Friend(대니), Enforcer(조직원)
+     검문소·야시장(10/6, 1장 구역 2): PoliceCar, BlackVan, BoxTruck, FoodCart, RiotShield, SniperRifle, TrafficCone,
+       PoliceBarricade, HandCart, GasCylinders, StoolStack, FloodLight, PalletBoxes, WaterDrums, CrateStack
+       — 종류마다 그림 후보 8장 → 3D 후보 여러 개를 만들어 네 방향·장면 조명에서 비교해 골랐다(Editor/PropCandidateQA.cs)
+   캐릭터 4명: Art/Baroque/Characters/Protagonist(레이), Friend(대니), Enforcer(조직원), RiotCop(진압 경찰, 10/6)
      — 리깅된 FBX와 GLB에서 뽑은 텍스처를 URP 머티리얼로 다시 묶었다(Editor/BaroqueCharacterSetup.cs)
    출처: https://3d.varco.ai 작업 흐름(그림 생성 → 3D 생성)으로 사용자 계정에서 생성
    사용 조건: VARCO 3D 이용약관을 따른다 — 상업 출시 전 생성물 이용 범위를 다시 확인할 것

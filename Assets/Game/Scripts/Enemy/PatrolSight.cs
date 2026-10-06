@@ -28,6 +28,8 @@ public class PatrolSight : MonoBehaviour, IRewindable
     public float viewAngle = 36f;
     [Tooltip("이 거리 안이면 방향과 상관없이 알아챈다(바로 뒤에 붙으면 들킨다)")]
     public float nearSense = 1.6f;
+    [Tooltip("등 뒤(뒤쪽 반)에서는 이 거리 안이라야 알아챈다 — 몰래 다가가 제압할 틈")]
+    public float backSense = 0.6f;
     [Tooltip("소리치면 이 거리 안의 다른 순찰도 함께 몰려온다")]
     public float alertRadius = 16f;
     public string spottedLine = "저기다!";
@@ -53,10 +55,16 @@ public class PatrolSight : MonoBehaviour, IRewindable
     NavMeshAgent agent;
     HumanoidIK ik;
     Transform player, playerHead, playerChest;
+    PlayerController playerController;
+    static readonly RaycastHit[] rayHits = new RaycastHit[32]; // 매 프레임 배열을 새로 만들지 않는다
     int index;
     float pauseTimer;
     float chaseSpeed, chaseStop;
     float lookPhase;
+    bool silenced;
+
+    /// <summary>몰래 제압: 이번에 맞아도 소리치거나 알아채지 않는다</summary>
+    public void Silence() => silenced = true;
 
     void Awake()
     {
@@ -77,11 +85,12 @@ public class PatrolSight : MonoBehaviour, IRewindable
         if (gm && gm.player)
         {
             player = gm.player.transform;
+            playerController = gm.player;
             var anim = gm.player.animator;
             playerHead = anim && anim.isHuman ? anim.GetBoneTransform(HumanBodyBones.Head) : player;
             playerChest = anim && anim.isHuman ? anim.GetBoneTransform(HumanBodyBones.Chest) : player;
         }
-        Enemy.Health.Damaged += (_, _) => { if (!Alerted) Alert(false); }; // 맞으면 당연히 알아챈다
+        Enemy.Health.Damaged += (_, _) => { if (!Alerted && !silenced) Alert(false); }; // 맞으면 당연히 알아챈다(몰래 제압은 예외)
         GameManager.PlayerRespawned += ResetPatrol;
         BeginPatrol();
     }
@@ -101,6 +110,7 @@ public class PatrolSight : MonoBehaviour, IRewindable
     {
         if (preview) return; // 역재생 중의 몸 위치는 EnemyAI가 보여 준다
         var s = (Snapshot)state;
+        silenced = false;
         index = s.index;
         pauseTimer = s.pause;
         Suspicion = s.suspicion;
@@ -209,12 +219,14 @@ public class PatrolSight : MonoBehaviour, IRewindable
     {
         distance = float.MaxValue;
         if (!player || !playerHead) return false;
-        if (player.TryGetComponent(out PlayerController pc) && pc.IsDead) return false;
+        if (playerController && playerController.IsDead) return false;
         Vector3 eye = transform.position + Vector3.up * 1.6f;
         Vector3 flat = player.position - transform.position; flat.y = 0f;
         distance = flat.magnitude;
         if (distance > viewDistance) return false;
-        if (distance > nearSense && Vector3.Angle(transform.forward, flat) > viewAngle) return false;
+        float angle = Vector3.Angle(transform.forward, flat);
+        float near = angle > 100f ? backSense : nearSense; // 등 뒤에서는 바짝 붙어야 기척을 느낀다
+        if (distance > near && angle > viewAngle) return false;
         // 머리나 가슴 둘 중 하나라도 가리는 것 없이 보이면 보인 것이다
         return Clear(eye, playerHead.position) || Clear(eye, playerChest.position);
     }
@@ -223,9 +235,11 @@ public class PatrolSight : MonoBehaviour, IRewindable
     {
         Vector3 d = to - from;
         float length = d.magnitude;
-        foreach (var hit in Physics.RaycastAll(from, d / length, length, ~0, QueryTriggerInteraction.Ignore))
+        int n = Physics.RaycastNonAlloc(from, d / length, rayHits, length, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < n; i++)
         {
-            if (hit.collider.transform.IsChildOf(transform) || hit.collider.GetComponentInParent<PlayerController>()) continue;
+            var hit = rayHits[i];
+            if (hit.collider.transform.IsChildOf(transform) || hit.collider.transform.IsChildOf(player)) continue;
             if (hit.rigidbody) continue; // 쓰러진 몸(래그돌)은 가리지 않는다
             if (hit.collider.GetComponentInParent<EnemyAI>()) continue; // 다른 조직원 몸은 가림으로 치지 않는다
             return false;

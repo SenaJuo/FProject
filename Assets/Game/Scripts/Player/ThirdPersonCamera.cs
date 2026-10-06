@@ -58,6 +58,8 @@ public class ThirdPersonCamera : MonoBehaviour
         Cursor.visible = false;
     }
 
+    static readonly RaycastHit[] castHits = new RaycastHit[32]; // 매 프레임 배열을 새로 만들지 않는다
+
     void LateUpdate()
     {
         if (target == null) return;
@@ -77,8 +79,10 @@ public class ThirdPersonCamera : MonoBehaviour
         // 레벨 지오메트리에 막힐 때만 당겨진다. 지나가는 캐릭터 때문에 카메라가 줌되면 안 된다.
         float maxDistance = StoryState.CameraDistance > 0f ? StoryState.CameraDistance : distance; // 좁은 실내에서는 가깝게
         float wanted = maxDistance;
-        foreach (var hit in Physics.SphereCastAll(pivot, collisionRadius, back, maxDistance, ~0, QueryTriggerInteraction.Ignore))
+        int count = Physics.SphereCastNonAlloc(pivot, collisionRadius, back, castHits, maxDistance, ~0, QueryTriggerInteraction.Ignore);
+        for (int i = 0; i < count; i++)
         {
+            var hit = castHits[i];
             if (hit.distance > 0f && hit.distance < wanted && hit.collider.GetComponentInParent<Health>() == null)
                 wanted = hit.distance;
         }

@@ -1,10 +1,10 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// 1장 구역 1 시험(플레이 중인 Chapter1 장면에서 시작). 실제 키 대신 순간 이동과 되감기 함수로 진행하며 단계마다 기록·사진을 남긴다.
+/// 1장 구역 1·2 시험(플레이 중인 Chapter1 장면에서 시작). 실제 키 대신 순간 이동과 되감기 함수로 진행하며 단계마다 기록·사진을 남긴다.
 ///  1) 시작 상태: 믹스테이프(재생 불가, 1회), 구역 시작점 저장, 제목
 ///  2) 입구 통로에서 손전등에 걸림 → 시간이 붙잡히고(R 안내) → 되감기 → 5초 전 자리, 조직원은 건물 뒤에서 순찰 시작, 믹스테이프는 다 쓴 테이프
 ///  3) 생울타리 뒤에 숨으면 순찰에게 보이지 않는다 / 앞에 서면 의심이 차서 들킨다
@@ -13,7 +13,10 @@ using UnityEngine;
 ///  6) 출구 싸움(저장 지점은 그대로) → 큰길 목표
 ///  7) 가게: 다가가면 저장 · 교환(다 쓴 믹스테이프 → 재생용) · 주인 대사 · 설명
 ///  8) 되감을 횟수 없이 쓰러지면 가게에서 다시 시작, 순찰은 처음 상태
-///  9) 큰길 끝 → (이어서 계속)
+///  9) 큰길 북쪽 끝 → 검문소 컷신(검은 승합차가 통과) → 구역 2 시작점 저장
+/// 10) 방패 경찰: 정면 가벼운 주먹은 막힘, 돌려차기(20)는 방패를 쳐냄, 옆에서는 맞음
+/// 11) 광장 진입 → 저격수 소개(느린 화면) → 트인 곳에서 조준선·피격, 트럭 뒤에서는 맞지 않음
+/// 12) 옥상: 경비 싸움 → 저격수 제압 → 심문 → 항구 길 → (이어서 계속)
 /// </summary>
 public static class Chapter1Test
 {
@@ -28,6 +31,9 @@ public static class Chapter1Test
     static Transform[] lawnRoute;
     static Vector3 beforeSpot;
     static string lastLine;
+    static EnemyAI cop;
+    static int hpBefore;
+    static bool laserShot;
 
     public static void Begin(string logPath, string shotDir)
     {
@@ -224,9 +230,131 @@ public static class Chapter1Test
                 Tp(new Vector3(164f, 0.15f, 108f), 0f); Next();
                 break;
             case 31:
-                Tp(new Vector3(164f, 0.15f, 112f), 0f); Note("큰길 끝으로"); Next();
+                Tp(new Vector3(164f, 0.15f, 124f), 0f); Next();
                 break;
             case 32:
+                if (Waited(0.4f)) { Tp(new Vector3(164f, 0.15f, 128f), 0f); Note("큰길 북쪽 끝(검문소가 보이는 자리)"); Next(); }
+                break;
+            case 33:
+                if (d.CurrentPhase == Chapter1Director.Phase.CheckpointScene && Waited(3.2f)) { Note($"검문소 컷신: 레이 위치 {p.position}, 승합차 {(d.van ? d.van.activeSelf + " " + d.van.transform.position : "없음")}"); Shot("checkpoint_cut"); Next(); }
+                else if (Waited(8f)) End("검문소 컷신이 시작되지 않음");
+                break;
+            case 34:
+                if ((bool)typeof(Chapter1Director).GetField("vanStopped", Any).GetValue(d) && Waited(1.2f)) { Note($"승합차 검문소 앞 정지 {d.van.transform.position}, 문 {d.gate.position}"); Shot("van_stop"); Next(); }
+                else if (Waited(14f)) End("승합차가 검문소에 서지 않음");
+                break;
+            case 35:
+                if (d.CurrentPhase == Chapter1Director.Phase.Checkpoint && Waited(0.5f))
+                {
+                    Note($"컷신 끝: 저장 지점 {Checkpoint()} (구역 2 시작 {d.zone2Start.position}), 목표 '{StoryState.Objective}', 문 제자리 {Vector3.Distance(d.gate.position, (Vector3)typeof(Chapter1Director).GetField("gateClosedPos", Any).GetValue(d)) < 0.05f}, 컷신 {StoryState.CutsceneActive}");
+                    Next();
+                }
+                else if (Waited(25f)) End("검문소 컷신 뒤 조작으로 돌아오지 않음");
+                break;
+            case 36:
+                // 방패 경찰: 정면에서 주먹 → 막힘
+                cop = GameObject.Find("Cop_Shield_A").GetComponent<EnemyAI>();
+                Tp(cop.transform.position + cop.transform.forward * 1.4f, 0f);
+                hpBefore = cop.Health.Current;
+                bool frontLight = cop.Health.TakeDamage(10, cop.transform.position + cop.transform.forward * 1.4f);
+                Note($"방패 정면 주먹(10): 맞음 {frontLight} 체력 {hpBefore}→{cop.Health.Current} (기대: 막힘)");
+                Shot("shield_cop");
+                Next();
+                break;
+            case 37:
+                if (Waited(0.6f))
+                {
+                    var g = cop.GetComponent<ShieldGuard>();
+                    bool kick = cop.Health.TakeDamage(20, cop.transform.position + cop.transform.forward * 1.4f);
+                    Note($"정면 돌려차기(20): 맞음 {kick}, 방패 쳐냄 {g.Broken}, 체력 {cop.Health.Current} (기대: 맞음·쳐냄)");
+                    Next();
+                }
+                break;
+            case 38:
+                if (Waited(3f))
+                {
+                    var g = cop.GetComponent<ShieldGuard>();
+                    int before = cop.Health.Current;
+                    bool side = cop.Health.TakeDamage(10, cop.transform.position + cop.transform.right * 1.4f);
+                    Note($"방패 다시 듦 {!g.Broken}, 옆에서 주먹: 맞음 {side} 체력 {before}→{cop.Health.Current} (기대: 맞음)");
+                    foreach (var n in new[] { "Cop_Shield_A", "Cop_Shield_B", "Cop_Torch" })
+                    {
+                        var e = GameObject.Find(n).GetComponent<EnemyAI>();
+                        e.Health.TakeDamage(999, e.transform.position - e.transform.forward * 1.5f);
+                    }
+                    Note($"검문소 정리: 구역 정리 {d.checkpointZone.IsCleared}, 방패 떨어짐 {cop.GetComponent<ShieldGuard>().Dropped}");
+                    Next();
+                }
+                break;
+            case 39:
+                if (Waited(1.5f)) { Tp(new Vector3(164f, 0.15f, 187f), 0f); Note("광장으로"); Next(); }
+                break;
+            case 40:
+                if (d.CurrentPhase == Chapter1Director.Phase.Square && Waited(0.5f)) { Note($"저격수 등장: 활성 {d.sniper.IsActive}, 목표 '{StoryState.Objective}', 설명 {TutorialUI.ToastId}, 시간 배율 {Time.timeScale}"); Next(); }
+                else if (Waited(6f)) End("저격수 소개로 넘어가지 않음");
+                break;
+            case 41:
+                // 트인 곳(짐 마당 가운데)에 선다 → 조준선 → 맞는다
+                d.player.GetComponent<Health>().Revive();
+                laserShot = false; Tp(new Vector3(186f, 0.15f, 216f), 90f); hpBefore = d.player.GetComponent<Health>().Current; Next();
+                break;
+            case 42:
+            {
+                var laser = d.sniper.GetComponentInChildren<LineRenderer>(true);
+                if (!laserShot && laser && laser.enabled && Waited(1.2f)) { laserShot = true; Shot("sniper_laser"); }
+                int hp = d.player.GetComponent<Health>().Current;
+                if (hp < hpBefore) { Note($"트인 곳: 저격에 맞음 {hpBefore}→{hp}"); Next(); }
+                else if (Waited(7f)) End("트인 곳에서 저격수가 쏘지 않음");
+                break;
+            }
+            case 43:
+                // 트럭 뒤(서쪽)에 숨으면 맞지 않는다
+                d.player.GetComponent<Health>().Revive();
+                Tp(new Vector3(172.6f, 0.15f, 197f), 90f); hpBefore = d.player.GetComponent<Health>().Current; Next();
+                break;
+            case 44:
+                if (Waited(6f)) { Note($"트럭 뒤 6초: 체력 {hpBefore}→{d.player.GetComponent<Health>().Current} (기대: 그대로)"); Next(); }
+                break;
+            case 45:
+                // 골목 계단으로 옥상에: 길잡이·옥상 경비
+                Note($"길잡이 {(StoryState.Waypoint ? StoryState.Waypoint.name : "없음")}");
+                Tp(new Vector3(203.6f, 9.15f, 193.6f), 0f); Next();
+                break;
+            case 46:
+                if (Waited(1.5f))
+                {
+                    var guard = GameObject.Find("Thug_Roof").GetComponent<EnemyAI>();
+                    Note($"옥상: 경비 깨어남 {guard.IsActive}, 길잡이 {(StoryState.Waypoint ? StoryState.Waypoint.name : "없음")}");
+                    Shot("roof");
+                    Tp(d.sniper.transform.position + new Vector3(1.4f, 0.1f, 0f), -90f);
+                    Next();
+                }
+                break;
+            case 47:
+                if (Waited(0.8f)) { d.sniper.Health.TakeDamage(999, p.position); Note("저격수 제압"); Next(); }
+                break;
+            case 48:
+                // 옥상 경비가 아직 덤비는데 저격수부터 쓰러뜨렸다: 심문 컷신은 경비를 처리할 때까지 미룬다(잠긴 채 얻어맞지 않게)
+                if (Waited(2.5f))
+                {
+                    var guard = GameObject.Find("Thug_Roof").GetComponent<EnemyAI>();
+                    Note($"경비가 살아 있을 때: 컷신 {StoryState.CutsceneActive}, 목표 '{StoryState.Objective}' (기대: False, '옥상의 조직원을 처리한다'), 경비 활성 {guard.IsActive}");
+                    guard.Health.TakeDamage(999, p.position);
+                    Next();
+                }
+                break;
+            case 49:
+                if (d.CurrentPhase == Chapter1Director.Phase.Interrogation && StoryState.CutsceneActive && Waited(3f)) { Shot("interrogation"); Next(); }
+                else if (Waited(8f)) End("심문으로 넘어가지 않음");
+                break;
+            case 50:
+                if (d.CurrentPhase == Chapter1Director.Phase.Harbor && Waited(0.5f)) { Note($"심문 끝: 목표 '{StoryState.Objective}', 길잡이 {StoryState.Waypoint?.name}"); Tp(new Vector3(164f, 0.15f, 256f), 0f); Next(); }
+                else if (Waited(40f)) End("심문 뒤 항구 단계로 넘어가지 않음");
+                break;
+            case 51:
+                if (Waited(0.4f)) { Tp(new Vector3(164f, 0.15f, 262f), 0f); Note("항구 길로"); Next(); }
+                break;
+            case 52:
                 if (d.CurrentPhase == Chapter1Director.Phase.End && Waited(2.5f)) { Note($"끝: 페이드 {StoryState.Fade:0.00}, 자막 '{StoryState.Line}'"); End("완료"); }
                 else if (Waited(6f)) End("끝 단계로 넘어가지 않음");
                 break;

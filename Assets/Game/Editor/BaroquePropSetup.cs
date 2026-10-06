@@ -55,6 +55,22 @@ public static class BaroquePropSetup
         ("ParkBin",             Axis.Y, 0.95f, true,  0f),
         ("Flashlight",          Axis.Z, 0.24f, false, -90f), // 원본은 렌즈(넓은 머리)가 +x: 돌려서 +z를 보게
         ("MedKit",              Axis.X, 0.24f, false, 0f),
+        // 1장 구역 2 시장 광장(바로크 3D, 2026-10-06): 후보 둘씩 만들어 밝은 촬영장 4방향+45°로 비교해 고른 것
+        ("PoliceCar",           Axis.Z, 4.9f,  true,  180f), // 원본은 앞(밀대 범퍼)이 -z
+        ("BlackVan",            Axis.Z, 5.4f,  true,  0f),
+        ("BoxTruck",            Axis.Z, 5.2f,  true,  0f),
+        ("FoodCart",            Axis.Y, 2.3f,  true,  0f),   // 셔터 면이 앞
+        ("RiotShield",          Axis.Y, 0.9f,  false, 0f),   // 바깥면(보기 창)이 앞
+        ("SniperRifle",         Axis.Z, 1.2f,  false, 90f),  // 원본은 총구가 -x
+        ("TrafficCone",         Axis.Y, 0.7f,  true,  0f),
+        ("PoliceBarricade",     Axis.Y, 1.1f,  true,  0f),   // 줄무늬 판이 x로 길다
+        ("HandCart",            Axis.Y, 1.2f,  true,  90f),
+        ("GasCylinders",        Axis.Y, 1.2f,  true,  90f),
+        ("StoolStack",          Axis.Y, 1.3f,  true,  0f),
+        ("FloodLight",          Axis.Y, 2.2f,  true,  0f),   // 등이 앞(+z)을 비춘다
+        ("PalletBoxes",         Axis.Y, 1.9f,  true,  0f),
+        ("WaterDrums",          Axis.Y, 0.95f, true,  0f),
+        ("CrateStack",          Axis.X, 1.2f,  true,  0f),   // 빈 나무 상자 둘(2차 생성)
     };
 
     [MenuItem("Game/Baroque/Rebuild Prop Prefabs")]

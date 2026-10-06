@@ -22,6 +22,11 @@ public class CutsceneSkip : MonoBehaviour
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void OnPlayStart() { SimulateHold = false; Progress = 0f; }
 
+    GUIStyle keyStyle, labelStyle;
+    float styleScale = -1f;
+
+    void Awake() => useGUILayout = false; // GUILayout을 쓰지 않는다
+
     public static void Ensure()
     {
         if (!instance) instance = new GameObject("CutsceneSkip").AddComponent<CutsceneSkip>();
@@ -71,10 +76,16 @@ public class CutsceneSkip : MonoBehaviour
         }
         GUI.color = Color.white;
 
-        var key = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(15 * s), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+        if (!Mathf.Approximately(styleScale, s))
+        {
+            styleScale = s;
+            keyStyle = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(15 * s), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
+            labelStyle = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(22 * s), alignment = TextAnchor.MiddleRight };
+        }
+        var key = keyStyle;
         key.normal.textColor = new Color(1f, 1f, 1f, shown);
         GUI.Label(box, "Space", key);
-        var label = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(22 * s), alignment = TextAnchor.MiddleRight };
+        var label = labelStyle;
         label.normal.textColor = new Color(0f, 0f, 0f, 0.6f * shown);
         var lr = new Rect(box.x - 220 * s, centre.y - 18 * s, 200 * s, 36 * s);
         GUI.Label(new Rect(lr.x + 2, lr.y + 2, lr.width, lr.height), "건너뛰기", label);

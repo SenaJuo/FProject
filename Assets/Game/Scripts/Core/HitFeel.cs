@@ -92,6 +92,8 @@ public class HitFeel : MonoBehaviour
         yield return new WaitForSecondsRealtime(stop);
         if (finisher)
         {
+            // 멈춘 사이 인벤토리·되감기가 시간을 가져갔으면 슬로모션으로 덮어쓰지 않는다
+            if (!Owned()) { ownedScale = -1f; timeRoutine = null; yield break; }
             Set(0.25f);
             yield return new WaitForSecondsRealtime(0.55f);
             for (float k = 0f; k < 1f; k += Time.unscaledDeltaTime / 0.25f) { if (!Owned()) yield break; Set(Mathf.Lerp(0.25f, 1f, k)); yield return null; }
@@ -116,7 +118,10 @@ public class HitFeel : MonoBehaviour
         var anim = victim.GetComponentInChildren<Animator>();
         if (!anim) yield break;
         var t = anim.transform;
-        Vector3 rest = t.localPosition;
+        // 떨림이 겹치면(두 발이 거의 동시에 맞음) 처음 떨기 전 자리를 함께 쓴다 — 떨린 자리를 "제자리"로 기억해 몸이 조금씩 밀려나지 않게
+        if (jitters.TryGetValue(t, out var running)) jitters[t] = (running.rest, running.count + 1);
+        else jitters[t] = (t.localPosition, 1);
+        Vector3 rest = jitters[t].rest;
         float until = Time.unscaledTime + seconds;
         while (Time.unscaledTime < until && t)
         {
@@ -126,7 +131,14 @@ public class HitFeel : MonoBehaviour
             yield return null;
         }
         if (t) t.localPosition = rest;
+        if (jitters.TryGetValue(t, out var left))
+        {
+            if (left.count <= 1) jitters.Remove(t);
+            else jitters[t] = (left.rest, left.count - 1);
+        }
     }
+
+    static readonly Dictionary<Transform, (Vector3 rest, int count)> jitters = new();
 
     IEnumerator TapeStretch(Vector3 at)
     {
@@ -254,6 +266,7 @@ public class HitFeel : MonoBehaviour
     // ---------- 소리 ----------
 
     static readonly Dictionary<string, AudioClip[]> soundCache = new();
+    static AudioClip[] loadedHit;
 
     /// <summary>Resources/Sfx/Hit의 "{이름}-{번호}" 소리 중 하나(없으면 null). 회복약처럼 다른 곳에서 쓰는 짧은 소리용</summary>
     public static AudioClip Clip(string name)
@@ -266,7 +279,8 @@ public class HitFeel : MonoBehaviour
     {
         if (!soundCache.TryGetValue(name, out var clips))
         {
-            var loaded = Resources.LoadAll<AudioClip>("Sfx/Hit");
+            loadedHit ??= Resources.LoadAll<AudioClip>("Sfx/Hit"); // 폴더 전체는 한 번만 읽는다(첫 타격마다 끊기지 않게)
+            var loaded = loadedHit;
             var list = new List<AudioClip>();
             // 파일 이름 = "{이름}-{번호}" (예: whoosh-2). 앞부분이 정확히 같은 것만(whoosh가 whoosh_heavy를 집지 않게)
             foreach (var c in loaded) { int dash = c.name.LastIndexOf('-'); if ((dash > 0 ? c.name.Substring(0, dash) : c.name) == name) list.Add(c); }
