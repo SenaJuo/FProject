@@ -272,4 +272,36 @@ public static class SfxTool
         }
         return $"{Path.GetFileName(outPath)} {n / (float)rate:0.000}초 (시작 {s0 / (float)rate:0.000}s)";
     }
+
+    /// <summary>
+    /// 반복 재생용: start부터 length초를 자르되, 바로 뒤 crossfade초를 앞머리에 겹쳐 섞어 끝과 처음이 이음매 없이 이어지게 한다.
+    /// 평균 크기(RMS)를 rmsDb로 맞춰 16비트 WAV로 저장한다(최고점은 -1dB를 넘지 않게)
+    /// </summary>
+    public static string ExportLoop(string assetPath, float start, float length, float crossfade, float rmsDb, string outPath)
+    {
+        var c = Load(assetPath); var x = Mono(c);
+        int rate = c.frequency, s0 = (int)(start * rate), n = (int)(length * rate), xf = (int)(crossfade * rate);
+        if (s0 + n + xf > x.Length) throw new System.ArgumentException("구간이 파일보다 길다");
+        var y = new float[n];
+        for (int i = 0; i < n; i++) y[i] = x[s0 + i];
+        for (int i = 0; i < xf; i++)
+        {
+            // 같은 힘 섞기: 머리는 서서히 커지고, 끝 뒤에 이어지던 꼬리는 서서히 작아진다
+            float t = i / (float)xf;
+            y[i] = x[s0 + i] * Mathf.Sin(t * Mathf.PI * 0.5f) + x[s0 + n + i] * Mathf.Cos(t * Mathf.PI * 0.5f);
+        }
+        double s = 0; foreach (var v in y) s += v * v;
+        float rms = Mathf.Sqrt((float)(s / n)), gain = Mathf.Pow(10f, rmsDb / 20f) / Mathf.Max(1e-6f, rms);
+        gain = Mathf.Min(gain, Mathf.Pow(10f, -1f / 20f) / Mathf.Max(1e-6f, y.Max(Mathf.Abs)));
+        for (int i = 0; i < n; i++) y[i] *= gain;
+        Directory.CreateDirectory(Path.GetDirectoryName(outPath));
+        using (var w = new BinaryWriter(File.Create(outPath)))
+        {
+            w.Write(System.Text.Encoding.ASCII.GetBytes("RIFF")); w.Write(36 + n * 2); w.Write(System.Text.Encoding.ASCII.GetBytes("WAVEfmt "));
+            w.Write(16); w.Write((short)1); w.Write((short)1); w.Write(rate); w.Write(rate * 2); w.Write((short)2); w.Write((short)16);
+            w.Write(System.Text.Encoding.ASCII.GetBytes("data")); w.Write(n * 2);
+            foreach (var v in y) w.Write((short)Mathf.Clamp(Mathf.RoundToInt(v * 32767f), -32768, 32767));
+        }
+        return $"{Path.GetFileName(outPath)} {n / (float)rate:0.000}초 반복(겹침 {crossfade:0.00}s, 크기 x{gain:0.00})";
+    }
 }

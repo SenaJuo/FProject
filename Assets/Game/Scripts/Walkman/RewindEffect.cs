@@ -31,12 +31,12 @@ public class RewindEffect : MonoBehaviour
         volume.sharedProfile = profile;
 
         whirSource = gameObject.AddComponent<AudioSource>();
-        whirSource.clip = CreateWhir(2f);
+        whirSource.clip = ProceduralSfx.Recorded("TapeRewind") ?? CreateWhir(2f); // 실제 음원(VARCO)이 있으면 그것을
         whirSource.loop = true;
         whirSource.playOnAwake = false;
         clickSource = gameObject.AddComponent<AudioSource>();
         clickSource.playOnAwake = false;
-        clunk = CreateClunk();
+        clunk = ProceduralSfx.Recorded("TapeStop") ?? CreateClunk();
     }
 
     public void SetWeight(float weight) => volume.weight = weight;

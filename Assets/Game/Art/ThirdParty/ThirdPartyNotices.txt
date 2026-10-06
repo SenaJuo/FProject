@@ -14,6 +14,8 @@
    파일: Resources/Sfx/Hit/*.wav (주먹·발차기 타격음, 휘두르는 소리, 신음, 총알 맞는 소리, 테이프 늘어지는 소리)
    출처: https://sound.varco.ai 에서 사용자 계정으로 생성한 결과를 잘라 다듬음 (Editor/SfxTool.cs)
    사용 조건: VARCO Sound 이용약관을 따른다 — 상업 출시 전 약관의 생성물 이용 범위를 다시 확인할 것
+   추가(2026-10-06): Resources/Sfx/World/*.wav (빗소리 반복, 총성, 문 열림, 쓰러짐, 워크맨 떨어짐, 버튼, 되감기 반복, 정지음, 차 문)
+   — 코드로 합성하던 세상 효과음을 대신한다. 종류마다 후보 3개 중 스펙트로그램·파형을 보고 골랐다
 
 4. VARCO Sound (NC AI) — AI 음악 생성 (2026-10-02 생성)
    파일: Resources/Music/*.mp3 (가게 테이프 3개 × 3곡: late_radio, rain_jazz, citypop_1), Resources/Sfx/Hit/potion-*.wav (회복약)

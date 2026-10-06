@@ -2,8 +2,8 @@ using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
-/// 음원 파일 없이 코드로 합성하는 효과음 모음(총성·문·쓰러짐·빗소리).
-/// 한 번 만든 클립은 다시 쓴다. 나중에 실제 음원이 생기면 이 클래스만 바꾸면 된다.
+/// 세상 효과음(총성·문·쓰러짐·차 문·빗소리 등). 실제 녹음 같은 음원(VARCO Sound로 만든 Resources/Sfx/World/{이름})이
+/// 있으면 그것을 쓰고, 없을 때만 코드로 합성한 소리를 쓴다. 한 번 불러온 클립은 다시 쓴다.
 /// </summary>
 public static class ProceduralSfx
 {
@@ -28,6 +28,13 @@ public static class ProceduralSfx
             : 0f;
         float rumble = (float)(rng.NextDouble() * 2 - 1) * 0.04f * Mathf.Exp(-Mathf.Abs(t - 0.5f) * 6f);
         return Mathf.Clamp(click + creak + rumble, -1f, 1f);
+    });
+
+    /// <summary>집 밖에서 차 문이 닫히는 소리(음원이 없으면 쓰러짐과 같은 둔탁한 소리)</summary>
+    public static AudioClip CarDoor => Get("CarDoor", 0.7f, (t, rng) =>
+    {
+        float thud = Mathf.Sin(2 * Mathf.PI * 55f * t) * Mathf.Exp(-t * 12f);
+        return Mathf.Clamp(thud + (float)(rng.NextDouble() * 2 - 1) * 0.2f * Mathf.Exp(-t * 20f), -1f, 1f);
     });
 
     public static AudioClip BodyFall => Get("BodyFall", 0.7f, (t, rng) =>
@@ -59,6 +66,7 @@ public static class ProceduralSfx
         get
         {
             if (cache.TryGetValue("RainLoop", out var clip) && clip) return clip;
+            if (Recorded("RainLoop") is AudioClip rec) return cache["RainLoop"] = rec;
             int n = Rate * 4;
             var data = new float[n];
             var rng = new System.Random(7);
@@ -145,9 +153,13 @@ public static class ProceduralSfx
         return d < 0f ? 0f : Mathf.Sin(2 * Mathf.PI * 2400f * d) * Mathf.Exp(-d * 400f) * 0.8f;
     }
 
+    /// <summary>VARCO Sound로 만든 실제 음원(Resources/Sfx/World/{이름}). 없으면 null</summary>
+    public static AudioClip Recorded(string name) => Resources.Load<AudioClip>("Sfx/World/" + name);
+
     static AudioClip Get(string name, float seconds, System.Func<float, System.Random, float> sample)
     {
         if (cache.TryGetValue(name, out var clip) && clip) return clip;
+        if (Recorded(name) is AudioClip rec) return cache[name] = rec;
         int n = Mathf.CeilToInt(Rate * seconds);
         var data = new float[n];
         var rng = new System.Random(name.GetHashCode());

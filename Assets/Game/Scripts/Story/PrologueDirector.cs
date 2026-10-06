@@ -495,9 +495,9 @@ public class PrologueDirector : MonoBehaviour
         yield return new WaitForSeconds(1f);
         StoryState.Say(Ray, "하아… 하아…", 2f);
         yield return Wait(2f);
-        ProceduralSfx.PlayAt(ProceduralSfx.BodyFall, friendRoomEntry.position + Vector3.back * 6f, 0.7f, 0f); // 바깥의 차 문 소리
+        ProceduralSfx.PlayAt(ProceduralSfx.CarDoor, friendRoomEntry.position + Vector3.back * 6f, 0.7f, 0f); // 바깥의 차 문 소리
         yield return Wait(0.35f);
-        ProceduralSfx.PlayAt(ProceduralSfx.BodyFall, friendRoomEntry.position + Vector3.back * 6f, 0.6f, 0f);
+        ProceduralSfx.PlayAt(ProceduralSfx.CarDoor, friendRoomEntry.position + Vector3.back * 6f, 0.6f, 0f, 0.93f);
         StoryState.Say("", "(밖에서 차 문 닫히는 소리. 더 오고 있다)", 3f);
         yield return Wait(3f);
         StoryState.Say(Ray, "…여기서 빠져나가야 해.", 2.2f);
