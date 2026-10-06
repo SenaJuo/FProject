@@ -560,6 +560,7 @@ public class PrologueDirector : MonoBehaviour
 
         // 편지 뒷면을 펼쳐 읽는다(F로 닫는다)
         StoryState.ClearLine();
+        StoryState.SkipRequested = false; // 앞 장면의 건너뛰기가 편지까지 넘기지 않게: 편지는 따로 길게 눌러야 넘어간다
         StoryState.LetterHeading = "편지 뒷면";
         StoryState.LetterText = LetterBackText;
         letterClosed = false;

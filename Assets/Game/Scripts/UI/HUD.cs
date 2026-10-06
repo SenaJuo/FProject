@@ -382,7 +382,11 @@ public class HUD : MonoBehaviour
             ShadowLabel(new Rect(left.x + 16 * s, infoY + 32 * s, sideW - 32 * s, 50 * s), StatusLine(inserted), smallWrap);
             ShadowLabel(new Rect(left.x + 16 * s, infoY + 84 * s, sideW, 26 * s), "되감기", small);
             Pips(new Rect(left.x + 90 * s, infoY + 86 * s, 0, 20 * s), inserted.charges);
-            ShadowLabel(new Rect(left.x + 16 * s, infoY + 120 * s, sideW - 32 * s, 50 * s), "R 되감기에는 이 테이프가 쓰인다", smallWrap);
+            var forR = walkman.NextManualRewindTape; // 끼운 테이프에 횟수가 없으면 R은 다른 테이프를 쓴다
+            string rLine = forR == inserted ? "R 되감기에는 이 테이프가 쓰인다"
+                         : forR != null ? $"이 테이프는 횟수가 없어, R 되감기에는 「{forR.title}」이(가) 쓰인다"
+                         : "되감을 횟수가 남은 테이프가 없다";
+            ShadowLabel(new Rect(left.x + 16 * s, infoY + 120 * s, sideW - 32 * s, 50 * s), rLine, smallWrap);
         }
 
         // 가운데: 슬롯 격자

@@ -26,6 +26,16 @@ public class CombatZone : MonoBehaviour, IRewindable
 
     bool started;
 
+    /// <summary>싸움이 시작되었고 레이가 구역 안에 있다</summary>
+    public bool HoldsPlayer
+    {
+        get
+        {
+            var gm = GameManager.Instance;
+            return started && gm && gm.player && GetComponent<Collider>().bounds.Contains(gm.player.transform.position);
+        }
+    }
+
     void Awake()
     {
         TimeRewind.Register(this);
@@ -46,8 +56,7 @@ public class CombatZone : MonoBehaviour, IRewindable
     {
         if (IsCleared || !started) return;
         // 구역 안에서 다시 시작하면(구역 입구가 저장 지점인 경우) 트리거에 다시 들어오는 일이 없으니 싸움을 그대로 이어 간다
-        var gm = GameManager.Instance;
-        if (gm && gm.player && GetComponent<Collider>().bounds.Contains(gm.player.transform.position)) return;
+        if (HoldsPlayer) return;
         started = false;
         foreach (var gate in closeOnEnter) gate.Open();
         foreach (var enemy in enemies) if (enemy && !enemy.Health.IsDead) enemy.Deactivate();
@@ -66,8 +75,14 @@ public class CombatZone : MonoBehaviour, IRewindable
     void Start()
     {
         GetComponent<Collider>().isTrigger = true;
-        Remaining = enemies.Length;
-        foreach (var enemy in enemies) enemy.Health.Died += OnEnemyDied;
+        Remaining = 0;
+        foreach (var enemy in enemies)
+        {
+            if (!enemy) continue; // 빈 칸은 건너뛴다
+            Remaining++;
+            enemy.Zone = this;
+            enemy.Health.Died += OnEnemyDied;
+        }
     }
 
     void OnTriggerEnter(Collider other)
@@ -76,7 +91,7 @@ public class CombatZone : MonoBehaviour, IRewindable
         started = true;
 
         foreach (var gate in closeOnEnter) gate.Close();
-        foreach (var enemy in enemies) enemy.Activate();
+        foreach (var enemy in enemies) if (enemy) enemy.Activate();
         Entered?.Invoke(this);
         if (Remaining == 0) Clear();
     }

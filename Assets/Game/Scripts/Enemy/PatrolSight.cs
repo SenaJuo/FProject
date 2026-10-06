@@ -92,9 +92,10 @@ public class PatrolSight : MonoBehaviour, IRewindable
         TimeRewind.Unregister(this);
     }
 
-    struct Snapshot { public int index; public float pause, suspicion; public bool alerted, holding, canDetect; }
+    // Holding·CanDetect는 감독이 정하는 연출 표시라 되감지 않는다(통화가 끝난 뒤 통화 중으로 되감으면 영원히 굳어 있었다)
+    struct Snapshot { public int index; public float pause, suspicion; public bool alerted; }
 
-    public object CaptureState() => new Snapshot { index = index, pause = pauseTimer, suspicion = Suspicion, alerted = Alerted, holding = Holding, canDetect = CanDetect };
+    public object CaptureState() => new Snapshot { index = index, pause = pauseTimer, suspicion = Suspicion, alerted = Alerted };
 
     public void RestoreState(object state, bool preview)
     {
@@ -104,9 +105,8 @@ public class PatrolSight : MonoBehaviour, IRewindable
         pauseTimer = s.pause;
         Suspicion = s.suspicion;
         Alerted = s.alerted;
-        Holding = s.holding;
-        CanDetect = s.canDetect;
         if (!Alerted) BeginPatrol();
+        else if (flashlight) flashlight.enabled = true; // 쓰러진 뒤에서 살아 있던 때로 감기면 다시 켠다(아직 쓰러져 있으면 Update가 끈다)
     }
 
     void ResetPatrol()

@@ -33,6 +33,14 @@ public static class Tutorial
     {
         Unlocked = false;
         shown.Clear();
+        TutorialUI.ClearPending();
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
+        UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    static void OnSceneLoaded(UnityEngine.SceneManagement.Scene scene, UnityEngine.SceneManagement.LoadSceneMode mode)
+    {
+        if (TutorialUI.HasPending) TutorialUI.Ensure();
     }
 
     public static void Unlock() => Unlocked = true;
@@ -162,11 +170,10 @@ public class TutorialUI : MonoBehaviour
     const float ToastSeconds = 9f;
 
     static TutorialUI instance;
-    readonly Queue<Tutorial.Entry> queue = new();
+    static readonly Queue<Tutorial.Entry> queue = new(); // 장면이 바뀌어도 남는다(프롤로그 끝에 못 띄운 알림을 1장에서 띄운다)
     Tutorial.Entry toast, open;
     float toastStart;
     int page;
-    float savedTimeScale = 1f;
     readonly Dictionary<string, Texture2D> images = new();
     GUIStyle tiny, small, body, bold, heading, key, centre;
     float styleScale = -1f;
@@ -188,8 +195,22 @@ public class TutorialUI : MonoBehaviour
     void OnDestroy()
     {
         if (open != null) ClosePopup();
+        if (toast != null) // 띄우던 알림은 다음 장면에서 처음부터 다시
+        {
+            var rest = queue.ToArray();
+            queue.Clear();
+            queue.Enqueue(toast);
+            foreach (var e in rest) queue.Enqueue(e);
+            toast = null;
+        }
         if (instance == this) instance = null;
     }
+
+    /// <summary>아직 띄우지 못한 알림이 있는가</summary>
+    public static bool HasPending => queue.Count > 0;
+
+    /// <summary>플레이를 시작할 때 비운다</summary>
+    public static void ClearPending() => queue.Clear();
 
     void Update()
     {
@@ -208,7 +229,9 @@ public class TutorialUI : MonoBehaviour
         if (toast == null && !busy && queue.Count > 0) { toast = queue.Dequeue(); toastStart = Time.unscaledTime; }
         if (toast == null) return;
         if (Time.unscaledTime - toastStart > ToastSeconds) { toast = null; return; }
-        if (!busy && !StoryState.InputLocked && kb != null && kb.hKey.wasPressedThisFrame) OpenPopup(toast);
+        // 다른 것이 시간을 멈추거나 늦춘 동안(타격 멈춤·슬로모션·인벤토리·가게·사망 화면)에는 열지 않는다:
+        // 닫을 때 그 시간 속도를 되살리면서 게임이 슬로모션에 갇히거나 가게 창 뒤로 세상이 움직였다
+        if (!busy && !StoryState.InputLocked && Time.timeScale > 0.99f && kb != null && kb.hKey.wasPressedThisFrame) OpenPopup(toast);
     }
 
     /// <summary>알림의 설명을 팝업으로 연다(H). 테스트에서도 부른다.</summary>
@@ -217,7 +240,6 @@ public class TutorialUI : MonoBehaviour
         open = entry;
         toast = null;
         page = 0;
-        savedTimeScale = Time.timeScale;
         Time.timeScale = 0f;
         StoryState.MenuOpen = true;
         Cursor.lockState = CursorLockMode.None;
@@ -235,7 +257,7 @@ public class TutorialUI : MonoBehaviour
     public void ClosePopup()
     {
         open = null;
-        Time.timeScale = savedTimeScale <= 0f ? 1f : savedTimeScale;
+        Time.timeScale = 1f; // 정상 속도에서만 열린다
         StoryState.MenuOpen = false;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;

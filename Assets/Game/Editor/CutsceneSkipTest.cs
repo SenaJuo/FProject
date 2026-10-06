@@ -9,6 +9,7 @@ using UnityEngine;
 ///  2) 오프닝: 끝까지 누르기 → 바로 집(조작)으로
 ///  3) 대니 집 드러남~총격~되감기 → 건너뛰면 2회차로
 ///  4) 2회차 깨어남, 싸움 시작, 편지 뒷면 컷신도 건너뛰기 → 각각 다음 조작 단계로, 편지 뒤에는 되감기·설명이 풀려 있어야 한다
+///     (편지 앞 장면을 건너뛰어도 편지는 펼쳐져야 하고, 편지는 따로 눌러야 넘어간다)
 /// </summary>
 public static class CutsceneSkipTest
 {
@@ -93,15 +94,22 @@ public static class CutsceneSkipTest
                 break;
             case 13: if (Waited(1f)) { foreach (var t in d.roomThugs) t.Health.TakeDamage(999, p.transform.position); Next(); } break;
             case 14: if (d.friendWindow && d.friendWindow.gameObject.activeInHierarchy && Waited(0.5f)) { Use(d.friendWindow); Next(); } break;
-            // 편지 종이가 펼쳐진 상태에서 누른다(편지 화면 자체도 건너뛸 수 있어야 한다)
-            case 15: if (phase == "Letter" && StoryState.LetterText != null && Waited(0.5f)) { Hold(true); Note("편지가 펼쳐진 상태에서 누르기"); Next(); } break;
+            // 편지 앞 장면(PROLOGUE END)을 건너뛰어도 편지 뒷면(되감기 규칙)은 그대로 펼쳐져야 한다
+            case 15: if (phase == "Letter" && StoryState.LetterText == null && StoryState.CutsceneActive && Waited(0.5f)) { Hold(true); Note("편지 앞 장면에서 누르기"); Next(); } break;
             case 16:
+                if (StoryState.LetterText != null) { Note($"편지 앞 장면 건너뜀 → 편지는 그대로 펼쳐짐 ({Time.realtimeSinceStartup - holdStart:0.00}초)"); Hold(false); Next(); }
+                else if (phase == "Trial") End("편지 앞 장면을 건너뛰자 편지까지 넘어감");
+                else if (Waited(15f)) End("편지가 뜨지 않음");
+                break;
+            // 편지 종이가 펼쳐진 상태에서 누른다(편지 화면 자체도 건너뛸 수 있어야 한다)
+            case 17: if (phase == "Letter" && StoryState.LetterText != null && Waited(0.5f)) { Hold(true); Note("편지가 펼쳐진 상태에서 누르기"); Next(); } break;
+            case 18:
                 if (!letterShot && CutsceneSkip.Progress > 0.5f && StoryState.LetterText != null) { letterShot = true; Shot("letter_hold"); } // 편지 위에 원이 보이는지
                 if (phase == "Trial") { Note($"건너뜀: {Time.realtimeSinceStartup - holdStart:0.00}초, 편지 닫힘 {StoryState.LetterText == null}, 되감기 잠김 {StoryState.RewindLocked}, 위젯 숨김 {StoryState.WalkmanStowed}, 설명 해제 {Tutorial.Unlocked}, 연습 {StoryState.FreeRewind}, 컷신 {StoryState.CutsceneActive}, 페이드 {StoryState.Fade:0.00}"); Hold(false); Next(); }
                 else if (Waited(10f)) End("편지 건너뛰기 실패");
                 break;
-            case 17: if (Waited(1.5f)) { Shot("after_letter_skip"); Note($"설명 알림 {TutorialUI.ToastId}"); End("완료"); } break;
+            case 19: if (Waited(1.5f)) { Shot("after_letter_skip"); Note($"설명 알림 {TutorialUI.ToastId}"); End("완료"); } break;
         }
-        if (Waited(40f) && step < 17) End($"시간 초과(단계 {step})");
+        if (Waited(40f) && step < 19) End($"시간 초과(단계 {step})");
     }
 }

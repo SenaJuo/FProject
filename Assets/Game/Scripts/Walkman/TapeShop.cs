@@ -68,8 +68,9 @@ public class TapeShop : MonoBehaviour
         // 순간 이동(되감기·다시 시작)으로 범위를 벗어나면 OnTriggerExit가 오지 않는다 → 멀리서도 "F: 가게" 안내가 남지 않게 직접 확인한다
         if (Nearby == this && Current != this && walkman && !GetComponent<Collider>().bounds.Intersects(walkman.GetComponent<Collider>().bounds)) Nearby = null;
         if (Current == this) Browse();
-        else if (Nearby == this && Current == null && !walkman.InventoryOpen && !walkman.Rewinding
-                 && interactAction.WasPressedThisFrame()) Open();
+        else if (Nearby == this && Current == null && !walkman.InventoryOpen && !walkman.Rewinding && !walkman.PromptOpen
+                 && !StoryState.InputLocked && Time.timeScale > 0.99f && !walkman.GetComponent<Health>().IsDead
+                 && interactAction.WasPressedThisFrame()) Open(); // 사망 화면·설명 팝업·연출 중에 열면 시간 속도가 꼬였다
     }
 
     void Open()

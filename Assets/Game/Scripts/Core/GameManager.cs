@@ -38,15 +38,15 @@ public class GameManager : MonoBehaviour, IRewindable
 
     void OnDestroy() => TimeRewind.Unregister(this);
 
-    public object CaptureState() => (checkpointPosition, checkpointRotation, CurrentZone, StageCleared);
+    // 저장 지점은 되감지 않는다: "저장됨"을 본 뒤에 되감아도 저장은 그대로 남는다
+    public object CaptureState() => (CurrentZone, StageCleared);
 
     public void RestoreState(object state, bool preview)
     {
-        var s = ((Vector3 position, Quaternion rotation, CombatZone zone, bool cleared))state;
-        checkpointPosition = s.position;
-        checkpointRotation = s.rotation;
+        var s = ((CombatZone zone, bool cleared))state;
         CurrentZone = s.zone;
         StageCleared = s.cleared;
+        if (!s.cleared && Message == "STAGE CLEAR") messageUntil = 0f; // 마지막 적을 쓰러뜨리기 전으로 되감으면 문구도 지운다
     }
 
     void OnEnable()
@@ -74,7 +74,12 @@ public class GameManager : MonoBehaviour, IRewindable
         RespawnFromCheckpoint();
     }
 
-    public void RespawnFromCheckpoint() => StartCoroutine(RespawnAfterDelay());
+    Coroutine pendingRespawn;
+
+    public void RespawnFromCheckpoint()
+    {
+        if (pendingRespawn == null) pendingRespawn = StartCoroutine(RespawnAfterDelay()); // 이미 기다리는 중이면 두 번 부활하지 않는다
+    }
 
     void Update()
     {
@@ -144,11 +149,15 @@ public class GameManager : MonoBehaviour, IRewindable
     IEnumerator RespawnAfterDelay()
     {
         yield return new WaitForSeconds(respawnDelay);
+        pendingRespawn = null;
         RespawnPlayer();
     }
 
     void RespawnPlayer()
     {
+        // 떨어져서 곧바로 다시 시작하면 기다리던 부활은 취소하고, 사망 화면·되감기도 거둔다(남아 있으면 R을 누를 때 게임이 멈췄다)
+        if (pendingRespawn != null) { StopCoroutine(pendingRespawn); pendingRespawn = null; }
+        if (player.TryGetComponent(out Walkman walkman)) walkman.ResetForRespawn();
         player.Respawn(checkpointPosition, checkpointRotation);
         PlayerRespawned?.Invoke();
         TimeRewind.Clear(); // 이번 죽음 이전의 기록으로는 되감을 수 없다

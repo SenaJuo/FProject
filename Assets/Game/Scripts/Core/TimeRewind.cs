@@ -94,6 +94,7 @@ public static class TimeRewind
 
     static void Apply(WorldSnapshot snapshot, bool preview)
     {
+        if (snapshot == null) return; // 기록이 비어 있으면(다시 시작 직후) 되돌릴 것이 없다
         foreach (var pair in snapshot.States)
             if (pair.Key as Object != null) pair.Key.RestoreState(pair.Value, preview);
     }

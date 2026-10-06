@@ -167,12 +167,17 @@ public class EnemyAI : MonoBehaviour, IRewindable
 
     public void Activate() => IsActive = true;
 
+    /// <summary>이 적이 속한 교전 구역(CombatZone이 정한다). 없으면 null</summary>
+    public CombatZone Zone { get; set; }
+
     /// <summary>추격을 멈추고 제자리에 선다(컷신에서 배우처럼 세워 둘 때).</summary>
     public void Deactivate()
     {
         IsActive = false;
         StopMoving();
         ClearTelegraph();
+        HideLaser();
+        if (aimIK) aimIK.aim = false;
         if (state != State.Dead) state = State.Idle;
     }
 
@@ -208,9 +213,10 @@ public class EnemyAI : MonoBehaviour, IRewindable
                     // 총잡이는 거리를 둔다: 멀면 다가가고, 5m 안으로 붙으면 물러나고, 그 사이에서는 멈춰 겨눈다
                     if (Time.time >= repathTime)
                     {
+                        // 사이 거리인데 가려서 못 쏘면 다가가서 쏠 자리를 찾는다(엄폐물 앞에서 영원히 서 있던 문제)
                         Vector3 dest = distance > shootRange * 0.75f ? player.position
                                      : distance < 5f ? transform.position - toPlayer.normalized * 3f
-                                     : transform.position;
+                                     : HasLineOfSight() ? transform.position : player.position;
                         agent.SetDestination(dest);
                         repathTime = Time.time + 0.25f;
                     }
@@ -414,8 +420,8 @@ public class EnemyAI : MonoBehaviour, IRewindable
         light.intensity = 10f;
         light.range = 6f;
         light.transform.position = at;
+        Destroy(light.gameObject, 0.06f); // 되감기가 이 코루틴을 멈춰도 불빛은 사라진다
         yield return new WaitForSeconds(0.06f);
-        Destroy(light.gameObject);
         yield return new WaitForSeconds(0.35f);
         if (aimIK && state != State.Windup) aimIK.aim = false;
     }
@@ -435,11 +441,16 @@ public class EnemyAI : MonoBehaviour, IRewindable
     {
         if (state == State.Dead) return;
         ClearTelegraph();
+        HideLaser();
+        if (aimIK) aimIK.aim = false;
         if (agent.isOnNavMesh) agent.Warp(spawnPosition);
         transform.rotation = spawnRotation;
         Health.Revive();
         state = State.Idle;
         attackCount = 0;
+        // 제자리에서 기다린다: 구역 밖에서 깨운 적이 멀리 떨어진 저장 지점까지 쫓아오지 않게.
+        // 레이가 아직 싸우는 구역 안에서 다시 시작하면(구역 입구가 저장 지점) 싸움을 이어 간다
+        if (!(Zone && Zone.HoldsPlayer)) IsActive = false;
     }
 
     void StopMoving()

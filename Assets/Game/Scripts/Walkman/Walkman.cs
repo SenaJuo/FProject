@@ -104,12 +104,14 @@ public class Walkman : MonoBehaviour
 
         // 컷신 중이거나 아직 되감기 능력을 모르는 구간(프롤로그 첫 회차)에는 조작을 받지 않는다. 녹화와 재생은 계속된다.
         bool locked = StoryState.InputLocked || StoryState.RewindLocked;
-        if (!locked && inventoryAction.WasPressedThisFrame()) { OpenInventory(); return; }
+        // 연출로 시간을 붙잡은 동안(1장 강제 되감기)에는 열지 않는다: 닫을 때 시간이 정상 속도로 풀려 버렸다
+        if (!locked && !StoryState.HoldTime && inventoryAction.WasPressedThisFrame()) { OpenInventory(); return; }
         if (!locked && rewindAction.WasPressedThisFrame()) { TryRewindNow(); return; }
         if (!StoryState.InputLocked && healAction != null && healAction.WasPressedThisFrame()) UsePotion();
 
         float dt = Time.unscaledDeltaTime;
-        if (StoryState.HoldTime) return; // 연출로 시간을 붙잡아 둔 동안은 기록하지도, 테이프를 돌리지도 않는다
+        // 연출로 시간을 붙잡아 둔 동안·설명 팝업이 열려 게임이 멈춘 동안은 기록하지도, 테이프를 돌리지도 않는다
+        if (StoryState.HoldTime || StoryState.MenuOpen) return;
         TimeRewind.Record(dt);
         if (!locked && nextAction.WasPressedThisFrame()) CycleInserted(1);
         if (!locked && previousAction.WasPressedThisFrame()) CycleInserted(-1);
@@ -198,6 +200,12 @@ public class Walkman : MonoBehaviour
     {
         if (inventoryAction.WasPressedThisFrame() || closeAction.WasPressedThisFrame()) { CloseInventory(); return; }
         if (tapes.Count == 0) return;
+        if (nextAction.WasPressedThisFrame()) // 2: 빠른 교체(다음 테이프를 끼운다)
+        {
+            CycleInserted(1);
+            InventorySelected = Mathf.Max(0, tapes.IndexOf(Inserted));
+            return;
+        }
 
         // 격자 탐색: 스틱을 한 번 밀 때마다 한 칸 이동한다. 좌우는 같은 행 안에서, 상하는 행 사이를 오간다.
         Vector2 move = moveAction.ReadValue<Vector2>();
@@ -296,6 +304,26 @@ public class Walkman : MonoBehaviour
     /// 없으면 횟수가 남은 다른 테이프를 대신 쓴다 — 급할 때 R이 안 먹히지 않게. 이때는 듣는 음악이 끊기지 않도록
     /// 재생이 안 되는 테이프(되감기 전용·이미 되감은 테이프)를 먼저 쓰고, 재생용 테이프는 마지막에 쓴다.
     /// </summary>
+    /// <summary>지금 R을 누르면 쓰일 테이프(없으면 null). 인벤토리 안내에 쓴다</summary>
+    public CassetteTape NextManualRewindTape => ManualRewindTape();
+
+    /// <summary>저장 지점에서 다시 시작할 때: 사망 화면·되감기 도중이면 모두 거두고 정상 시간으로 돌아간다</summary>
+    public void ResetForRespawn()
+    {
+        if (InventoryOpen) CloseInventory();
+        if (phase == Phase.Playing) return;
+        StopAllCoroutines();
+        if (effect)
+        {
+            if (phase == Phase.Playback) effect.StopWhir();
+            effect.SetWeight(0f);
+        }
+        phase = Phase.Playing;
+        TimeRewind.PlayingBack = false;
+        RewoundSeconds = 0f;
+        Time.timeScale = 1f;
+    }
+
     CassetteTape ManualRewindTape()
     {
         if (Inserted != null && Inserted.charges > 0) return Inserted;
