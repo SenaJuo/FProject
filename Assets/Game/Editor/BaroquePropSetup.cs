@@ -71,7 +71,23 @@ public static class BaroquePropSetup
         ("PalletBoxes",         Axis.Y, 1.9f,  true,  0f),
         ("WaterDrums",          Axis.Y, 0.95f, true,  0f),
         ("CrateStack",          Axis.X, 1.2f,  true,  0f),   // 빈 나무 상자 둘(2차 생성)
+        // 1장 구역 3 항구(바로크 3D, 2026-10-07): 후보 8장 중 고른 그림으로 생성, 4방향+45°로 검수
+        ("SteelDrums",          Axis.Y, 0.9f,  true,  0f),
+        ("BurnBarrel",          Axis.Y, 0.9f,  true,  0f),
+        ("Forklift",            Axis.Y, 2.15f, true,  0f),
+        ("PalletStack",         Axis.Y, 1.15f, true,  0f),
+        ("RopeCoil",            Axis.X, 1.0f,  false, 0f),
+        ("NetPile",             Axis.X, 1.6f,  true,  0f),
     };
+
+    /// <summary>표에 있는 이름만 다시 만든다(새 소품을 추가했을 때)</summary>
+    public static void BuildOnly(params string[] names)
+    {
+        if (!AssetDatabase.IsValidFolder(PrefabRoot)) AssetDatabase.CreateFolder(PropRoot, "Prefabs");
+        foreach (var e in Table)
+            if (System.Array.IndexOf(names, e.name) >= 0) Build(e.name, e.axis, e.meters, e.collider, e.yaw);
+        AssetDatabase.SaveAssets();
+    }
 
     [MenuItem("Game/Baroque/Rebuild Prop Prefabs")]
     public static void RebuildAll()

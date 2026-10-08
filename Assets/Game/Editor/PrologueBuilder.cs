@@ -511,9 +511,11 @@ public static class PrologueBuilder
         // 전직 경찰의 맨손 격투: 잽 → 크로스 → 돌려차기. 타격 시점은 클립에서 손발이 가장 멀리 뻗는 순간(재생 시간 기준)
         player.unarmed = true;
         player.attackReach = 0.9f;
-        // 회피 = 구르기(0.55초 동안 약 3.1m, 구르는 동안 무적). 동작은 Roll 상태(CombatAnimationSetup)
-        player.dodgeSpeed = 7f;
-        player.dodgeDuration = 0.55f;
+        // 회피 = 다이빙 구르기(0.64초 동안 3.8m + 일어서기 0.18초, 처음 0.35초 무적). 동작은 Roll 상태(Roll_Tight)
+        player.dodgeDistance = 3.8f;
+        player.dodgeDuration = 0.64f;
+        player.dodgeRecovery = 0.18f;
+        player.dodgeIFrames = 0.35f;
         player.dodgeCooldown = 0.25f;
         player.combo = new[]
         {
@@ -668,7 +670,7 @@ public static class PrologueBuilder
         RenderSettings.skybox = null;
         RenderSettings.sun = moon;
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.11f, 0.12f, 0.16f);
+        RenderSettings.ambientLight = new Color(0.16f, 0.17f, 0.23f); // 너무 어두워 적이 안 보였다(0.11 → 0.16)
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Exponential;
         RenderSettings.fogDensity = 0.016f;

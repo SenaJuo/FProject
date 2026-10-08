@@ -85,6 +85,7 @@ public class TapeShop : MonoBehaviour
     void Close()
     {
         Current = null;
+        StoryState.MenuClosedFrame = Time.frameCount; // 닫은 Esc로 일시정지가 바로 열리지 않게
         Time.timeScale = 1f;
     }
 
@@ -99,7 +100,7 @@ public class TapeShop : MonoBehaviour
         }
 
         if (interactAction.WasPressedThisFrame() && stock.Count > 0) Trade(stock[Selected]);
-        if (closeAction.WasPressedThisFrame()) Close();
+        if (closeAction.WasPressedThisFrame() || PauseMenu.BackPressed) Close();
     }
 
     void Trade(Item item)
@@ -119,6 +120,6 @@ public class TapeShop : MonoBehaviour
 
     static void Say(string message)
     {
-        if (GameManager.Instance) GameManager.Instance.ShowMessage(message, 2f);
+        if (GameManager.Instance) GameManager.Instance.Notify(message);
     }
 }

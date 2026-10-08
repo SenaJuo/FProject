@@ -41,7 +41,7 @@ public static partial class Chapter1Builder
         b.checkpointLook = P.Marker(triggers, "CheckpointLook", new Vector3(AveX, 1.4f, 172f), 0f);
         b.squareTrigger = Trigger(triggers, "SquareTrigger", new Vector3((SqX0 + SqX1) / 2f, 1.5f, 187f), new Vector3(SqX1 - SqX0, 3f, 4f));
         b.square = new Bounds(new Vector3((SqX0 + SqX1) / 2f, 6f, 211f), new Vector3(SqX1 - SqX0 + 16f, 16f, 50f)); // 검문소 북쪽~광장 끝(옥상 포함)
-        b.harborEnd = P.Marker(triggers, "HarborEnd", new Vector3(AveX, 1.4f, 262f), 0f);
+        b.harborEnd = P.Marker(triggers, "HarborEnd", new Vector3(AveX - 4.5f, 1.4f, GateZ - 1f), 0f); // 철조망 문
         b.harborTrigger = Trigger(triggers, "HarborTrigger", new Vector3(AveX, 1.5f, 262f), new Vector3(AveE - AveW + 2f, 3f, 4f));
     }
 
@@ -108,7 +108,7 @@ public static partial class Chapter1Builder
         P.Box(g, "PlazaW", new Vector3((SqX0 + AveRoad0) / 2f, 0.075f, (z0 + z1) / 2f), new Vector3(AveRoad0 - SqX0, 0.15f, z1 - z0), Z["Plaza"], new Vector2(2.4f, 2.4f));
         P.Box(g, "PlazaE", new Vector3((AveRoad1 + BldX1) / 2f, 0.075f, (z0 + z1) / 2f), new Vector3(BldX1 - AveRoad1, 0.15f, z1 - z0), Z["Plaza"], new Vector2(2.4f, 2.4f));
         // 큰길 찻길이 광장을 지나 항구 길로 이어진다
-        const float r0 = 160f, r1 = 300f;
+        const float r0 = 160f, r1 = 318f; // 항구 철조망 문(z 317.5)까지
         P.Box(g, "SquareRoad", new Vector3(AveX, -0.25f, (r0 + r1) / 2f), new Vector3(AveRoad1 - AveRoad0, 0.5f, r1 - r0), M["Asphalt"], new Vector2(4f, 4f));
         P.Box(g, "SquareCurb_W", new Vector3(AveRoad0 + 0.1f, 0.08f, (r0 + r1) / 2f), new Vector3(0.2f, 0.16f, r1 - r0), M["Curb"], Vector2.one, collider: false);
         P.Box(g, "SquareCurb_E", new Vector3(AveRoad1 - 0.1f, 0.08f, (r0 + r1) / 2f), new Vector3(0.2f, 0.16f, r1 - r0), M["Curb"], Vector2.one, collider: false);
@@ -143,10 +143,7 @@ public static partial class Chapter1Builder
         // 동쪽: 골목 남쪽의 높은 건물(저격수 건물은 SniperBuilding)
         P.Building(g, "Square_E0", new Vector3((BldX0 + BldX1) / 2f, 7.5f, (166f + AlleyZ0) / 2f), new Vector3(BldX1 - BldX0, 15f, AlleyZ0 - 166f), F[0], back, Vector3.left);
         ShutterRow(g, new Vector3(BldX0 - 0.03f, G, 166f), new Vector3(BldX0 - 0.03f, G, AlleyZ0), X["Shutter"]);
-        // 항구 길 양옆과 끝
-        P.Building(g, "Harbor_W", new Vector3((140f + AveW) / 2f, 6.5f, 276f), new Vector3(AveW - 140f, 13f, 48f), F[2], back, Vector3.right);
-        P.Building(g, "Harbor_E", new Vector3((AveE + 188f) / 2f, 7.5f, 276f), new Vector3(188f - AveE, 15f, 48f), F[0], back, Vector3.left);
-        P.Building(g, "Harbor_End", new Vector3(AveX, 9f, 306f), new Vector3(48f, 18f, 12f), F[1], back, Vector3.back);
+        // 항구 길 양옆 건물·가게 2·철조망 문은 구역 3(Chapter1Builder.Zone3.cs)
         // 항구 쪽 화살표 간판(항구 길 들머리 오른쪽 건물 벽)
         var arrow = P.Box(g, "HarborSign", new Vector3(AveE + 0.08f, 4.2f, 256f), new Vector3(0.06f, 0.75f, 3f), Z["SignArrow"], Vector2.one, collider: false);
         arrow.GetComponent<MeshFilter>().sharedMesh = P.BoxMesh(new Vector3(0.06f, 0.75f, 3f), new Vector2(3f, 0.75f), new[] { Vector3.left });
@@ -272,9 +269,9 @@ public static partial class Chapter1Builder
         var ai = P.CreateThug(parent, name, pos, yaw, "RiotCop");
         SetCombat(ai, false);
         ai.displayName = "방패 경찰";
-        ai.damage = 10;
+        ai.damage = 8;          // 둘이 함께 덤비므로 조직원과 같은 피해
         ai.windup = 0.7f;
-        ai.attackCooldown = 1.7f;
+        ai.attackCooldown = 2.2f;
         ai.GetComponent<Health>().maxHealth = 120;
         var shield = TryProp("RiotShield", ai.transform, Vector3.zero, 0f);
         if (shield)

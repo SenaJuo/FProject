@@ -63,6 +63,8 @@ public static class CombatAnimationSetup
         foreach (var x in machine.states.Where(x => x.state.name is "Stagger" or "Backstep").ToArray()) machine.RemoveState(x.state);
         EditorUtility.SetDirty(controller);
         AssetDatabase.SaveAssets();
+        // 구르기 재생 빠르기는 RollSpeed 값으로(이동 시간에 맞춘다)
+        report.AppendLine(RollSetup.Apply());
         return report.ToString();
     }
 

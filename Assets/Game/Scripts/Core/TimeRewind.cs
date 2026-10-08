@@ -99,8 +99,19 @@ public static class TimeRewind
 
     public static void Preview(WorldSnapshot snapshot) => Apply(snapshot, true);
 
+    /// <summary>되감기가 끝났다: (도착한 기록, 건너뛴 기록들 — 오래된 순). 건너뛴 기록은 이 호출 뒤 버려지므로 필요한 것은 그 자리에서 옮겨 둔다</summary>
+    public static event System.Action<WorldSnapshot, List<WorldSnapshot>> Rewound;
+    static readonly List<WorldSnapshot> skippedBuffer = new();
+
     public static void RewindTo(WorldSnapshot snapshot)
     {
+        if (snapshot != null && Rewound != null)
+        {
+            skippedBuffer.Clear();
+            foreach (var h in history) if (h.Time > snapshot.Time) skippedBuffer.Add(h);
+            Rewound(snapshot, skippedBuffer);
+            skippedBuffer.Clear();
+        }
         Apply(snapshot, false);
         while (history.Count > 0 && history[^1].Time > snapshot.Time)
         {

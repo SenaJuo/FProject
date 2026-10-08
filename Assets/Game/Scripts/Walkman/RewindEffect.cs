@@ -44,13 +44,14 @@ public class RewindEffect : MonoBehaviour
     public void StartWhir()
     {
         whirSource.pitch = 1f;
+        whirSource.volume = GameSettings.Gain(GameSettings.Channel.Sfx); // 옵션의 효과음 크기
         whirSource.Play();
     }
 
     public void StopWhir()
     {
         whirSource.Stop();
-        clickSource.PlayOneShot(clunk);
+        clickSource.PlayOneShot(clunk, GameSettings.Gain(GameSettings.Channel.Sfx));
     }
 
     void Update()

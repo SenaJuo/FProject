@@ -14,12 +14,12 @@ public class PlayerAnimationEvents : MonoBehaviour
     void OnFootstep(AnimationEvent animationEvent)
     {
         if (!Audible(animationEvent) || footsteps == null || footsteps.Length == 0) return;
-        AudioSource.PlayClipAtPoint(footsteps[Random.Range(0, footsteps.Length)], transform.position, volume);
+        AudioSource.PlayClipAtPoint(footsteps[Random.Range(0, footsteps.Length)], transform.position, volume * GameSettings.Gain(GameSettings.Channel.Sfx));
     }
 
     void OnLand(AnimationEvent animationEvent)
     {
-        if (Audible(animationEvent) && landing) AudioSource.PlayClipAtPoint(landing, transform.position, volume);
+        if (Audible(animationEvent) && landing) AudioSource.PlayClipAtPoint(landing, transform.position, volume * GameSettings.Gain(GameSettings.Channel.Sfx));
     }
 
     static bool Audible(AnimationEvent animationEvent) =>

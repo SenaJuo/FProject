@@ -52,3 +52,6 @@ sysinfo.txt
 # 성능 시험 패키지가 빌드·시험 때 잠깐 만드는 파일(Resources 아래라 올라가면 게임에 섞인다)
 /Assets/Resources/PerformanceTestRun*
 /Assets/Resources/PerformanceTestRun*.meta
+
+# 블렌더 자동 백업 파일
+*.blend1

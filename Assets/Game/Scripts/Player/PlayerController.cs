@@ -31,10 +31,16 @@ public class PlayerController : MonoBehaviour, IRewindable
     [Tooltip("오를 수 없는 가파른 경사에서 미끄러져 내려가는 속도")]
     public float slideSpeed = 10f;
 
-    [Header("회피")]
-    public float dodgeSpeed = 17f;
-    public float dodgeDuration = 0.22f;
-    public float dodgeCooldown = 0.3f;
+    [Header("회피(구르기)")]
+    [Tooltip("구르며 나아가는 거리(m)")]
+    public float dodgeDistance = 3.8f;
+    [Tooltip("나아가는 시간: 몸을 날려 바닥을 구르고 일어서기 시작할 때까지")]
+    public float dodgeDuration = 0.64f;
+    [Tooltip("다 일어서는 시간. 이동·공격 입력이 들어오면 바로 끊고 걷기·공격으로 넘어간다(일어서는 동작이 미끄러지지 않게)")]
+    public float dodgeRecovery = 0.18f;
+    [Tooltip("구르기 시작부터 무적인 시간")]
+    public float dodgeIFrames = 0.35f;
+    public float dodgeCooldown = 0.25f;
     public Color dodgeTint = new(0.5f, 0.9f, 1f);
 
     [Header("애니메이션")]
@@ -71,6 +77,12 @@ public class PlayerController : MonoBehaviour, IRewindable
     public bool CanAct => state == State.Move && controller && controller.isGrounded;
     /// <summary>특수 동작(BeginBusy) 중</summary>
     public bool IsBusy => state == State.Busy;
+    /// <summary>구르는 중과 구른 지 몇 초째인지(완벽 회피 판정)</summary>
+    public bool IsDodging => state == State.Dodge;
+    public float DodgeAge => state == State.Dodge ? stateTimer : 99f;
+    /// <summary>마지막 구르기를 시작한 지 몇 초(되감기로 기억한 공격의 완벽 회피 판정)</summary>
+    public float SinceDodge => Time.time - dodgeStartedAt;
+    float dodgeStartedAt = -99f;
 
     State state;
     CharacterController controller;
@@ -98,6 +110,7 @@ public class PlayerController : MonoBehaviour, IRewindable
     static readonly int FreeFallId = Animator.StringToHash("FreeFall");
     static readonly int HitLightHash = Animator.StringToHash("HitLight");
     static readonly int RollHash = Animator.StringToHash("Roll");
+    static readonly int LocomotionHash = Animator.StringToHash("Idle Walk Run Blend");
 
     void Awake()
     {
@@ -146,7 +159,7 @@ public class PlayerController : MonoBehaviour, IRewindable
             State.Move when locked => UpdateScriptedMove(dt),
             State.Move => UpdateMove(input),
             State.Attack => UpdateAttack(input, dt),
-            State.Dodge => UpdateDodge(dt),
+            State.Dodge => UpdateDodge(input, dt),
             State.Hurt => UpdateHurt(dt),
             State.Busy => UpdateBusy(dt),
             _ => Vector3.zero,
@@ -170,7 +183,6 @@ public class PlayerController : MonoBehaviour, IRewindable
         float speed = state switch
         {
             State.Move => new Vector2(horizontal.x, horizontal.z).magnitude,
-            State.Dodge => dodgeSpeed,
             _ => 0f,
         };
         // SetFloat의 감쇠 오버로드 대신 여기서 보간한다. 그 오버로드는 플레이 중 목표값에 못 미친 채 멈췄다.
@@ -189,10 +201,26 @@ public class PlayerController : MonoBehaviour, IRewindable
         jumpedThisFrame = false;
     }
 
+    [Tooltip("맨손 주먹(잽·크로스)을 칠 때 상체를 앞으로 숙이는 각도. 원본 동작은 상체가 5~8° 뒤로 젖혀져 있어 힘없어 보였다")]
+    public float punchLean = 16f;
+    float leanWeight;
+
     void LateUpdate()
     {
+        if (unarmed)
+        {
+            // 주먹은 체중을 실어 앞으로: 애니메이션 뒤에 척추·가슴을 앞으로 숙인다(발차기·반격 돌려차기는 원래 동작대로)
+            bool punching = state == State.Attack && comboIndex < combo.Length - 1 && !counterStrike;
+            leanWeight = Mathf.MoveTowards(leanWeight, punching ? 1f : 0f, Time.deltaTime / 0.12f);
+            if (leanWeight <= 0f || TimeRewind.PlayingBack || !animator) return;
+            float half = punchLean * leanWeight * 0.5f;
+            var spine = animator.GetBoneTransform(HumanBodyBones.Spine);
+            if (spine) spine.rotation = Quaternion.AngleAxis(half, transform.right) * spine.rotation;
+            if (chest && chest != spine) chest.rotation = Quaternion.AngleAxis(half, transform.right) * chest.rotation;
+            return;
+        }
         // 공격 클립이 없으므로 검과 함께 상체를 비틀어, 휘두르기가 몸 전체의 동작으로 보이게 한다.
-        if (!chest || state != State.Attack || TimeRewind.PlayingBack || unarmed) return;
+        if (!chest || state != State.Attack || TimeRewind.PlayingBack) return;
         chest.rotation = Quaternion.AngleAxis(swingEuler.y * swingTwist, transform.up)
                        * Quaternion.AngleAxis(swingEuler.x * swingTwist * 0.6f, transform.right)
                        * chest.rotation;
@@ -239,7 +267,7 @@ public class PlayerController : MonoBehaviour, IRewindable
     Vector3 UpdateMove(Vector3 input)
     {
         if (StoryState.CombatLocked) attackQueued = false;
-        else if (attackAction.WasPressedThisFrame()) { BeginAttack(0, input); return Vector3.zero; }
+        else if (attackAction.WasPressedThisFrame()) { if (!TryCounter()) BeginAttack(0, input); return Vector3.zero; }
         if (dodgeAction.WasPressedThisFrame() && Time.time >= dodgeReadyTime) { BeginDodge(input); return Vector3.zero; }
         if (jumpAction.WasPressedThisFrame() && controller.isGrounded && !onSteepSlope)
         {
@@ -262,6 +290,7 @@ public class PlayerController : MonoBehaviour, IRewindable
         stateTimer = 0f;
         attackQueued = false;
         hitDone = false;
+        counterStrike = false;
         FaceTarget(input);
         // 달라붙기: 노린 적이 있으면 맞히는 순간 알맞은 거리(0.85m)에 서도록 앞으로 나가는 거리를 맞춘다(허공을 치지 않게).
         // 노린 적이 없으면 제자리에서 친다 — 허공에 연타할 때 조금씩 앞으로 밀려 나가지 않게
@@ -283,6 +312,7 @@ public class PlayerController : MonoBehaviour, IRewindable
         // 컷신이 시작되면 이어 치기를 멈춘다(누르고 있던 콤보가 컷신 속으로 이어지지 않게)
         bool attackLocked = StoryState.InputLocked || StoryState.CombatLocked;
         if (attackLocked) attackQueued = false;
+        else if (attackAction.WasPressedThisFrame() && !counterStrike && TryCounter()) return Vector3.zero;
         else if (attackAction.WasPressedThisFrame()) attackQueued = true;
 
         // 타격이 들어간 뒤에는 회피로 휘두르기를 끊을 수 있고, 미리 눌러 둔 입력이 다음 단계로 이어진다.
@@ -347,7 +377,7 @@ public class PlayerController : MonoBehaviour, IRewindable
     void PerformHit(AttackStep step)
     {
         Vector3 center = transform.position + Vector3.up + transform.forward * attackReach;
-        int damage = Mathf.RoundToInt(attackPower * step.damageMultiplier);
+        int damage = Mathf.RoundToInt(attackPower * (counterStrike ? counterDamageMultiplier : step.damageMultiplier));
         var tier = comboIndex >= 2 ? HitFeel.Tier.Heavy : comboIndex == 1 ? HitFeel.Tier.Medium : HitFeel.Tier.Light;
         var struck = new System.Collections.Generic.HashSet<Health>();
 
@@ -363,6 +393,52 @@ public class PlayerController : MonoBehaviour, IRewindable
             bool finisher = target.IsDead && !AnyEnemyLeft();
             HitFeel.Impact(tier, p, target.transform.position - transform.position, target.gameObject, false, finisher);
         }
+        if (counterStrike && struck.Count > 0) CounterLanded?.Invoke();
+    }
+
+    // ---------- 회피 반격 ----------
+
+    [Header("회피 반격")]
+    [Tooltip("완벽 회피 뒤 이 시간(게임 초) 안에 공격하면, 빈틈 난 적에게 달려들어 강하게 찬다")]
+    public float counterWindow = 1.1f;
+    [Tooltip("반격 피해 = 공격력 × 이 값(보통 돌려차기는 2)")]
+    public float counterDamageMultiplier = 3.5f;
+    [Tooltip("이 거리(m) 안의 적에게만 달려든다")]
+    public float counterRange = 7f;
+
+    /// <summary>반격이 적중했다(시험·연출용)</summary>
+    public static event System.Action CounterLanded;
+    /// <summary>지금 공격을 누르면 반격이 나간다(완벽 회피 직후)</summary>
+    public bool CounterReady => counterTarget && Time.time <= counterUntil && !counterTarget.Health.IsDead;
+
+    EnemyAI counterTarget;
+    float counterUntil;
+    bool counterStrike;
+
+    /// <summary>완벽 회피에 당한 적이 부른다: 잠깐 동안 공격 입력이 그 적에게 달려드는 반격이 된다</summary>
+    public void OfferCounter(EnemyAI enemy)
+    {
+        counterTarget = enemy;
+        counterUntil = Time.time + counterWindow;
+    }
+
+    /// <summary>반격 기회가 있으면 그 적에게 달려들어 돌려차기를 한다(강하게). 썼으면 true</summary>
+    bool TryCounter()
+    {
+        if (!CounterReady || StoryState.InputLocked || StoryState.CombatLocked) return false;
+        var e = counterTarget;
+        counterTarget = null;
+        Vector3 to = e.transform.position - transform.position; to.y = 0f;
+        if (to.magnitude > counterRange) return false;
+        if (state == State.Dodge) EndDodge();
+        BeginAttack(combo.Length - 1, Vector3.zero);
+        counterStrike = true;
+        // 노린 적을 정확히 본다 — 주변의 다른 적이 아니라 빈틈 난 그 적에게
+        lungeTarget = e.transform;
+        if (to.sqrMagnitude > 0.001f) transform.rotation = Quaternion.LookRotation(to);
+        lungeDistance = Mathf.Clamp(to.magnitude - 0.85f, 0f, counterRange);
+        if (tint) tint.SetTint(dodgeTint, 0.8f);
+        return true;
     }
 
     /// <summary>근처(30m)에 아직 서 있는 적이 있는가(마지막 한 방 연출용). 아직 눈치채지 못한 적도 센다</summary>
@@ -390,18 +466,57 @@ public class PlayerController : MonoBehaviour, IRewindable
 
         state = State.Dodge;
         stateTimer = 0f;
+        dodgeStartedAt = Time.time;
         health.Invulnerable = true;
         dodgeReadyTime = Time.time + dodgeDuration + dodgeCooldown;
+        // 구르기 동작(Roll_Tight)이 이동 + 일어서기 시간에 딱 맞게 재생되도록 빠르기를 맞춘다
+        if (animator) animator.SetFloat(RollSpeedId, RollClipLength / (dodgeDuration + dodgeRecovery));
         if (tint) tint.SetTint(dodgeTint, 0.6f);
         ResetWeapon();
     }
 
-    Vector3 UpdateDodge(float dt)
+    /// <summary>구르기 클립(Roll_Tight, Quaternius 다이빙 구르기) 길이(초). 애니메이터에서 한 번 읽어 재생 빠르기를 맞추는 데 쓴다</summary>
+    float rollClipLength = -1f;
+    float RollClipLength
     {
+        get
+        {
+            if (rollClipLength > 0f) return rollClipLength;
+            rollClipLength = 1.4667f;
+            if (animator && animator.runtimeAnimatorController)
+                foreach (var c in animator.runtimeAnimatorController.animationClips)
+                    if (c && c.name == "Roll_Tight") { rollClipLength = c.length; break; }
+            return rollClipLength;
+        }
+    }
+    static readonly int RollSpeedId = Animator.StringToHash("RollSpeed");
+
+    Vector3 UpdateDodge(Vector3 input, float dt)
+    {
+        // 구르는 도중에도 반격 기회가 오면(완벽 회피는 구르는 중에 일어난다) 공격 입력으로 바로 반격한다
+        if (attackAction.WasPressedThisFrame() && TryCounter()) return Vector3.zero;
         stateTimer += dt;
-        if (stateTimer >= dodgeDuration) EndDodge();
-        float k = Mathf.Clamp01(stateTimer / dodgeDuration);
-        return dodgeDirection * (dodgeSpeed * (1f - 0.6f * k * k)); // 구르기 끝 무렵 느려진다
+        if (health.Invulnerable && stateTimer >= dodgeIFrames) health.Invulnerable = false;
+        if (stateTimer < dodgeDuration)
+        {
+            // 다이빙 구르기(Roll_Tight)에 맞춘 빠르기: 박차고(0~10%) → 몸을 날려 가장 빠르게(~40%) → 바닥을 구르며 줄어 일어설 때 멈춘다.
+            // 예전에는 날아오르는 도중에 이동이 끝나 공중에 떠 있는 것처럼 보였다
+            float k = stateTimer / dodgeDuration;
+            float w = k < 0.1f ? k / 0.1f : k < 0.4f ? 1f : 1f - (k - 0.4f) / 0.6f;
+            float vmax = dodgeDistance / (dodgeDuration * 0.65f); // w의 넓이 = 0.05 + 0.3 + 0.3
+            return dodgeDirection * (vmax * w);
+        }
+        // 일어서는 중: 제자리. 움직이거나 공격하면 그 자리에서 바로 이어 간다
+        bool wantsMove = input.sqrMagnitude > 0.04f;
+        bool wantsAttack = attackAction.WasPressedThisFrame() && !StoryState.CombatLocked;
+        if (wantsMove || wantsAttack || stateTimer >= dodgeDuration + dodgeRecovery)
+        {
+            EndDodge();
+            if (animator && animator.GetCurrentAnimatorStateInfo(0).shortNameHash == RollHash)
+                animator.CrossFadeInFixedTime(LocomotionHash, 0.15f);
+            if (wantsAttack) BeginAttack(0, input);
+        }
+        return Vector3.zero;
     }
 
     void EndDodge()
@@ -442,6 +557,19 @@ public class PlayerController : MonoBehaviour, IRewindable
         float range = away.magnitude;
         HitFeel.Impact(amount >= 30 ? HitFeel.Tier.Heavy : HitFeel.Tier.Medium, transform.position + Vector3.up * 1.4f, -away, gameObject, true, false, bullet: range > 3f);
         if (animator && animator.HasState(0, HitLightHash)) animator.CrossFadeInFixedTime(amount >= 30 ? "HitHeavy" : "HitLight", 0.05f);
+        state = State.Hurt;
+        stateTimer = 0f;
+        ResetWeapon();
+    }
+
+    /// <summary>맞지 않았어도 밀려나며 하던 동작이 끊긴다(방패 밀치기). 구르는 중·특수 동작 중에는 통하지 않는다</summary>
+    public void Shove(Vector3 source, float force = 6f)
+    {
+        if (state is State.Dead or State.Dodge or State.Busy) return;
+        Vector3 away = transform.position - source;
+        away.y = 0f;
+        hurtPush = away.sqrMagnitude > 0.001f ? away.normalized * force : Vector3.zero;
+        if (state != State.Hurt && animator && animator.HasState(0, HitLightHash)) animator.CrossFadeInFixedTime("HitLight", 0.05f);
         state = State.Hurt;
         stateTimer = 0f;
         ResetWeapon();

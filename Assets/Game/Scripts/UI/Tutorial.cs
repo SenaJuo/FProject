@@ -45,6 +45,14 @@ public static class Tutorial
 
     public static void Unlock() => Unlocked = true;
 
+    /// <summary>새 게임(타이틀에서 시작): 설명 잠금·띄운 기록·못 띄운 알림을 처음으로</summary>
+    public static void ResetProgress()
+    {
+        Unlocked = false;
+        shown.Clear();
+        TutorialUI.ClearPending();
+    }
+
     /// <summary>설명 알림을 띄운다(이미 띄운 설명이거나 아직 잠겨 있으면 무시). 컷신 중이면 컷신이 끝난 뒤 뜬다.</summary>
     public static void Show(string id)
     {
@@ -130,6 +138,29 @@ public static class Tutorial
                     $"손전등 순찰은 의심 막대가 다 차기 전, 옥상의 저격수는 조준경을 보는 동안 등 뒤에서 제압할 수 있습니다."),
             },
         },
+        ["perfect"] = new Entry
+        {
+            id = "perfect", category = "전투", title = "완벽 회피",
+            pages = new[]
+            {
+                new Page("주먹이 닿기 직전에 구른다",
+                    $"적의 주먹이 닿기 {H("직전")}에 {H("우클릭")}으로 구르면 시간이 느려지고, 그 적은 1초 남짓 {H("빈틈투성이")}가 됩니다. 방패도 내려갑니다.\n\n" +
+                    $"그 순간 {H("좌클릭")}하면 그 적에게 달려들어 {H("회피 반격")}(강한 돌려차기)이 나갑니다.\n\n" +
+                    $"머리 위에 {H("붉은 !!")}가 뜨면 {H("강타")}입니다. 맞받아 치지 말고 피하세요. 방패 경찰은 정면으로 두 번 막으면 밀쳐냅니다 — 옆으로 돌거나 완벽 회피로 틈을 만드세요."),
+            },
+        },
+        ["memory"] = new Entry
+        {
+            id = "memory", category = "카세트 플레이어", title = "되감기의 기억",
+            pages = new[]
+            {
+                new Page("지워진 시간은 레이만 기억한다",
+                    $"되감으면 세상은 아무것도 모른 채 되돌아가지만, {H("레이는 지워진 몇 초를 기억합니다.")}\n\n" +
+                    $"그때 레이를 {H("발견했던 순찰")}은 한동안 손전등 {H("시야가 바닥에 보입니다")}. 의심할수록 붉어집니다. 이번엔 그 빛을 피해 지나가세요.\n\n" +
+                    $"그때 레이를 {H("때렸던 적")}은 다음 공격 {RewindMemory.ForeseenAttacks}번 동안 머리 위에 {H("타이밍 막대")}가 뜹니다. " +
+                    $"막대가 줄어들어 {H("지금!")}이 뜰 때 {H("우클릭")}으로 구르면 완벽 회피입니다(평소보다 조금 일찍 굴러도 됩니다)."),
+            },
+        },
         ["sniper"] = new Entry
         {
             id = "sniper", category = "전투", title = "저격수",
@@ -213,7 +244,6 @@ public class TutorialUI : MonoBehaviour
     readonly Dictionary<(GUIStyle, TextAnchor), GUIStyle> midStyles = new();
     static readonly Dictionary<string, string> shadowTexts = new();
 
-    void Awake() => useGUILayout = false; // GUILayout을 쓰지 않는다 → OnGUI 배치 단계를 건너뛴다
 
     public static TutorialUI Ensure()
     {
@@ -298,6 +328,7 @@ public class TutorialUI : MonoBehaviour
         open = null;
         Time.timeScale = 1f; // 정상 속도에서만 열린다
         StoryState.MenuOpen = false;
+        StoryState.MenuClosedFrame = Time.frameCount; // 닫은 Esc로 일시정지가 바로 열리지 않게
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -312,10 +343,12 @@ public class TutorialUI : MonoBehaviour
 
     void OnGUI()
     {
-        if (open == null && (toast == null || StoryState.CutsceneActive)) return; // 그릴 것이 없으면 바로 끝
+        if (open == null && (toast == null || StoryState.CutsceneActive || PauseMenu.IsOpen)) return; // 그릴 것이 없으면 바로 끝(일시정지 화면 위에는 알림을 띄우지 않는다)
         float s = Screen.height / 1080f;
         BuildStyles(s);
         GUI.depth = -10; // HUD 위에
+        // 배치(Layout) 단계는 그리는 순서(GUI.depth)만 정하고 바로 끝낸다 — 이 단계를 아예 끄면(useGUILayout=false) 순서가 무시되고 먼저 생긴 순으로 굳었다
+        if (Event.current.type == EventType.Layout) return;
         if (open != null) DrawPopup(open, s);
         else if (toast != null && !StoryState.CutsceneActive) DrawToast(toast, s);
     }

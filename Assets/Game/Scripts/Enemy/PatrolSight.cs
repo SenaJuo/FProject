@@ -51,6 +51,8 @@ public class PatrolSight : MonoBehaviour, IRewindable
     public EnemyAI Enemy { get; private set; }
 
     public static event Action<PatrolSight> Spotted;
+    /// <summary>제 눈으로 레이를 보고 소리쳤다(함께 몰려온 순찰·맞아서 알아챈 경우는 아니다)</summary>
+    public static event Action<PatrolSight> SawPlayer;
 
     NavMeshAgent agent;
     HumanoidIK ik;
@@ -266,6 +268,7 @@ public class PatrolSight : MonoBehaviour, IRewindable
                     other.Alert(false);
         }
         Spotted?.Invoke(this);
+        if (shout) SawPlayer?.Invoke(this);
     }
 
     /// <summary>연출용: 의심 막대를 바로 채워 보이게 한다(실제 발각은 Alert)</summary>

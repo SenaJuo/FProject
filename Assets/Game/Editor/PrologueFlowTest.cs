@@ -23,8 +23,11 @@ public static class PrologueFlowTest
 
     const BindingFlags Any = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
 
+    static bool parcelUsed;
+
     public static void Begin(string logPath, string shotDir)
     {
+        parcelUsed = false;
         // 편집 모드에서 부르면 시험용 변경(감독 끄기 등)이 장면에 그대로 남는다 → 플레이 중에만
         if (!EditorApplication.isPlaying || !Object.FindAnyObjectByType<PrologueDirector>()) throw new System.InvalidOperationException("플레이 중인 프롤로그 장면에서만 시작할 수 있다");
         Log = logPath;
@@ -95,8 +98,10 @@ public static class PrologueFlowTest
         var player = d.player;
         switch (step)
         {
-            case 0: // 1회차 집: 현관문
-                if (phase == "Home") { Note($"책상 편지 보임 {d.deskLetter.activeSelf}, 카세트 보임 {d.deskWalkman.activeSelf}"); Use(d.homeDoor); Next(); }
+            case 0: // 1회차 집: 책상 택배(F) → 편지 읽고 닫기 → 현관문
+                if (phase == "Desk" && StoryState.LetterText == null && !parcelUsed) { Note("책상 택배 열기(F)"); Use(d.deskParcel); parcelUsed = true; }
+                else if (phase == "Desk" && StoryState.LetterText != null && Waited(1f)) { Note($"편지 펼침: {StoryState.LetterHeading} — 닫음(F)"); d.CloseLetter(); }
+                else if (phase == "Home") { Note($"책상 편지 보임 {d.deskLetter.activeSelf}, 카세트 보임 {d.deskWalkman.activeSelf}"); Use(d.homeDoor); Next(); }
                 break;
             case 1: // 거리: 대니 집 문 앞으로 순간 이동해 노크
                 if (phase == "Street" && !StoryState.ControlLocked && Waited(1.5f))

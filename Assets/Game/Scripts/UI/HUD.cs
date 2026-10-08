@@ -33,9 +33,7 @@ public class HUD : MonoBehaviour
     int hpCurrent = -1, hpMax = -1, potionCount = -1, objectiveCleared = -2, objectiveRemaining = -2;
     ZoneGate objectiveGate;
     bool objectiveFighting, objectiveValid;
-    readonly string[] helpTexts = new string[4];
 
-    void Awake() => useGUILayout = false; // GUILayout을 쓰지 않는다 → OnGUI 배치 단계를 건너뛴다
 
     void Start()
     {
@@ -48,6 +46,9 @@ public class HUD : MonoBehaviour
     void OnGUI()
     {
         float s = Screen.height / 1080f;
+        GUI.depth = 10; // 게임 HUD는 맨 뒤(설명 알림·일시정지가 위)
+        // 배치(Layout) 단계는 그리는 순서(GUI.depth)만 정하고 바로 끝낸다 — 이 단계를 아예 끄면(useGUILayout=false) 순서가 무시되고 먼저 생긴 순으로 굳었다
+        if (Event.current.type == EventType.Layout) return;
         BuildStyles(s);
         var gm = GameManager.Instance;
 
@@ -88,6 +89,7 @@ public class HUD : MonoBehaviour
         }
 
         DrawEnemyHealth(s);
+        DrawPickups(s);
         DrawSuspicion(s);
 
         bool menu = walkman && walkman.InventoryOpen || TapeShop.Current;
@@ -108,20 +110,8 @@ public class HUD : MonoBehaviour
         string centre = rewindUi ? null : player.IsDead ? "YOU DIED" : gm && gm.MessageVisible ? gm.Message : null;
         if (centre != null) ShadowLabel(new Rect(0, Screen.height * 0.12f, Screen.width, 120 * s), centre, big);
 
-        if (!menu)
-        {
-            // 아직 쓸 수 없는 조작은 안내에서 뺀다(프롤로그 첫 회차에는 공격·되감기를 모른다)
-            int helpIndex = (StoryState.CombatLocked ? 1 : 0) + (StoryState.RewindLocked ? 2 : 0);
-            string help = helpTexts[helpIndex] ??= "WASD 이동  마우스 시점"
-                          + (StoryState.CombatLocked ? "" : "  좌클릭 공격  Q 몰래 제압")
-                          + "  우클릭 회피  Space 점프  Shift 달리기"
-                          + (StoryState.RewindLocked ? "" : "  R 되감기  I 인벤토리  2 테이프 교체  1 회복약")
-                          + "  F 상호작용";
-            ShadowLabel(new Rect(0, Screen.height - 40 * s, Screen.width - 40 * s, 30 * s), help, smallRight);
-        }
-
-        if (gm && Time.unscaledTime - gm.SavedAt < 2.5f && !menu)
-            ShadowLabel(new Rect(0, Screen.height - 78 * s, Screen.width - 40 * s, 30 * s), gm.LastSaveHealed ? "저장됨 · 체력 회복" : "저장됨", smallRight);
+        // 조작법은 화면에 늘 띄우지 않는다(Esc 메뉴 → 조작법)
+        if (gm) DrawNotices(gm, s);
 
         DrawSubtitle(s, Screen.height * 0.78f);
         if (!string.IsNullOrEmpty(StoryState.Prompt) && !(walkman && walkman.Rewinding)) DrawPrompt(StoryState.Prompt, s);
@@ -233,11 +223,70 @@ public class HUD : MonoBehaviour
                 ShadowLabel(new Rect(rect.x, rect.y - 38 * s, w, 34 * s), enemy.displayName, normal);
                 Bar(rect, ratio, Accent);
             }
+            if (enemy.HeavyTelegraph && cam)
+            {
+                // 강타 예고: 머리 위 붉은 !! (피하라는 신호)
+                Vector3 hs = cam.WorldToScreenPoint(enemy.transform.position + Vector3.up * (2.5f * enemy.transform.lossyScale.y));
+                if (hs.z > 0f) { var r = new Rect(hs.x - 40 * s, Screen.height - hs.y - 34 * s, 80 * s, 34 * s); normalCentre.normal.textColor = Accent; GUI.Label(r, "!!", normalCentre); normalCentre.normal.textColor = Paper; }
+            }
+            if (enemy.Foreseen > 0 && cam)
+            {
+                // 되감기의 기억: 레이는 이 적이 언제 칠지 안다 — 막대가 줄어들어 밝은 칸에 들어오면 구른다
+                Vector3 fs = cam.WorldToScreenPoint(enemy.transform.position + Vector3.up * (2.1f * enemy.transform.lossyScale.y));
+                if (fs.z > 0f) DrawForesight(new Rect(fs.x - 70 * s, Screen.height - fs.y, 140 * s, 10 * s), enemy, s);
+            }
+            if (enemy.isBoss) { }
             else if (ratio < 1f && cam)
             {
                 Vector3 screen = cam.WorldToScreenPoint(enemy.transform.position + Vector3.up * (2.4f * enemy.transform.lossyScale.y));
                 if (screen.z > 0f) Bar(new Rect(screen.x - 40 * s, Screen.height - screen.y, 80 * s, 7 * s), ratio, Accent);
             }
+        }
+    }
+
+    static readonly Color Memory = new(1f, 0.82f, 0.5f);
+
+    /// <summary>오른쪽 아래 작은 알림: 새 것이 맨 아래, 위로 쌓인다. 처음 0.2초 오른쪽에서 밀려 들어오고 끝 0.5초 흐려진다</summary>
+    void DrawNotices(GameManager gm, float s)
+    {
+        var list = gm.Notices;
+        float now = StoryState.Now, y = Screen.height - 54 * s;
+        for (int i = list.Count - 1; i >= 0; i--, y -= 34 * s)
+        {
+            var (text, from, until) = list[i];
+            float a = Mathf.Clamp01((until - now) / 0.5f) * Mathf.Clamp01((now - from) / 0.15f);
+            float slide = (1f - Mathf.Clamp01((now - from) / 0.2f)) * 40 * s;
+            var r = new Rect(0, y, Screen.width - 40 * s + slide, 30 * s);
+            var c = GUI.color; GUI.color = new Color(1f, 1f, 1f, a);
+            ShadowLabel(r, text, smallRight);
+            GUI.color = c;
+        }
+    }
+
+    /// <summary>기억한 적의 공격 타이밍 막대: 평소엔 흐린 빈 막대, 준비 동작에 들어가면 남은 시간만큼 차 있다가 줄어든다</summary>
+    void DrawForesight(Rect r, EnemyAI enemy, float s)
+    {
+        float left = enemy.WindupLeft;
+        var dim = Memory; dim.a = 0.35f;
+        ShadowLabel(new Rect(r.x - 20 * s, r.y - 26 * s, r.width + 40 * s, 24 * s), left >= 0f ? "" : "기억", smallCentre);
+        Fill(new Rect(r.x - s, r.y - s, r.width + 2 * s, r.height + 2 * s), new Color(0f, 0f, 0f, 0.55f));
+        if (left < 0f) { Fill(new Rect(r.x, r.y + r.height / 2f - s, r.width, 2 * s), dim); return; }
+
+        float total = Mathf.Max(0.05f, enemy.WindupDuration);
+        float window = enemy.ranged ? 0.2f : EnemyAI.ForeseenWindow; // 총은 구르는 동안(무적) 날아와야 빗나간다
+        float zone = Mathf.Clamp01(window / total) * r.width;
+        Fill(new Rect(r.x, r.y, zone, r.height), dim);                                     // 구를 칸
+        Fill(new Rect(r.x, r.y, Mathf.Clamp01(left / total) * r.width, r.height), Memory); // 남은 시간
+        if (left <= window)
+        {
+            // 깜빡이는 테두리(막대는 가리지 않는다)
+            var now = Accent; now.a = 0.6f + 0.4f * Mathf.Sin(Time.unscaledTime * 30f);
+            float b = 3 * s;
+            Fill(new Rect(r.x - b, r.y - b, r.width + 2 * b, b), now);
+            Fill(new Rect(r.x - b, r.yMax, r.width + 2 * b, b), now);
+            Fill(new Rect(r.x - b, r.y, b, r.height), now);
+            Fill(new Rect(r.xMax, r.y, b, r.height), now);
+            ShadowLabel(new Rect(r.x - 20 * s, r.y - 26 * s, r.width + 40 * s, 24 * s), "지금!", smallCentre);
         }
     }
 
@@ -256,10 +305,11 @@ public class HUD : MonoBehaviour
         }
 
         // 남은 되감기만 보인다(테이프 상태 줄·조작 안내 줄은 뺐다 — 사용자 요청).
-        // 끼운 테이프가 비어도 다른 테이프로 되감으므로 가진 테이프 전부의 횟수를 센다
-        int total = walkman.TotalCharges;
-        ShadowLabel(new Rect(x, y - 44 * s, 600 * s, 34 * s), $"남은 되감기 {total}회", normal);
-        Pips(new Rect(x + 190 * s, y - 38 * s, 0, 22 * s), total);
+        // 끼운 테이프의 횟수만(최대 3 — R은 끼운 테이프만 쓴다). 인벤토리에 횟수가 남은 테이프가 더 있으면 옆에 개수만 적는다
+        int current = walkman.CurrentCharges, spare = walkman.SpareTapeCount;
+        ShadowLabel(new Rect(x, y - 44 * s, 600 * s, 34 * s), $"남은 되감기 {current}회", normal);
+        Pips(new Rect(x + 190 * s, y - 38 * s, 0, 22 * s), current);
+        if (spare > 0) ShadowLabel(new Rect(x + 300 * s, y - 40 * s, 300 * s, 30 * s), $"+ 테이프 {spare}개", small);
         DrawCassette(new Rect(x, y, w, h), tape, tape.CanPlay || walkman.Rewinding, tape.IsSpent ? 0.5f : 1f, s);
     }
 
@@ -318,41 +368,16 @@ public class HUD : MonoBehaviour
 
     void DrawRewindPrompt(float s)
     {
-        var tape = walkman.RewindTape;
-        float top = Screen.height * 0.26f;
-        ShadowLabel(new Rect(0, top, Screen.width, 80 * s), "◀◀  REWIND", big);
-
-        string kind = tape.playable ? "재생용 테이프" : "주운 테이프";
-        ShadowLabel(new Rect(0, top + 80 * s, Screen.width, 34 * s),
-            $"{tape.title} ({kind})  ·  되감기 {tape.charges}회 = 최대 {tape.charges * walkman.secondsPerCharge:0}초 전", normalCentre);
-
-        string hint = "R을 누르고 있으면 되감긴다 · 손을 떼면 정지 (1회 = 5초)";
-        if (walkman.RewindableTapeCount > 1) hint += "\n2: 되감을 테이프 선택";
-        hint += "\nSpace: 되감지 않고 마지막 저장 지점에서 부활";
-        ShadowLabel(new Rect(0, top + 130 * s, Screen.width, 100 * s), hint, smallCentre);
+        // 글자 설명은 뺐다(사용자 요청): 되감기 표시만 남긴다. 조작(R 되감기 · Space 저장 지점에서 부활)은 그대로
+        ShadowLabel(new Rect(0, Screen.height * 0.26f, Screen.width, 80 * s), "◀◀  REWIND", big);
     }
 
-    /// <summary>VCR 스타일 타임라인: 시간이 거꾸로 흐르면 헤드가 왼쪽으로 움직이고, 5초마다 눈금이 있다.</summary>
+    /// <summary>되감는 동안: 테이프 잡음 위에 ◀◀ REWIND 표시만(초·타임라인 글자는 뺐다 — 사용자 요청)</summary>
     void DrawPlayback(float s)
     {
         DrawTapeNoise(s);
         if (!walkman.PlayingBack) return;
-
-        float seconds = walkman.RewoundSeconds, max = Mathf.Max(walkman.MaxRewind, 0.01f);
-        ShadowLabel(new Rect(0, Screen.height * 0.26f, Screen.width, 80 * s), $"◀◀  -{seconds:00.0}초", big);
-
-        float width = 700 * s, x0 = (Screen.width - width) / 2f, y = Screen.height * 0.26f + 100 * s;
-        Bar(new Rect(x0, y, width, 6 * s), 1f, Ink);
-        Bar(new Rect(x0 + width * (1f - seconds / max), y, width * seconds / max, 6 * s), 1f, Accent);
-        for (float mark = walkman.secondsPerCharge; mark <= max + 0.01f; mark += walkman.secondsPerCharge)
-        {
-            float mx = x0 + width * (1f - mark / max);
-            Bar(new Rect(mx - 2 * s, y - 8 * s, 4 * s, 22 * s), 1f, seconds >= mark - 0.01f ? Accent : Paper);
-            ShadowLabel(new Rect(mx - 50 * s, y + 18 * s, 100 * s, 26 * s), $"-{mark:0}초", smallCentre);
-        }
-        // 기록이 5초보다 짧으면 실제로 감기는 만큼만 적는다
-        ShadowLabel(new Rect(0, y + 50 * s, Screen.width, 30 * s),
-            $"정지 지점: {Mathf.Min(walkman.NotchesSoFar * walkman.secondsPerCharge, walkman.MaxRewind):0}초 전" + (StoryState.FreeRewind ? "" : $" (되감기 {walkman.NotchesSoFar}회 사용)"), smallCentre);
+        ShadowLabel(new Rect(0, Screen.height * 0.26f, Screen.width, 80 * s), "◀◀  REWIND", big);
     }
 
     void DrawTapeNoise(float s)
@@ -403,9 +428,8 @@ public class HUD : MonoBehaviour
             ShadowLabel(new Rect(left.x + 16 * s, infoY + 32 * s, sideW - 32 * s, 50 * s), StatusLine(inserted), smallWrap);
             ShadowLabel(new Rect(left.x + 16 * s, infoY + 84 * s, sideW, 26 * s), "되감기", small);
             Pips(new Rect(left.x + 90 * s, infoY + 86 * s, 0, 20 * s), inserted.charges);
-            var forR = walkman.NextManualRewindTape; // 끼운 테이프에 횟수가 없으면 R은 다른 테이프를 쓴다
-            string rLine = forR == inserted ? "R 되감기에는 이 테이프가 쓰인다"
-                         : forR != null ? $"이 테이프는 횟수가 없어, R 되감기에는 「{forR.title}」이(가) 쓰인다"
+            string rLine = inserted.charges > 0 ? "R 되감기에는 이 테이프가 쓰인다"
+                         : walkman.SpareTapeCount > 0 ? "이 테이프는 횟수가 없다 — 횟수가 남은 테이프를 골라 F로 끼운다"
                          : "되감을 횟수가 남은 테이프가 없다";
             ShadowLabel(new Rect(left.x + 16 * s, infoY + 120 * s, sideW - 32 * s, 50 * s), rLine, smallWrap);
         }
@@ -448,7 +472,7 @@ public class HUD : MonoBehaviour
         if (tapes.Count > 0) DrawTapeDetails(detail, tapes[Mathf.Clamp(walkman.InventorySelected, 0, tapes.Count - 1)], s);
 
         ShadowLabel(new Rect(win.x, win.yMax - footerH + 12 * s, w, 30 * s),
-            "WASD 이동   클릭 선택   F / 더블클릭 카세트 플레이어에 끼우기   2 빠른 교체   I 닫기", smallCentre);
+            "WASD 이동   클릭 선택   F / 더블클릭 카세트 플레이어에 끼우기   2 빠른 교체   I / Esc 닫기", smallCentre);
     }
 
     void DrawTapeDetails(Rect d, CassetteTape tape, float s)
@@ -517,7 +541,7 @@ public class HUD : MonoBehaviour
             ShadowLabel(new Rect(row.x, row.y + 32 * s, row.width - 20 * s, 30 * s), status, right);
         }
 
-        ShadowLabel(new Rect(win.x, win.yMax - footerH + 12 * s, w, 30 * s), "W/S 선택   F 교환   C 나가기", smallCentre);
+        ShadowLabel(new Rect(win.x, win.yMax - footerH + 12 * s, w, 30 * s), "W/S 선택   F 교환   C / Esc 나가기", smallCentre);
     }
 
     // ---------- 웨이포인트 ----------
@@ -533,6 +557,31 @@ public class HUD : MonoBehaviour
             if (!zone.IsCleared && (nearest == null || Vector3.Distance(from, zone.transform.position) < Vector3.Distance(from, nearest.transform.position)))
                 nearest = zone;
         return nearest ? nearest.transform.position : gate.transform.position;
+    }
+
+    /// <summary>가까운 테이프(아직 안 주운 것) 자리를 작게 표시한다: 길에서 조금 벗어나 주울 이유가 보이게. 멀수록 흐리다</summary>
+    void DrawPickups(float s)
+    {
+        if (!cam || StoryState.InputLocked) return;
+        Vector3 me = player.transform.position;
+        foreach (var pickup in TapePickup.All)
+        {
+            if (!pickup || !pickup.HasTape) continue;
+            Vector3 at = pickup.transform.position + Vector3.up * 0.9f;
+            float d = Vector3.Distance(me, at);
+            if (d > 22f || d < 1.5f) continue;
+            Vector3 sp = cam.WorldToScreenPoint(at);
+            if (sp.z < 0f || sp.x < 0f || sp.x > Screen.width || sp.y < 0f || sp.y > Screen.height) continue;
+            float a = Mathf.Clamp01((22f - d) / 10f) * (0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 3f));
+            var c = new Color(1f, 0.82f, 0.5f, a);
+            float w = 26 * s, h = 16 * s;
+            var r = new Rect(sp.x - w / 2f, Screen.height - sp.y - h / 2f, w, h);
+            // 카세트 모양: 테두리 + 두 릴
+            Fill(new Rect(r.x, r.y, r.width, 2 * s), c); Fill(new Rect(r.x, r.yMax - 2 * s, r.width, 2 * s), c);
+            Fill(new Rect(r.x, r.y, 2 * s, r.height), c); Fill(new Rect(r.xMax - 2 * s, r.y, 2 * s, r.height), c);
+            Fill(new Rect(r.x + 6 * s, r.center.y - 2 * s, 4 * s, 4 * s), c); Fill(new Rect(r.xMax - 10 * s, r.center.y - 2 * s, 4 * s, 4 * s), c);
+            if (d < 12f) ShadowLabel(new Rect(r.center.x - 60 * s, r.yMax + 2 * s, 120 * s, 24 * s), $"테이프 {d:0}m", smallCentre);
+        }
     }
 
     void DrawWaypoint(Vector3 target, float s)
@@ -651,7 +700,7 @@ public class HUD : MonoBehaviour
     static void Pips(Rect origin, int filled)
     {
         float size = origin.height, gap = size * 0.5f;
-        int slots = Mathf.Clamp(filled, CassetteTape.MaxCharges, 9); // 테이프 여러 개를 합치면 3칸을 넘을 수 있다
+        int slots = CassetteTape.MaxCharges; // 가진 테이프를 다 합쳐 최대 3회
         for (int i = 0; i < slots; i++)
             Bar(new Rect(origin.x + i * (size + gap), origin.y, size, size), i < filled ? 1f : 0f, Paper);
     }

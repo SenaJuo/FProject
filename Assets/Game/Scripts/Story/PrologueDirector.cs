@@ -74,7 +74,7 @@ public class PrologueDirector : MonoBehaviour
     public ParticleSystem rain;
     public Light muzzleFlash;
 
-    enum Phase { Intro, Home, Street, Reveal, Execution, Loop2, Fight, Letter, Trial, End }
+    enum Phase { Intro, Desk, Home, Street, Reveal, Execution, Loop2, Fight, Letter, Trial, End }
     Phase phase;
     bool homeDoorUsed, friendDoorUsed, windowUsed, letterClosed;
     Vector3 deathSpot, deathToward, deathSide, deathShooter; // 1회차 총격 자리(되감기 장면 카메라를 여기에 맞춘다)
@@ -150,11 +150,67 @@ public class PrologueDirector : MonoBehaviour
     {
         // 실내에 들어가면 비와 빗소리를 줄인다
         bool indoor = player.transform.position.z > indoorZ;
-        if (rainAudio) rainAudio.volume = Mathf.MoveTowards(rainAudio.volume, indoor ? 0.08f : 0.45f, Time.unscaledDeltaTime * 0.8f);
+        float rainTarget = (indoor ? 0.08f : 0.45f) * GameSettings.Gain(GameSettings.Channel.Ambience); // 옵션의 환경음 크기
+        if (rainAudio) rainAudio.volume = Mathf.MoveTowards(rainAudio.volume, rainTarget, Time.unscaledDeltaTime * 0.8f);
         if (rain)
         {
             var emission = rain.emission;
             emission.enabled = !indoor;
+        }
+    }
+
+    // ---------- 1회차 집: 택배와 혼잣말 ----------
+
+    [System.NonSerialized] public StoryInteractable deskParcel; // 시험이 F 대신 쓴다
+    bool deskOpened;
+
+    const string FrontLetterText =
+        "레이, 갑자기 미안.\n\n" +
+        "이건 평범한 카세트 플레이어가 아니야. 테이프가 돌아간 만큼… 시간을 되감을 수 있어.\n\n" +
+        "누가 이걸 찾으러 오면 절대 넘기지 마. 자세한 건 만나서 얘기하자.\n\n" +
+        "— 대니";
+
+    /// <summary>책상 위 택배(편지와 카세트 플레이어) 앞에서 F를 누를 수 있는 자리</summary>
+    StoryInteractable MakeDeskParcel()
+    {
+        var at = deskLetter ? deskLetter.transform.position : deskWalkman ? deskWalkman.transform.position : player.transform.position;
+        var go = new GameObject("DeskParcel");
+        go.transform.position = at;
+        var col = go.AddComponent<SphereCollider>();
+        col.isTrigger = true;
+        col.radius = 1.4f;
+        var it = go.AddComponent<StoryInteractable>();
+        it.prompt = "택배를 열어 본다";
+        it.Used += () => deskOpened = true;
+        return it;
+    }
+
+    /// <summary>조작하는 동안 흐르는 혼잣말. 그 단계를 벗어나면(문을 열거나 되감기를 마치면) 멈춘다</summary>
+    IEnumerator Thoughts(Phase during, params (string speaker, string text, float seconds)[] lines)
+    {
+        foreach (var (speaker, text, seconds) in lines)
+        {
+            if (phase != during && !(during == Phase.Trial && phase == Phase.Letter)) yield break;
+            StoryState.Say(speaker, text, seconds);
+            yield return Wait(seconds + 0.2f);
+        }
+    }
+
+    /// <summary>현관으로 걸어가는 동안의 혼잣말(조작은 그대로). 문을 나서면 멈춘다</summary>
+    IEnumerator HomeThoughts()
+    {
+        var lines = new (string speaker, string text, float seconds)[]
+        {
+            (Ray, "……시간을 되감는다고?", 2.4f),
+            (Ray, "형사 배지 반납한 지 반년. 이런 수상한 일은 이제 내 몫이 아닌데.", 3.6f),
+            ("", "(반신반의하며, 서랍에 굴러다니던 아무 테이프나 끼워 본다. 아무 일도 일어나지 않는다)", 3.6f),
+            (Ray, $"{Danny} 녀석, 직접 물어봐야겠어.", 2.4f),
+        };
+        foreach (var (speaker, text, seconds) in lines)
+        {
+            if (phase != Phase.Home) yield break;
+            StoryState.Say(speaker, text, seconds);
+            yield return Wait(seconds + 0.2f);
         }
     }
 
@@ -166,40 +222,44 @@ public class PrologueDirector : MonoBehaviour
         StoryState.CameraDistance = 3.2f;
         player.Teleport(homeSpawn.position, homeSpawn.rotation);
 
-        // 오프닝: 낡은 TV → 카세트 플레이어 → 택배를 든 주인공
+        // 오프닝(짧게, 6초): 제목 → 방이 밝아지면 곧바로 조작. 택배는 레이가 직접 열어 본다(예전 34초짜리 컷신을 줄였다)
         phase = Phase.Intro;
         BeginCutscene();
         StoryState.Fade = 1f;
         StoryState.Title = "PROLOGUE";
-        yield return Wait(2.4f);
+        yield return Wait(2f);
         StoryState.Title = null;
         Shot(openingShots[0], 0f);
-        yield return FadeTo(0f, 1.6f);
-        StoryState.Say("", "(새벽 1시. 낡은 브라운관 TV에서 지직거리는 소리만 흘러나온다)", 3.6f);
-        yield return Wait(3.6f);
-        Shot(openingShots[1], 2.6f);
-        StoryState.Say("", $"({Danny} 대신 받아 둔 택배. 뜯어 보니 낡은 카세트 플레이어 한 대와 손편지가 들어 있다)", 4f);
-        yield return Wait(4f);
-        StoryState.Say($"{Danny}의 편지", "「레이, 갑자기 미안. 이건 평범한 카세트 플레이어가 아니야. 테이프가 돌아간 만큼… 시간을 되감을 수 있어.」", 5.2f);
-        yield return Wait(5.2f);
-        StoryState.Say($"{Danny}의 편지", "「누가 이걸 찾으러 오면 절대 넘기지 마. 자세한 건 만나서 얘기하자.」", 4.2f);
-        yield return Wait(4.2f);
-        Shot(openingShots[2], 0f);
-        StoryState.Say(Ray, "……이게 대체 무슨 소리야?", 2.8f);
-        yield return Wait(2.8f);
-        StoryState.Say(Ray, "시간을 되감는다니. 장난이라기엔 글씨가 너무 급하게 휘갈겨져 있군.", 3.8f);
-        yield return Wait(3.8f);
-        StoryState.Say("", "(반신반의하며, 서랍에 굴러다니던 아무 테이프나 하나 끼워 본다. 아무 일도 일어나지 않는다)", 4f);
-        yield return Wait(4f);
-        StoryState.Say(Ray, $"{Danny} 녀석, 직접 물어봐야겠어.", 2.4f);
+        yield return FadeTo(0f, 1.4f);
+        StoryState.Say("", $"(새벽 1시. 낡은 브라운관 TV에서 지직거리는 소리만 흘러나온다. 책상 위에 {Danny}가 보낸 택배가 있다)", 3.4f);
+        yield return Wait(2.6f);
+        EndCutscene(1.2f);
+
+        // 책상 위 택배: F로 열면 대니의 편지가 펼쳐진다(직접 읽고 F로 닫는다)
+        phase = Phase.Desk;
+        StoryState.Objective = "책상 위의 택배를 열어 본다";
+        deskParcel = MakeDeskParcel();
+        StoryState.Waypoint = deskParcel.transform;
+        yield return new WaitUntil(() => deskOpened);
+        StoryState.Waypoint = null;
+        StoryState.ControlLocked = true;
+        StoryState.LetterHeading = $"{Danny}의 편지";
+        StoryState.LetterText = FrontLetterText;
+        letterClosed = false;
+        var interactAction = UnityEngine.InputSystem.InputSystem.actions.FindAction("Player/Interact", true);
+        float openedAt = StoryState.Now;
+        yield return new WaitUntil(() => letterClosed || (StoryState.Now - openedAt > 1f && interactAction.WasPressedThisFrame()));
+        StoryState.LetterText = null;
+        StoryState.LetterHeading = null;
+        StoryState.ControlLocked = false;
         if (deskWalkman) deskWalkman.SetActive(false); // 카세트 플레이어와 편지를 주머니에 챙긴다
         if (deskLetter) deskLetter.SetActive(false);
-        yield return Wait(2.4f);
-        EndCutscene(1.4f);
+        if (deskParcel) deskParcel.gameObject.SetActive(false);
 
         phase = Phase.Home;
         StoryState.Objective = "현관문을 열고 나간다";
         StoryState.Waypoint = homeDoor.transform;
+        StartCoroutine(HomeThoughts());
         yield return new WaitUntil(() => homeDoorUsed);
         yield return DoorTransition(streetStart, 0f);
 
@@ -292,18 +352,18 @@ public class PrologueDirector : MonoBehaviour
         // 1) 총잡이 어깨 너머로 주인공
         Place(dynamicA, shooterPos + toward * 0.9f + side * 0.55f + Vector3.up * 1.7f, p + Vector3.up * 1.45f, 34f);
         Shot(dynamicA, 0f);
-        StoryState.Say(Thug, "카세트 플레이어 내놔.", 2.4f);
-        yield return Wait(2.4f);
+        StoryState.Say(Thug, "카세트 플레이어 내놔.", 2.0f);
+        yield return Wait(2.0f);
         // 2) 주인공 얼굴
         Place(dynamicB, p + toward * 1.15f - side * 0.35f + Vector3.up * 1.62f, p + Vector3.up * 1.6f, 30f);
         Shot(dynamicB, 0f);
-        StoryState.Say(Ray, $"{Danny}한테… 무슨 짓을 한 거야.", 2.8f);
-        yield return Wait(2.8f);
+        StoryState.Say(Ray, $"{Danny}한테… 무슨 짓을 한 거야.", 2.3f);
+        yield return Wait(2.3f);
         // 3) 옆에서 낮게 잡은 넓은 장면
         Place(dynamicA, p + toward * 1.6f + side * 3.4f + Vector3.up * 0.7f, p + toward * 1.6f + Vector3.up * 1.3f, 46f);
         Shot(dynamicA, 0f);
-        StoryState.Say(Thug, "질문은 내가 한다.", 2f);
-        yield return Wait(2f);
+        StoryState.Say(Thug, "질문은 내가 한다.", 1.6f);
+        yield return Wait(1.6f);
 
         // 발버둥: 총잡이에게 달려든다
         StoryState.Say(Ray, "이 자식이—!", 1f);
@@ -331,15 +391,15 @@ public class PrologueDirector : MonoBehaviour
 
         // 4) 바닥 가까이에서 떨어지는 카세트 플레이어를 따라간다. 카메라는 늘 쓰러진 몸의 반대편에서 본다(몸에 가리지 않게)
         Shot(dynamicB, 0f);
-        float until = Time.unscaledTime + 2.2f;
-        while (Time.unscaledTime < until && !probe.HasHit && !StoryState.SkipRequested)
+        float until = StoryState.Now + 1.7f;
+        while (StoryState.Now < until && !probe.HasHit && !StoryState.SkipRequested)
         {
             Vector3 w = pocketWalkman.position;
             Place(dynamicB, w + AwayFrom(hips.position, w, side) * 1.2f + Vector3.up * 0.5f, w, 40f);
             yield return null;
         }
-        float settle = Time.unscaledTime + 0.9f;
-        while (Time.unscaledTime < settle && !StoryState.SkipRequested)
+        float settle = StoryState.Now + 0.6f;
+        while (StoryState.Now < settle && !StoryState.SkipRequested)
         {
             Vector3 w = pocketWalkman.position;
             Place(dynamicB, w + AwayFrom(hips.position, w, side) * 0.9f + Vector3.up * 0.4f, w, 38f);
@@ -358,8 +418,8 @@ public class PrologueDirector : MonoBehaviour
         keyLight.range = 1.4f;
         keyLight.transform.position = wm + away * 0.25f + Vector3.up * 0.4f;
         ProceduralSfx.PlayAt(ProceduralSfx.ButtonClick, wm, 1f, 0f);
-        StoryState.Say("", "(찰칵 — 떨어진 충격에, 카세트 플레이어의 되감기 버튼이 눌린다)", 2.6f);
-        yield return Wait(2f);
+        StoryState.Say("", "(찰칵 — 떨어진 충격에, 카세트 플레이어의 되감기 버튼이 눌린다)", 2.2f);
+        yield return Wait(1.6f);
         Destroy(keyLight.gameObject);
         Time.timeScale = 1f;
 
@@ -384,16 +444,16 @@ public class PrologueDirector : MonoBehaviour
         Time.timeScale = 0f;
         float cursor = TimeRewind.Clock;
         float end = Mathf.Max(cursor - TimeRewind.RecordedSeconds + 0.05f, executionClock + 0.2f); // 기록 사이를 섞어 보여 주므로 옮기기 직전 기록이 섞이지 않게 여유를 둔다
-        float speed = 4f;
+        float speed = 5f;
         while (cursor > end && !StoryState.SkipRequested)
         {
-            cursor -= Time.unscaledDeltaTime * speed;
-            speed = Mathf.Min(9f, speed + Time.unscaledDeltaTime * 2.5f); // 감을수록 빨라진다
+            cursor -= StoryState.DeltaTime * speed;
+            speed = Mathf.Min(9f, speed + StoryState.DeltaTime * 2.5f); // 감을수록 빨라진다
             TimeRewind.Preview(TimeRewind.At(cursor));
             if (cursor <= shotClock && playerRagdoll.IsActive) playerRagdoll.Restore(); // 총 맞기 전으로 넘어가면 물리 몸을 뗀다
             if (heldBones != null && !playerRagdoll.IsActive)
             {
-                holdBlend += Time.unscaledDeltaTime / 0.25f;
+                holdBlend += StoryState.DeltaTime / 0.25f;
                 if (holdBlend >= 1f) heldBones = null;
             }
             if (cursor - end < 1.2f) StoryState.Fade = Mathf.Clamp01(1f - (cursor - end) / 1.2f);
@@ -428,19 +488,16 @@ public class PrologueDirector : MonoBehaviour
         Vector3 p = player.transform.position, f = player.transform.forward, r = player.transform.right;
         Place(dynamicA, p + f * 1.2f + r * 0.3f + Vector3.up * 1.62f, p + Vector3.up * 1.6f, 32f);
         Shot(dynamicA, 0f);
-        yield return FadeTo(0f, 1.4f);
-        StoryState.Say(Ray, "……하아, 하아…!", 2f);
-        yield return Wait(2f);
-        StoryState.Say(Ray, "방금… 분명히 총에 맞았는데.", 2.8f);
-        yield return Wait(2.8f);
-        Place(dynamicB, p + f * 2.4f - r * 0.8f + Vector3.up * 1.4f, p + Vector3.up * 1.3f, 40f);
-        Shot(dynamicB, 1.2f);
-        StoryState.Say("", "(주머니 속 카세트 플레이어를 꺼내 보니, 테이프가 처음으로 되감겨 있다)", 3.2f);
-        yield return Wait(3.2f);
-        StoryState.Say(Ray, "…편지에 쓰여 있던 게, 진짜였어?", 2.6f);
-        yield return Wait(2.6f);
+        yield return FadeTo(0f, 1.1f);
+        StoryState.Say(Ray, "……하아, 하아…!", 1.8f);
+        yield return Wait(1.6f);
         StoryState.FadeColor = Color.black;
-        EndCutscene(1.2f);
+        EndCutscene(1.0f);
+        // 나머지 혼잣말은 대니 집 문으로 걸어가는 동안(조작은 그대로)
+        StartCoroutine(Thoughts(Phase.Loop2,
+            (Ray, "방금… 분명히 총에 맞았는데.", 2.6f),
+            ("", "(주머니 속 카세트 플레이어를 꺼내 보니, 테이프가 처음으로 되감겨 있다)", 3.2f),
+            (Ray, "…편지에 쓰여 있던 게, 진짜였어?", 2.4f)));
 
         StoryState.CombatLocked = false; // 이번에는 맞서 싸운다
         StoryState.Objective = $"{Danny}의 집에 다시 들어간다";
@@ -546,7 +603,7 @@ public class PrologueDirector : MonoBehaviour
         ProceduralSfx.PlayAt(ProceduralSfx.DoorOpen, player.transform.position, 0.8f, 0f);
         yield return FadeTo(1f, 1f);
         StoryState.Title = "PROLOGUE  END";
-        yield return Wait(3.2f);
+        yield return Wait(2.0f);
         StoryState.Title = null;
 
         // 뒷창문을 넘어 대니 집 뒷마당 그늘로. 되감기를 쓰게 되었을 때 방 안으로 되돌아가지 않도록 기록을 여기서 새로 시작한다
@@ -557,16 +614,14 @@ public class PrologueDirector : MonoBehaviour
         Vector3 p = player.transform.position, f = player.transform.forward, r = player.transform.right;
         Place(dynamicA, p + f * 1.3f + r * 0.35f + Vector3.up * 1.6f, p + Vector3.up * 1.55f, 34f);
         Shot(dynamicA, 0f);
-        yield return Wait(0.5f);
-        yield return FadeTo(0f, 1.6f);
-        StoryState.Say("", "(뒷창문을 넘어, 대니 집 뒷마당 그늘에 몸을 숨긴다)", 3.2f);
-        yield return Wait(3.2f);
-        StoryState.Say(Ray, "…놈들은 이 카세트 플레이어를 노리고 있었어. 대니도 그래서…", 3.4f);
-        yield return Wait(3.4f);
+        yield return Wait(0.3f);
+        yield return FadeTo(0f, 1.2f);
+        StoryState.Say(Ray, "…놈들은 이 카세트 플레이어를 노리고 있었어. 대니도 그래서…", 3.0f);
+        yield return Wait(2.6f);
         Place(dynamicB, p - f * 0.55f + r * 0.45f + Vector3.up * 1.75f, p + f * 0.45f + Vector3.up * 1.1f, 42f); // 어깨 너머로 손에 든 편지
-        Shot(dynamicB, 1.2f);
-        StoryState.Say("", "(주머니에서 대니의 편지를 다시 꺼낸다. 급하게 읽느라 놓친 뒷면에도 글씨가 빼곡하다)", 3.8f);
-        yield return Wait(3.8f);
+        Shot(dynamicB, 0.8f);
+        StoryState.Say("", "(대니의 편지를 다시 꺼낸다. 급하게 읽느라 놓친 뒷면에도 글씨가 빼곡하다)", 2.6f);
+        yield return Wait(2.4f);
 
         // 편지 뒷면을 펼쳐 읽는다(F로 닫는다)
         StoryState.ClearLine();
@@ -575,18 +630,17 @@ public class PrologueDirector : MonoBehaviour
         StoryState.LetterText = LetterBackText;
         letterClosed = false;
         var interact = UnityEngine.InputSystem.InputSystem.actions.FindAction("Player/Interact", true);
-        float opened = Time.unscaledTime;
-        yield return new WaitUntil(() => letterClosed || StoryState.SkipRequested || (Time.unscaledTime - opened > 1f && interact.WasPressedThisFrame()));
+        float opened = StoryState.Now;
+        yield return new WaitUntil(() => letterClosed || StoryState.SkipRequested || (StoryState.Now - opened > 1f && interact.WasPressedThisFrame()));
         StoryState.LetterText = null;
         StoryState.LetterHeading = null;
 
-        StoryState.Say(Ray, "……진작 끝까지 읽었어야 했는데.", 2.6f);
-        yield return Wait(2.6f);
-        // 편지에는 5초씩이라고 적혀 있는데, 1회차에는 1분 넘게 돌아갔다(살고 싶다는 간절함과 복수심 때문 — 레이는 아직 모른다)
-        StoryState.Say(Ray, "…그런데 딱 5초씩이라고? 아까는 대니 집 문 앞까지 통째로 돌아왔는데.", 3.6f);
-        yield return Wait(3.6f);
-        StoryState.Say(Ray, "……일단 직접 써 보자.", 2.4f);
-        yield return Wait(2.4f);
+        // 편지에는 5초씩이라고 적혀 있는데, 1회차에는 1분 넘게 돌아갔다(살고 싶다는 간절함과 복수심 때문 — 레이는 아직 모른다).
+        // 이 혼잣말은 조작을 돌려준 뒤에 흐른다(되감기 연습을 하면서 듣는다)
+        var trialThoughts = StartCoroutine(Thoughts(Phase.Trial,
+            (Ray, "……진작 끝까지 읽었어야 했는데.", 2.4f),
+            (Ray, "…그런데 딱 5초씩이라고? 아까는 대니 집 문 앞까지 통째로 돌아왔는데.", 3.6f),
+            (Ray, "……일단 직접 써 보자.", 2.2f)));
 
         // 이제부터 되감기를 쓸 수 있다: 카세트 플레이어를 꺼내 쓰고(왼쪽 아래 위젯), 게임 설명이 뜨기 시작한다
         StoryState.RewindLocked = false;
@@ -609,6 +663,8 @@ public class PrologueDirector : MonoBehaviour
         }
         StoryState.FreeRewind = false;
         StoryState.Objective = null;
+        if (trialThoughts != null) StopCoroutine(trialThoughts); // 되감기를 빨리 해 보면 남은 혼잣말은 건너뛴다(다음 대사와 겹치지 않게)
+        StoryState.ClearLine();
         yield return Wait(0.6f);
         StoryState.Say(Ray, "…정말 딱 5초야.", 2.4f);
         yield return Wait(2.6f);
@@ -621,7 +677,7 @@ public class PrologueDirector : MonoBehaviour
         // 프롤로그 끝 → 1장(대니 집 뒷마당에서 그대로 이어진다)
         if (Application.CanStreamedLevelBeLoaded(Chapter1Scene))
         {
-            yield return new WaitForSecondsRealtime(0.8f);
+            yield return StoryState.Sleep(0.8f);
             SceneManager.LoadScene(Chapter1Scene);
         }
         else StoryState.Say("", "(이어서 계속)", 30f);
@@ -766,7 +822,7 @@ public class PrologueDirector : MonoBehaviour
         float start = StoryState.Fade, t = 0f;
         while (t < seconds && !StoryState.SkipRequested)
         {
-            t += Time.unscaledDeltaTime;
+            t += StoryState.DeltaTime;
             StoryState.Fade = Mathf.Lerp(start, target, t / seconds);
             yield return null;
         }
@@ -780,7 +836,7 @@ public class PrologueDirector : MonoBehaviour
         float t = 0f;
         while (t < seconds)
         {
-            t += Time.unscaledDeltaTime;
+            t += StoryState.DeltaTime;
             StoryState.Fade = peak * (1f - t / seconds);
             yield return null;
         }
@@ -793,7 +849,7 @@ public class PrologueDirector : MonoBehaviour
         if (!muzzleFlash) yield break;
         muzzleFlash.transform.position = at;
         muzzleFlash.enabled = true;
-        yield return new WaitForSecondsRealtime(0.07f);
+        yield return StoryState.Sleep(0.07f);
         muzzleFlash.enabled = false;
     }
 
@@ -803,7 +859,7 @@ public class PrologueDirector : MonoBehaviour
         float t = 0f;
         while (t < seconds)
         {
-            t += Time.unscaledDeltaTime;
+            t += StoryState.DeltaTime;
             cam.transform.position = origin + Random.insideUnitSphere * amplitude * (1f - t / seconds);
             yield return null;
         }
@@ -861,13 +917,9 @@ public class PrologueDirector : MonoBehaviour
     /// <summary>실제 시간으로 기다린다. 컷신 건너뛰기가 켜지면 바로 끝난다</summary>
     static IEnumerator Wait(float seconds)
     {
-        float until = Time.unscaledTime + seconds;
-        while (Time.unscaledTime < until && !StoryState.SkipRequested)
-        {
-            // 메뉴(설명 팝업·인벤토리·가게)를 연 동안은 대사도 멈춘다 — 엿듣던 통화가 멈춘 화면 뒤에서 흘러가 버리지 않게
-            if (StoryState.Paused) { until += Time.unscaledDeltaTime; StoryState.HoldLine(Time.unscaledDeltaTime); }
-            yield return null;
-        }
+        // 이야기 시계로 잰다: 메뉴(일시정지·설명 팝업·인벤토리·가게)를 연 동안은 대사도 멈춘다
+        float until = StoryState.Now + seconds;
+        while (StoryState.Now < until && !StoryState.SkipRequested) yield return null;
     }
     static Vector3 Flat(Vector3 v) => new(v.x, 0f, v.z);
     static float FlatDistance(Vector3 a, Vector3 b) => Flat(a - b).magnitude;

@@ -19,7 +19,7 @@ public class GameManager : MonoBehaviour, IRewindable
     public string finalObjective;
 
     public string Message { get; private set; }
-    public bool MessageVisible => Time.unscaledTime < messageUntil;
+    public bool MessageVisible => StoryState.Now < messageUntil; // 이야기 시계: 일시정지 중에는 사라지지 않는다
     public CombatZone CurrentZone { get; private set; }
     public bool StageCleared { get; private set; }
     public ZoneGate CurrentGate => Array.Find(progression, g => !g.IsOpen);
@@ -89,19 +89,35 @@ public class GameManager : MonoBehaviour, IRewindable
     public void ShowMessage(string message, float duration)
     {
         Message = message;
-        messageUntil = Time.unscaledTime + duration;
+        messageUntil = StoryState.Now + duration;
     }
 
-    /// <summary>마지막으로 저장한 시각(실제 시간). HUD가 잠깐 "저장됨"을 띄운다</summary>
+    /// <summary>오른쪽 아래의 작은 알림(테이프 획득 등). 화면 가운데 큰 글자는 장소 이름 같은 큰 일에만 쓴다</summary>
+    public void Notify(string text, float duration = 2.6f)
+    {
+        notices.RemoveAll(n => n.text == text); // 같은 알림은 새로 띄운다
+        notices.Add((text, StoryState.Now, StoryState.Now + duration));
+        if (notices.Count > 4) notices.RemoveAt(0);
+    }
+
+    /// <summary>떠 있는 작은 알림(글자, 뜬 시각, 사라질 시각) — 오래된 것부터</summary>
+    public System.Collections.Generic.IReadOnlyList<(string text, float from, float until)> Notices
+    {
+        get { notices.RemoveAll(n => StoryState.Now >= n.until); return notices; }
+    }
+    readonly System.Collections.Generic.List<(string text, float from, float until)> notices = new();
+
+    /// <summary>마지막으로 저장한 시각(이야기 시계). HUD가 잠깐 "저장됨"을 띄운다</summary>
     public float SavedAt { get; private set; } = -99f;
 
     /// <summary>저장 지점(가게·구역 시작점): 되감을 횟수 없이 쓰러지면 여기서 다시 시작한다</summary>
     public void Save(Transform point)
     {
         SetCheckpoint(point);
-        SavedAt = Time.unscaledTime;
+        SavedAt = StoryState.Now;
         // 저장 지점에 가면 체력도 최대까지 회복한다
         if (player && player.TryGetComponent(out Health h) && !h.IsDead) LastSaveHealed = h.Heal(h.Max) > 0;
+        Notify(LastSaveHealed ? "저장됨 · 체력 회복" : "저장됨");
     }
 
     /// <summary>마지막 저장 때 체력이 실제로 찼는가(HUD가 "저장됨 · 체력 회복"을 띄운다)</summary>

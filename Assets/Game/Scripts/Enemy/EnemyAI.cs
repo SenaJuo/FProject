@@ -23,6 +23,18 @@ public class EnemyAI : MonoBehaviour, IRewindable
     public bool staggerable = true;
     public Color telegraphColor = new(1f, 0.3f, 0.1f);
 
+    [Header("강타 (heavyEvery = 0이면 사용 안 함) — 붉게 오래 예고하는 센 주먹: 맞받아 치지 말고 피하라는 신호")]
+    public int heavyEvery;
+    public int heavyDamage = 20;
+    public float heavyWindup = 0.95f;
+
+    /// <summary>지금 강타를 준비 중(HUD가 머리 위에 붉은 !!를 띄운다)</summary>
+    public bool HeavyTelegraph => state == State.Windup && currentIsHeavy;
+    /// <summary>완벽 회피에 당해 빈틈이 드러난 중</summary>
+    public bool Exposed => state == State.Stagger && exposed;
+    /// <summary>완벽 회피가 처음 일어났다(설명용)</summary>
+    public static event System.Action<EnemyAI> PerfectDodged;
+
     [Header("범위 공격 (aoeEvery = 0이면 사용 안 함)")]
     public int aoeEvery;
     public float aoeRadius = 6f;
@@ -172,6 +184,41 @@ public class EnemyAI : MonoBehaviour, IRewindable
         agent.enabled = true;
         if (aoeIndicator) aoeIndicator.gameObject.SetActive(false);
         GameManager.PlayerRespawned += ResetToSpawn;
+        MakeKeyLight();
+    }
+
+    // ---------- 보이게 하는 조명 ----------
+
+    [Tooltip("어두운 밤에도 적의 몸이 보이게 얼굴 앞에 두는 약한 조명의 세기(0이면 끔)")]
+    public float keyLight = 1.6f;
+    Light keyLightSource;
+
+    void MakeKeyLight()
+    {
+        if (keyLight <= 0f) return;
+        var go = new GameObject("KeyLight");
+        go.transform.SetParent(transform, false);
+        go.transform.localPosition = new Vector3(0f, 2.2f, 0.8f);
+        keyLightSource = go.AddComponent<Light>();
+        keyLightSource.type = LightType.Point;
+        keyLightSource.range = 3.6f;
+        keyLightSource.intensity = keyLight;
+        keyLightSource.color = new Color(0.78f, 0.84f, 1f);
+        keyLightSource.shadows = LightShadows.None;
+        // 이 조명은 적의 몸에만 비친다(렌더링 레이어): 바닥·벽에 둥근 빛자국이 생겨 "등이 하나 더 있는" 것처럼 보였다
+        keyLightSource.renderingLayerMask = KeyLightLayer;
+        foreach (var r in GetComponentsInChildren<Renderer>(true))
+            if (r is SkinnedMeshRenderer) r.renderingLayerMask |= (uint)KeyLightLayer;
+    }
+
+    const int KeyLightLayer = 1 << 7;
+
+    void LateUpdate()
+    {
+        if (!keyLightSource) return;
+        // 레이 근처(28m)의 살아 있는 적만 비춘다
+        bool on = state != State.Dead && player && (player.position - transform.position).sqrMagnitude < 28f * 28f;
+        if (keyLightSource.enabled != on) keyLightSource.enabled = on;
     }
 
     void OnDestroy()
@@ -231,7 +278,7 @@ public class EnemyAI : MonoBehaviour, IRewindable
                         // 사이 거리인데 가려서 못 쏘면 다가가서 쏠 자리를 찾는다(엄폐물 앞에서 영원히 서 있던 문제)
                         Vector3 dest = holdPosition ? transform.position
                                      : distance > shootRange * 0.75f ? player.position
-                                     : distance < 5f ? transform.position - toPlayer.normalized * 3f
+                                     : distance < 5f ? RetreatPoint(toPlayer)
                                      : HasLineOfSight() ? transform.position : player.position;
                         agent.SetDestination(dest);
                         repathTime = Time.time + 0.25f;
@@ -263,11 +310,11 @@ public class EnemyAI : MonoBehaviour, IRewindable
 
             case State.Windup:
                 timer += dt;
-                float duration = currentIsAoe ? aoeWindup : windup;
+                float duration = currentIsAoe ? aoeWindup : currentIsHeavy ? heavyWindup : windup;
                 float t = Mathf.Clamp01(timer / duration);
                 // 준비 동작 초반에는 플레이어를 따라가다가 방향을 확정한다. 그래야 늦은 회피가 통한다.
                 if (!currentIsAoe && t < 0.6f) Face(toPlayer, 360f);
-                if (tint) tint.SetTint(telegraphColor, t);
+                if (tint) tint.SetTint(currentIsHeavy ? HeavyColor : telegraphColor, currentIsHeavy ? Mathf.Max(t, 0.5f + 0.5f * Mathf.Sin(timer * 18f)) : t);
                 if (currentIsAoe) ShowIndicator(t);
                 if (!currentIsAoe && body && !punchStarted && timer >= duration - PunchImpactDelay)
                 {
@@ -287,7 +334,7 @@ public class EnemyAI : MonoBehaviour, IRewindable
                 timer += dt;
                 agent.Move(knockback * dt);
                 knockback = Vector3.Lerp(knockback, Vector3.zero, 10f * dt);
-                if (timer >= 0.35f) state = State.Chase;
+                if (timer >= 0.35f) { state = State.Chase; if (exposed) { exposed = false; ClearTelegraph(); } }
                 break;
         }
     }
@@ -297,6 +344,8 @@ public class EnemyAI : MonoBehaviour, IRewindable
         state = State.Windup;
         timer = 0f;
         currentIsAoe = aoe;
+        currentIsHeavy = !aoe && !ranged && heavyEvery > 0 && (attackCount + 1) % heavyEvery == 0;
+        if (currentIsHeavy) Tutorial.Show("perfect"); // 처음 강타를 보면 완벽 회피를 알려 준다
         punchStarted = false;
         StopMoving();
         if (ranged && FirstAim != null) { FirstAim(); FirstAim = null; }
@@ -306,23 +355,66 @@ public class EnemyAI : MonoBehaviour, IRewindable
     {
         ClearTelegraph();
         attackCount++;
+        bool foreseen = Foreseen > 0;
+        if (foreseen) Foreseen--;
 
         if (currentIsAoe)
         {
-            if (distance <= aoeRadius) playerHealth.TakeDamage(aoeDamage, transform.position);
+            if (distance <= aoeRadius) DamagePlayer(aoeDamage);
         }
         else
         {
             // 주먹과 함께 한 발 들어가되, 플레이어 몸을 파고들지 않게 0.9m 앞에서 멈춘다
             agent.Move(transform.forward * Mathf.Clamp(distance - 0.9f, 0f, 0.4f));
             if (body && !punchStarted) body.CrossFadeInFixedTime("Cross", 0.06f); // 준비 동작이 짧아 미리 시작하지 못한 경우
-            if (distance <= attackRange + 0.6f && Vector3.Angle(transform.forward, toPlayer) <= attackAngle)
-                playerHealth.TakeDamage(damage, transform.position);
+            bool inReach = distance <= attackRange + 0.6f && Vector3.Angle(transform.forward, toPlayer) <= attackAngle;
+            // 완벽 회피: 맞을 자리에서 주먹이 닿기 직전(0.3초 안)에 굴렀다 → 시간이 느려지고 이 적은 한동안 빈틈투성이
+            // 되감기로 이 주먹을 기억하면 조금 일찍 굴러도(ForeseenWindow 안) 완벽 회피다
+            var pc = playerHealth.GetComponent<PlayerController>();
+            if (inReach && pc && pc.IsDodging && pc.DodgeAge <= PerfectWindow) { Expose(); return; }
+            if (foreseen && pc && pc.SinceDodge <= ForeseenWindow && distance <= attackRange + 3f) { Expose(); return; }
+            if (inReach) DamagePlayer(currentIsHeavy ? heavyDamage : damage);
         }
 
         state = State.Recover;
         timer = 0f;
         nextAttackTime = Time.time + attackCooldown;
+    }
+
+    const float PerfectWindow = 0.3f;
+    /// <summary>되감기로 기억한 공격: 주먹이 닿기 이 초 전부터 굴러도 완벽 회피(보통은 구르는 중에 닿아야 한다)</summary>
+    public const float ForeseenWindow = 0.45f;
+
+    /// <summary>레이를 실제로 다치게 했다(되감기의 기억이 "친 놈"으로 적어 둔다)</summary>
+    public static event System.Action<EnemyAI> HitPlayer;
+    /// <summary>되감기의 기억: 레이가 미리 아는 남은 공격 수. 머리 위 타이밍 막대가 뜨고 완벽 회피가 조금 쉬워진다</summary>
+    public int Foreseen { get; private set; }
+    public void Foresee(int attacks, bool replace = false) => Foreseen = replace ? attacks : Mathf.Max(Foreseen, attacks);
+    /// <summary>공격 준비 중이면 공격까지 남은 초, 아니면 -1</summary>
+    public float WindupLeft => state == State.Windup ? WindupDuration - timer : -1f;
+    public float WindupDuration => ranged ? aimTime : currentIsAoe ? aoeWindup : currentIsHeavy ? heavyWindup : windup;
+
+    void DamagePlayer(int amount)
+    {
+        if (playerHealth.TakeDamage(amount, transform.position)) HitPlayer?.Invoke(this);
+    }
+    static readonly Color HeavyColor = new(1f, 0.05f, 0.02f);
+    bool currentIsHeavy, exposed;
+
+    /// <summary>완벽 회피에 당했다: 1.2초 동안 휘청이며 막지도 치지도 못한다(방패도 내려간다)</summary>
+    void Expose()
+    {
+        ClearTelegraph();
+        state = State.Stagger;
+        timer = -0.85f; // 비틀거림(보통 0.35초)을 1.2초로
+        exposed = true;
+        knockback = Vector3.zero;
+        nextAttackTime = Time.time + 1.6f;
+        if (TryGetComponent(out ShieldGuard guard)) guard.ForceBreak();
+        if (tint) tint.SetTint(new Color(0.6f, 0.85f, 1f), 0.7f);
+        HitFeel.SlowMotion(0.3f, 0.35f);
+        if (playerHealth && playerHealth.TryGetComponent(out PlayerController pc)) pc.OfferCounter(this); // 지금 공격하면 회피 반격
+        PerfectDodged?.Invoke(this);
     }
 
     void OnDamaged(int amount, Vector3 source)
@@ -385,6 +477,15 @@ public class EnemyAI : MonoBehaviour, IRewindable
     readonly List<Collider> disabledOnDeath = new();
     static readonly RaycastHit[] sightHits = new RaycastHit[32]; // 매 프레임 배열을 새로 만들지 않는다
 
+    [Tooltip("총잡이가 물러날 수 있는 거리(처음 자리 기준). 끝없이 물러나 싸움이 다른 구역까지 끌려가지 않게")]
+    public float retreatLeash = 6f;
+
+    Vector3 RetreatPoint(Vector3 toPlayer)
+    {
+        Vector3 p = transform.position - toPlayer.normalized * 3f;
+        return (p - spawnPosition).sqrMagnitude > retreatLeash * retreatLeash ? transform.position : p; // 더 못 물러나면 버티고 싸운다
+    }
+
     bool HasLineOfSight()
     {
         Vector3 from = transform.position + Vector3.up * 1.5f, to = PlayerChest().position;
@@ -431,7 +532,8 @@ public class EnemyAI : MonoBehaviour, IRewindable
         ProceduralSfx.PlayAt(clip ? clip : ProceduralSfx.Gunshot, from, shotVolume, clip ? 0.35f : 0.7f); // 저격 총성은 멀리서도 크게 울린다
         StartCoroutine(Flash(from));
         // 회피(무적) 중이거나 그새 엄폐물 뒤로 숨었으면 빗나간다
-        if (HasLineOfSight()) playerHealth.TakeDamage(shotDamage, transform.position);
+        if (Foreseen > 0) Foreseen--;
+        if (HasLineOfSight()) DamagePlayer(shotDamage);
         state = State.Recover;
         timer = 0f;
         nextAttackTime = Time.time + shotCooldown;
@@ -474,6 +576,7 @@ public class EnemyAI : MonoBehaviour, IRewindable
         Health.Revive();
         state = State.Idle;
         attackCount = 0;
+        Foreseen = 0;
         // 제자리에서 기다린다: 구역 밖에서 깨운 적이 멀리 떨어진 저장 지점까지 쫓아오지 않게.
         // 레이가 아직 싸우는 구역 안에서 다시 시작하면(구역 입구가 저장 지점) 싸움을 이어 간다
         if (!(Zone && Zone.HoldsPlayer)) IsActive = false;

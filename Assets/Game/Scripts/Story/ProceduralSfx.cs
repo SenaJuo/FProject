@@ -102,7 +102,7 @@ public static class ProceduralSfx
         go.transform.position = position;
         var source = go.AddComponent<AudioSource>();
         source.clip = clip;
-        source.volume = volume;
+        source.volume = volume * GameSettings.Gain(GameSettings.Channel.Sfx); // 옵션의 효과음 크기
         source.spatialBlend = spatial;
         source.minDistance = 4f;
         source.maxDistance = 60f;

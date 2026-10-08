@@ -73,11 +73,32 @@ public class Chapter1Director : MonoBehaviour
     public StoryTrigger harborTrigger;
     public Transform harborEnd;
 
+    [Header("가게 2 · 구역 3 (항구)")]
+    public TapeShop shop2;
+    public StoryTrigger shop2Approach;
+    public Transform shop2Save;
+    public Transform gateLeaf;
+    public Vector3 gateOpenPos;
+    public StoryInteractable gateUse;
+    public Transform zone3Start, pier;
+    public StoryTrigger pierTrigger;
+    public Searchlight searchlight;
+    public CombatZone dockZone, pierZone;
+    [Header("3번 부두 · 반장")]
+    public EnemyAI boss;
+    public BossCleaner bossBrain;
+    public EnemyAI[] pierThugs = System.Array.Empty<EnemyAI>();
+    public Transform burnBarrel, dawnSeat;
+    public FireFlicker barrelFire;
+    public SkyCycle skyCycle;
+    const string Boss = "정리반 반장", Danny2 = "대니 (녹음)";
+    bool shop2Greeted, shop2Traded, gateUsed;
+
     readonly List<CinemachineCamera> cutsceneCameras = new();
     Walkman walkman;
     bool callDone, plateSeen, tapeLineDone, shopGreeted, traded;
 
-    public enum Phase { Opening, Sneak, ForcedRewind, Park, ExitFight, Avenue, CheckpointScene, Checkpoint, Square, Interrogation, Harbor, End }
+    public enum Phase { Opening, Sneak, ForcedRewind, Park, ExitFight, Avenue, CheckpointScene, Checkpoint, Square, Interrogation, Harbor, Docks, BossIntro, Boss, Burn, Finale, End }
     public Phase CurrentPhase { get; private set; }
 
     void Awake()
@@ -123,6 +144,8 @@ public class Chapter1Director : MonoBehaviour
         callTrigger.Entered += () => StartCoroutine(PhoneCall());
         plateTrigger.Entered += () => plateSeen = true;
         shopApproach.Entered += OnShopApproach;
+        if (shop2Approach) shop2Approach.Entered += OnShop2Approach;
+        if (gateUse) gateUse.Used += () => gateUsed = true;
         TapeShop.Opened += OnShopOpened;
         TapeShop.Traded += OnTraded;
         CombatZone.Entered += OnZoneEntered;
@@ -148,9 +171,35 @@ public class Chapter1Director : MonoBehaviour
         if (!StoryState.LineVisible) StoryState.Say(Ray, "…방패. 정면으론 안 돼.", 2.2f);
     }
 
+    float rainBase = -1f, vanBase = -1f;
+    AudioSource vanAudio;
+
+    /// <summary>옵션의 소리 크기를 계속 깔리는 소리(비·승합차)에 적용한다</summary>
+    void ApplyVolumes()
+    {
+        if (rainAudio)
+        {
+            if (rainBase < 0f) rainBase = rainAudio.volume;
+            rainAudio.volume = rainBase * GameSettings.Gain(GameSettings.Channel.Ambience);
+        }
+        if (van && !vanAudio) vanAudio = van.GetComponent<AudioSource>();
+        if (vanAudio)
+        {
+            if (vanBase < 0f) vanBase = vanAudio.volume;
+            vanAudio.volume = vanBase * GameSettings.Gain(GameSettings.Channel.Sfx);
+        }
+    }
+
     void Update()
     {
+        ApplyVolumes();
         UpdateZone2();
+        // 반장 싸움 중 쓰러져 구역 시작점에서 다시 시작하면 반장은 제자리에서 기다린다: 어디로 가야 하는지 길잡이를 띄운다
+        if (CurrentPhase == Phase.Boss && boss && !boss.Health.IsDead)
+        {
+            var want = boss.IsActive ? null : boss.transform;
+            if (StoryState.Waypoint != want) StoryState.Waypoint = want;
+        }
         // 차 번호판·테이프 한마디: 다른 대사가 없을 때 끼워 넣는다
         if (StoryState.LineVisible || StoryState.InputLocked) return;
         if (plateSeen && callDone)
@@ -170,6 +219,11 @@ public class Chapter1Director : MonoBehaviour
     IEnumerator Run()
     {
         CurrentPhase = Phase.Opening;
+        // 다음 장면으로 넘기는 자리는 그 단계가 되어서야 센다: 싸우다 미리 밟으면 가게·큰길 구간이 통째로 건너뛰어졌다
+        Arm(endTrigger, false);
+        Arm(squareTrigger, false);
+        Arm(harborTrigger, false);
+        Arm(pierTrigger, false);
         StoryState.Fade = 1f;
         StoryState.ControlLocked = true;
         StoryState.Title = "1장   B면";
@@ -193,8 +247,9 @@ public class Chapter1Director : MonoBehaviour
         StoryState.Say(Ray, "…하아. 놈들 차가 시내 쪽으로 빠졌어. 따라가 보자.", 3.2f);
         StoryState.Objective = "큰길을 따라 시내 쪽으로 간다";
         StoryState.Waypoint = northEnd;
+        Arm(endTrigger, true);
 
-        yield return new WaitUntil(() => endTrigger.Fired);
+        yield return new WaitUntil(() => Reached(endTrigger));
 
         // ---------- 구역 2: 시장 광장 ----------
         yield return CheckpointScene();
@@ -202,25 +257,64 @@ public class Chapter1Director : MonoBehaviour
         if (GameManager.Instance) GameManager.Instance.Save(zone2Start); // 구역 시작점 자동 저장
         StoryState.Objective = "검문소를 지나 시장 광장으로 들어간다";
         StoryState.Waypoint = checkpointLook;
+        // 광장 입구는 검문소를 정리한 뒤에야 센다: 경찰을 남겨 둔 채 빠져나가면 저격수 구간까지 경찰이 따라와 끝없이 쓰러졌다
+        yield return new WaitUntil(() => !checkpointZone || checkpointZone.IsCleared);
+        Arm(squareTrigger, true);
 
-        yield return new WaitUntil(() => squareTrigger.Fired);
+        yield return new WaitUntil(() => Reached(squareTrigger));
         yield return SniperIntro();
         CurrentPhase = Phase.Square;
         StoryState.Objective = "엄폐물 사이로 다가가 옥상의 저격수를 처리한다";
 
         yield return new WaitUntil(() => sniper == null || sniper.Health.IsDead);
         yield return Interrogation();
+        yield return HarborFromGate();
+    }
 
+    /// <summary>항구 길(가게 2) → 철조망 문 → 구역 3 3번 부두 → 반장 → 새벽. 시험이 여기부터 바로 시작할 수 있게 따로 둔다</summary>
+    IEnumerator HarborFromGate()
+    {
         CurrentPhase = Phase.Harbor;
-        StoryState.Objective = "북쪽 항구 길로 간다";
+        StoryState.Objective = "북쪽 항구로 간다";
         StoryState.Waypoint = harborEnd;
-        yield return new WaitUntil(() => harborTrigger.Fired);
+        yield return new WaitUntil(() => gateUsed || !gateUse);
+        yield return OpenHarborGate();
+
+        // ---------- 구역 3: 3번 부두 ----------
+        CurrentPhase = Phase.Docks;
+        if (GameManager.Instance && zone3Start) GameManager.Instance.Save(zone3Start); // 구역 시작점 자동 저장
+        StoryState.Say(Ray, "3번 부두… 새벽 다섯 시 배. 그 전에 끝낸다.", 3.2f);
+        StoryState.Objective = "3번 부두로 간다";
+        StoryState.Waypoint = pier;
+        Arm(pierTrigger, true);
+        yield return new WaitUntil(() => Reached(pierTrigger));
+        if (boss)
+        {
+            // 부두 큰길 싸움 등에서 쫓아온 조직원이 남아 있으면 먼저 처리한다(조작이 잠긴 소개 장면 동안 얻어맞지 않게)
+            while (ChasersNearby())
+            {
+                StoryState.Objective = "주변의 조직원을 처리한다";
+                StoryState.Waypoint = null;
+                yield return new WaitUntil(() => !ChasersNearby());
+            }
+            yield return BossIntro();
+            CurrentPhase = Phase.Boss;
+            StoryState.Objective = "정리반 반장을 쓰러뜨린다";
+            StoryState.Waypoint = null;
+            boss.Activate();
+            foreach (var t in pierThugs) if (t && !t.Health.IsDead) t.Activate();
+            yield return new WaitUntil(() => !boss || boss.Health.IsDead || (bossBrain && bossBrain.WantsToBurn));
+            yield return BurnSequence();
+            yield return Finale();
+        }
         CurrentPhase = Phase.End;
         StoryState.ControlLocked = true;
         StoryState.Objective = null;
         StoryState.Waypoint = null;
         yield return FadeTo(1f, 1.4f);
         StoryState.Say("", "(이어서 계속)", 30f);
+        yield return StoryState.Sleep(8f);
+        UnityEngine.SceneManagement.SceneManager.LoadScene(PauseMenu.TitleScene); // 지금 만든 데까지 끝: 타이틀로
     }
 
     // ---------- 구역 2 ----------
@@ -255,7 +349,7 @@ public class Chapter1Director : MonoBehaviour
         yield return MoveGate(true, 0.9f);
         vanGo = true;
         yield return Wait(2.6f);
-        StoryState.Say(Ray, "경찰이 놈들 차를 그냥 보내 줘…? 위에서부터 다 한통속이라더니.", 3.8f);
+        StoryState.Say(Ray, "경찰이 놈들 차를 그냥 보내 줘…? 이 동네, 생각보다 더 썩었군.", 3.8f);
         yield return Wait(3.4f);
         yield return MoveGate(false, 0.9f);
 
@@ -305,8 +399,8 @@ public class Chapter1Director : MonoBehaviour
 
     IEnumerator WaitVanStop(float timeout)
     {
-        float until = Time.unscaledTime + timeout;
-        while (!vanStopped && Time.unscaledTime < until && !StoryState.SkipRequested) yield return null;
+        float until = StoryState.Now + timeout;
+        while (!vanStopped && StoryState.Now < until && !StoryState.SkipRequested) yield return null;
     }
 
     IEnumerator MoveGate(bool open, float seconds)
@@ -334,7 +428,7 @@ public class Chapter1Director : MonoBehaviour
         StoryState.ControlLocked = true; // 느린 화면 동안 인벤토리·되감기가 시간 배율을 바꾸지 않게
         Time.timeScale = 0.35f;
         StoryState.Say(Ray, "…옥상에 붉은 선—저격수다!", 2.4f);
-        yield return new WaitForSecondsRealtime(1.5f);
+        yield return StoryState.Sleep(1.5f);
         if (Mathf.Approximately(Time.timeScale, 0.35f)) Time.timeScale = 1f; // 그사이 쓰러져 사망 화면이 시간을 가져갔으면 그대로 둔다
         StoryState.ControlLocked = false;
         gameplayRig.SnapBehindTarget();
@@ -420,11 +514,25 @@ public class Chapter1Director : MonoBehaviour
         return false;
     }
 
+    static void Arm(StoryTrigger trigger, bool on)
+    {
+        if (trigger) trigger.enabled = on;
+    }
+
+    /// <summary>그 자리에 닿았다: 켜진 뒤 들어왔거나, 켜질 때 이미 그 안에 서 있었다</summary>
+    bool Reached(StoryTrigger trigger) =>
+        !trigger || trigger.Fired || (trigger.enabled && trigger.TryGetComponent(out Collider c) && c.bounds.Contains(player.transform.position));
+
     void UpdateZone2()
     {
+        // 검문소를 정리하면 길잡이를 광장 입구로(검문소 자체를 가리켜 다음 갈 곳을 몰랐다)
+        if (CurrentPhase == Phase.Checkpoint && checkpointZone && checkpointZone.IsCleared && StoryState.Waypoint == checkpointLook && squareTrigger)
+            StoryState.Waypoint = squareTrigger.transform;
         if (CurrentPhase != Phase.Square || !sniper || sniper.Health.IsDead) return;
         // 계단에 오르면 길잡이를 저격수로. 다시 시작해(저장 지점) 광장에 돌아오면 저격수가 다시 겨눈다
-        StoryState.Waypoint = player.transform.position.y > 2.5f ? sniper.transform : stairsFoot;
+        Vector3 me = player.transform.position;
+        bool onStairs = me.y > 0.5f || (stairsFoot && Flat(me - stairsFoot.position).magnitude < 4f);
+        StoryState.Waypoint = me.y > 2.5f ? sniper.transform : onStairs && roofTop ? roofTop : stairsFoot;
         if (!sniper.IsActive && !player.IsDead && square.Contains(player.transform.position)) sniper.Activate();
     }
 
@@ -445,6 +553,7 @@ public class Chapter1Director : MonoBehaviour
         if (spotter.beamTarget) spotter.beamTarget.position = player.transform.position + Vector3.up * 1.1f;
         spotter.ForceSuspicion(1f);
         spotter.Staged = true;
+        RewindMemory.NoteSpotted(spotter); // 되감은 뒤 이 순찰의 시야가 보인다(레이만 기억한다)
         StoryState.Say(Thug, "…어? 저기다!", 2.4f);
 
         if (!canRewind)
@@ -462,7 +571,7 @@ public class Chapter1Director : MonoBehaviour
         Place(dynamicA, s - dir * 1.1f + side * 0.55f + Vector3.up * 1.75f, p + Vector3.up * 1.2f, 42f);
         Shot(dynamicA, 0.25f);
         Time.timeScale = 0.04f;
-        yield return new WaitForSecondsRealtime(0.6f);
+        yield return StoryState.Sleep(0.6f);
         StoryState.Objective = "되감아서 들키기 전으로 돌아간다";
         StoryState.Prompt = "R 을 길게 눌러 되감는다   ·   5초 전, 들키기 전으로";
         yield return new WaitUntil(() => walkman.Rewinding);
@@ -517,6 +626,271 @@ public class Chapter1Director : MonoBehaviour
         StoryState.Say(Thug, "여기로 나온다! 잡아!", 2f);
     }
 
+    // ---------- 3번 부두: 반장 ----------
+
+    /// <summary>반장 무리 말고, 깨어나 레이를 쫓는 조직원이 가까이(35m) 있는가</summary>
+    bool ChasersNearby()
+    {
+        foreach (var e in EnemyAI.All)
+        {
+            if (!e || e == boss || e.Health.IsDead || !e.IsActive) continue;
+            if (System.Array.IndexOf(pierThugs, e) >= 0) continue;
+            if (bossBrain && System.Array.IndexOf(bossBrain.reinforcements, e) >= 0) continue;
+            if ((e.transform.position - player.transform.position).sqrMagnitude < 35f * 35f) return true;
+        }
+        return false;
+    }
+
+    IEnumerator BossIntro()
+    {
+        CurrentPhase = Phase.BossIntro;
+        StoryState.CutsceneActive = true;
+        player.scriptedVelocity = Vector3.zero;
+        Vector3 b = boss.transform.position + Vector3.up * 1.6f;
+        Vector3 r = player.transform.position + Vector3.up * 1.6f;
+        Vector3 dir = Flat(b - r).normalized, side = Vector3.Cross(Vector3.up, dir);
+        // 레이 어깨 너머로 드럼통 불 앞의 반장을 본다
+        Place(dynamicA, r - dir * 1.6f + side * 0.7f + Vector3.up * 0.2f, b, 34f);
+        Shot(dynamicA, 0.6f);
+        boss.transform.rotation = Quaternion.LookRotation(Flat(player.transform.position - boss.transform.position));
+        string[,] lines =
+        {
+            { Boss, "…레이. 오랜만이군.", "2.6" },
+            { Ray, "선배…? 정리반 반장이 당신이었어?", "3.0" },
+            { Boss, "대니가 숨긴 건 이거 하나였다. 이걸 태우면 다 끝나. 대니 일도, 네 일도.", "4.4" },
+            { Ray, "그 테이프 내놔요.", "2.0" },
+            { Boss, "형사 시절에 가르쳐 줬지. 끝까지 물고 늘어지지 말라고.", "3.6" },
+        };
+        var myHealth = player.GetComponent<Health>();
+        bool wasInvulnerable = myHealth.Invulnerable;
+        myHealth.Invulnerable = true;
+        for (int i = 0; i < lines.GetLength(0); i++)
+        {
+            if (i == 2) { Place(dynamicB, b + Flat(-dir) * 2.4f + side * 0.9f, b - Vector3.up * 0.1f, 30f); Shot(dynamicB, 0.5f); }
+            float t = float.Parse(lines[i, 2], System.Globalization.CultureInfo.InvariantCulture);
+            StoryState.Say(lines[i, 0], lines[i, 1], t);
+            yield return Wait(t + 0.15f);
+        }
+        myHealth.Invulnerable = wasInvulnerable;
+        gameplayRig.SnapBehindTarget();
+        Shot(gameplayCamera, 0.5f);
+        StoryState.CutsceneActive = false;
+        Tutorial.Show("perfect");
+    }
+
+    /// <summary>
+    /// 반장이 대니의 테이프를 드럼통 불에 던지러 달려간다. 막지 못해 불에 들어가면 → 시간이 멈추고 R 안내 → 되감으면
+    /// 레이는 놈이 어디로 갈지 기억한다(바닥에 길이 보인다) → 다시 막으러 간다. 실패해도 끝나지 않는다(언제나 아슬아슬하게).
+    /// 되감을 횟수가 없으면 라이터가 헛돌아 테이프가 떨어진다.
+    /// </summary>
+    IEnumerator BurnSequence()
+    {
+        if (!boss || boss.Health.IsDead) yield break;
+        CurrentPhase = Phase.Burn;
+        int attempt = 0;
+        var memoryLine = MakeMemoryLine();
+        while (true)
+        {
+            attempt++;
+            boss.Deactivate();
+            boss.Health.Invulnerable = false;
+            if (boss.Health.IsDead) boss.Health.Revive();
+            bool intercepted = false;
+            void OnHit(int amount, Vector3 from) => intercepted = true;
+            boss.Health.Damaged += OnHit;
+            Vector3 throwSpot = burnBarrel.position + Flat(boss.transform.position - burnBarrel.position).normalized * 1.1f;
+            var agent = boss.GetComponent<UnityEngine.AI.NavMeshAgent>();
+            if (agent && !agent.enabled) agent.enabled = true;
+            if (agent) { agent.isStopped = false; agent.speed = attempt == 1 ? 5.2f : 3.0f; agent.stoppingDistance = 0.2f; agent.SetDestination(throwSpot); }
+            StoryState.Say(Boss, attempt == 1 ? "…됐다. 이걸로 끝이다!" : "비켜, 레이!", 1.8f);
+            StoryState.Objective = "반장이 테이프를 태우기 전에 막는다";
+            StoryState.Waypoint = boss.transform;
+            if (memoryLine) { memoryLine.enabled = attempt > 1; memoryLine.SetPosition(0, boss.transform.position + Vector3.up * 0.06f); memoryLine.SetPosition(1, throwSpot + Vector3.up * 0.06f); }
+            float started = StoryState.Now;
+            yield return new WaitUntil(() => intercepted || boss.Health.IsDead
+                                              || Flat(boss.transform.position - throwSpot).magnitude < 0.6f
+                                              || StoryState.Now - started > 9f);
+            boss.Health.Damaged -= OnHit;
+            if (memoryLine) memoryLine.enabled = false;
+            if (agent && agent.enabled && agent.isOnNavMesh) agent.isStopped = true;
+            if (intercepted || boss.Health.IsDead) break;
+
+            // 불에 닿았다
+            boss.transform.rotation = Quaternion.LookRotation(Flat(burnBarrel.position - boss.transform.position));
+            bool canRewind = walkman && walkman.tapes.Exists(t => t.charges > 0) && TimeRewind.RecordedSeconds >= 2f;
+            if (!canRewind)
+            {
+                // 되감을 횟수가 없다: 라이터가 헛돈다 → 테이프가 떨어진다(막힘 없이 이어진다)
+                StoryState.Say(Boss, "…빌어먹을, 불이 왜—", 2f);
+                if (boss.body) boss.body.CrossFadeInFixedTime("HitLight", 0.1f);
+                yield return Wait(1.2f);
+                break;
+            }
+            yield return BurnAndRewind();
+        }
+        if (memoryLine) Destroy(memoryLine.gameObject);
+        StoryState.Waypoint = null;
+    }
+
+    /// <summary>테이프가 불에 들어간다 → 시간이 거의 멈추고 R을 기다린다 → 되감기</summary>
+    IEnumerator BurnAndRewind()
+    {
+        StoryState.HoldTime = true; // 던지는 순간에서 기록을 멈춘다: 되감으면 그 5초 전으로
+        if (boss.body) boss.body.CrossFadeInFixedTime("Cross", 0.06f);
+        var tape = bossBrain ? bossBrain.heldTape : null;
+        Vector3 from = tape ? tape.position : boss.transform.position + Vector3.up * 1.3f;
+        Transform tapeParent = tape ? tape.parent : null;
+        if (tape) tape.SetParent(null, true);
+        for (float t = 0f; t < 1f; t += StoryState.DeltaTime / 0.45f)
+        {
+            if (tape) tape.position = Vector3.Lerp(from, burnBarrel.position + Vector3.up * 0.9f, t) + Vector3.up * Mathf.Sin(t * Mathf.PI) * 0.6f;
+            yield return null;
+        }
+        if (barrelFire) barrelFire.baseIntensity = 22f; // 불길이 확 오른다
+        ProceduralSfx.PlayAt(ProceduralSfx.Recorded("BodyFall") ?? ProceduralSfx.ButtonClick, burnBarrel.position, 0.6f, 0.7f, 0.6f);
+        Vector3 fire = burnBarrel.position + Vector3.up * 1f;
+        Place(dynamicA, fire + Flat(player.transform.position - fire).normalized * 2.4f + Vector3.up * 0.6f, fire, 32f);
+        Shot(dynamicA, 0.25f);
+        StoryState.Say(Ray, "안 돼—!", 1.6f);
+        Time.timeScale = 0.05f;
+        yield return StoryState.Sleep(0.5f);
+        StoryState.Objective = "되감아서 테이프가 타기 전으로 돌아간다";
+        StoryState.Prompt = "R 을 길게 눌러 되감는다";
+        yield return new WaitUntil(() => walkman.Rewinding);
+        StoryState.HoldTime = false;
+        StoryState.Prompt = null;
+        yield return new WaitUntil(() => !walkman.Rewinding);
+        Time.timeScale = 1f;
+        if (barrelFire) barrelFire.baseIntensity = 7f;
+        if (tape && tapeParent) { tape.SetParent(tapeParent, false); tape.localPosition = tapeHome; tape.localRotation = tapeHomeRot; }
+        gameplayRig.SnapBehindTarget();
+        Shot(gameplayCamera, 0f);
+        StoryState.Say(Ray, "…놈이 어디로 달려갈지 안다. 이번엔 먼저 막는다.", 3.2f);
+    }
+
+    Vector3 tapeHome; Quaternion tapeHomeRot;
+
+    LineRenderer MakeMemoryLine()
+    {
+        if (bossBrain && bossBrain.heldTape) { tapeHome = bossBrain.heldTape.localPosition; tapeHomeRot = bossBrain.heldTape.localRotation; }
+        var go = new GameObject("BossMemoryPath");
+        var lr = go.AddComponent<LineRenderer>();
+        lr.positionCount = 2;
+        lr.widthMultiplier = 0.25f;
+        lr.useWorldSpace = true;
+        var mat = new Material(Shader.Find("Universal Render Pipeline/Unlit"));
+        mat.SetColor("_BaseColor", new Color(1f, 0.75f, 0.35f) * 2f);
+        lr.sharedMaterial = mat;
+        lr.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        lr.enabled = false;
+        return lr;
+    }
+
+    /// <summary>반장을 막았다 → 쓰러진 반장의 마지막 말 → 새벽 부두, 대니의 녹음</summary>
+    IEnumerator Finale()
+    {
+        CurrentPhase = Phase.Finale;
+        StoryState.CutsceneActive = true;
+        StoryState.Objective = null;
+        foreach (var e in EnemyAI.All) if (e && e != boss && !e.Health.IsDead) e.Deactivate();
+        if (bossBrain && bossBrain.heldTape) bossBrain.heldTape.gameObject.SetActive(false); // 레이가 테이프를 낚아챘다
+        if (boss && !boss.Health.IsDead) boss.Health.TakeDamage(9999, player.transform.position);
+        yield return Wait(1.4f);
+        Vector3 down = boss ? boss.transform.position : player.transform.position;
+        var hips = boss && boss.body ? boss.body.GetBoneTransform(HumanBodyBones.Hips) : null;
+        if (hips) down = hips.position;
+        Vector3 me = player.transform.position;
+        Vector3 away = Flat(me - down).sqrMagnitude > 0.01f ? Flat(me - down).normalized : Vector3.back;
+        player.transform.rotation = Quaternion.LookRotation(-away); // 쓰러진 반장을 내려다본다
+        // 옆에서 낮게: 쓰러진 반장과 내려다보는 레이가 한 화면에(레이 몸이 반장을 가리지 않게)
+        Vector3 side = Vector3.Cross(Vector3.up, away);
+        Vector3 between = Vector3.Lerp(down + Vector3.up * 0.3f, me + Vector3.up * 1.1f, 0.4f);
+        // 양옆 중 드럼통·컨테이너에 가리지 않는 쪽에서 찍는다
+        Vector3 camAt = between + side * 3.6f - away * 0.4f + Vector3.up * 1.3f;
+        Vector3 other = between - side * 3.6f - away * 0.4f + Vector3.up * 1.3f;
+        bool Blocked(Vector3 from) =>
+            Physics.Linecast(from, down + Vector3.up * 0.3f, out var h, ~0, QueryTriggerInteraction.Ignore) && !h.transform.IsChildOf(boss.transform) && !h.transform.IsChildOf(player.transform);
+        if (boss && Blocked(camAt) && !Blocked(other)) camAt = other;
+        Place(dynamicA, camAt, between + Vector3.up * 0.15f, 44f);
+        Shot(dynamicA, 0.8f);
+        string[,] lines =
+        {
+            { Boss, "…형사님.", "2.4" },
+            { Ray, "……선배.", "1.8" },
+            { Boss, "위는… 네가 생각하는 것보다 가까이 있어. 그 테이프… 끝까지 들어라.", "4.6" },
+        };
+        for (int i = 0; i < lines.GetLength(0); i++)
+        {
+            float t = float.Parse(lines[i, 2], System.Globalization.CultureInfo.InvariantCulture);
+            StoryState.Say(lines[i, 0], lines[i, 1], t);
+            yield return Wait(t + 0.2f);
+        }
+        yield return FadeTo(1f, 1.6f);
+
+        // 새벽: 3번 부두 끝 계선주에 앉아 테이프를 끼운다
+        StoryState.Title = "새벽 5시 12분";
+        if (dawnSeat) player.Teleport(dawnSeat.position, dawnSeat.rotation);
+        // 비가 그친다. 어둠 속에서 시작해, 녹음이 흐르는 동안 수평선이 붉게 밝아 온다(SkyCycle)
+        if (rainAudio) rainAudio.volume *= 0.15f;
+        foreach (var ps in FindObjectsByType<ParticleSystem>(FindObjectsSortMode.None))
+            if (ps.name == "Rain") ps.Stop(true, ParticleSystemStopBehavior.StopEmitting);
+        foreach (var l in FindObjectsByType<Light>(FindObjectsSortMode.None))
+            if (l.name == "Flood" || l.name == "Beam" || l.name == "AisleLamp") l.intensity *= 0.35f; // 새벽: 투광등이 빛을 잃는다
+        Vector3 seat = player.transform.position;
+        // 레이 왼쪽 뒤 낮은 곳에서 해 뜨는 바다 쪽을 본다: 레이는 왼쪽 1/3, 해와 수평선은 오른쪽, 배는 화면 밖
+        player.transform.rotation = Quaternion.LookRotation(new Vector3(0.3f, 0f, 1f));
+        Place(dynamicB, seat + new Vector3(-2.2f, 1.2f, -3.0f), seat + new Vector3(3f, 2.2f, 30f), 46f);
+        Shot(dynamicB, 0f);
+        if (skyCycle) skyCycle.Set(0.15f);
+        yield return Wait(1.6f);
+        StoryState.Title = null;
+        if (skyCycle) StartCoroutine(skyCycle.Dawn(16f));
+        yield return FadeTo(0f, 2.2f);
+        string[,] dawn =
+        {
+            { "", "(찰칵. 테이프가 돌아가는 소리. 그리고 낮게 속삭이는 목소리)", "3.4" },
+            { Danny2, "…레이. 이걸 듣고 있다면, 난 이미 늦은 거겠지.", "3.8" },
+            { Danny2, "미안하다. 그 회사 일… 그리고 우리 쪽에도 그놈들 사람이 있어. 아주 가까이.", "4.6" },
+            { Danny2, "아무도 믿지 마. …나도 말이야.", "3.2" },
+            { "", "(찰칵. 테이프가 멈춘다)", "2.4" },
+            { Ray, "……대니.", "2.4" },
+        };
+        for (int i = 0; i < dawn.GetLength(0); i++)
+        {
+            float t = float.Parse(dawn[i, 2], System.Globalization.CultureInfo.InvariantCulture);
+            StoryState.Say(dawn[i, 0], dawn[i, 1], t);
+            yield return Wait(t + 0.25f);
+        }
+        yield return FadeTo(1f, 2f);
+        StoryState.Title = "1장 「B면」 끝";
+        yield return Wait(3f);
+        StoryState.Title = null;
+    }
+
+    // ---------- 항구 철조망 문 ----------
+
+    IEnumerator OpenHarborGate()
+    {
+        if (!gateLeaf) yield break;
+        if (gateUse) gateUse.gameObject.SetActive(false);
+        ProceduralSfx.PlayAt(ProceduralSfx.Recorded("DoorOpen") ?? ProceduralSfx.ButtonClick, gateLeaf.position, 0.8f, 0.7f, 0.7f);
+        Vector3 from = gateLeaf.position;
+        for (float t = 0f; t < 1f; t += StoryState.DeltaTime / 1.3f)
+        {
+            gateLeaf.position = Vector3.Lerp(from, gateOpenPos, Mathf.SmoothStep(0f, 1f, t));
+            yield return null;
+        }
+        gateLeaf.position = gateOpenPos;
+    }
+
+    // ---------- 가게 2 ----------
+
+    void OnShop2Approach()
+    {
+        if (GameManager.Instance) GameManager.Instance.Save(shop2Save);
+        if (!StoryState.LineVisible) StoryState.Say(Ray, "…부두 앞에 불 켜진 수리점이라. 여기도 그쪽 사람인가.", 3f);
+    }
+
     // ---------- 가게 1 ----------
 
     void OnShopApproach()
@@ -529,6 +903,14 @@ public class Chapter1Director : MonoBehaviour
 
     void OnShopOpened(TapeShop opened)
     {
+        if (opened == shop2)
+        {
+            if (GameManager.Instance) GameManager.Instance.Save(shop2Save);
+            if (shop2Greeted) return;
+            shop2Greeted = true;
+            StoryState.Say("수리점 노인", "…그 카세트 플레이어. 어디서 났는지 알 것 같군. 정리반 반장을 만나러 가나? 그 사람도 예전엔 형사였지.", 5f);
+            return;
+        }
         if (opened != shop) return;
         if (GameManager.Instance) GameManager.Instance.Save(shopSave);
         if (shopGreeted) return;
@@ -539,6 +921,12 @@ public class Chapter1Director : MonoBehaviour
 
     void OnTraded(TapeShop at, CassetteTape given, CassetteTape received)
     {
+        if (at == shop2 && !shop2Traded)
+        {
+            shop2Traded = true;
+            StoryState.Say("수리점 노인", "나도 거기서 테이프를 찍었어. 사람 울음소리를 녹음해서… 그만 묻게. 부두에선 크레인 불빛을 조심해.", 5f);
+            return;
+        }
         if (at != shop || traded) return;
         traded = true;
         bool hasCompanyTape = walkman && walkman.tapes.Exists(t => !t.playable);
@@ -567,13 +955,9 @@ public class Chapter1Director : MonoBehaviour
 
     static IEnumerator Wait(float seconds)
     {
-        float until = Time.unscaledTime + seconds;
-        while (Time.unscaledTime < until && !StoryState.SkipRequested)
-        {
-            // 메뉴(설명 팝업·인벤토리·가게)를 연 동안은 대사도 멈춘다 — 엿듣던 통화가 멈춘 화면 뒤에서 흘러가 버리지 않게
-            if (StoryState.Paused) { until += Time.unscaledDeltaTime; StoryState.HoldLine(Time.unscaledDeltaTime); }
-            yield return null;
-        }
+        // 이야기 시계로 잰다: 메뉴(일시정지·설명 팝업·인벤토리·가게)를 연 동안은 대사도 멈춘다
+        float until = StoryState.Now + seconds;
+        while (StoryState.Now < until && !StoryState.SkipRequested) yield return null;
     }
 
     static IEnumerator FadeTo(float target, float seconds)
@@ -581,7 +965,7 @@ public class Chapter1Director : MonoBehaviour
         float start = StoryState.Fade, t = 0f;
         while (t < seconds && !StoryState.SkipRequested)
         {
-            t += Time.unscaledDeltaTime;
+            t += StoryState.DeltaTime;
             StoryState.Fade = Mathf.Lerp(start, target, t / seconds);
             yield return null;
         }

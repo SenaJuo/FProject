@@ -647,6 +647,7 @@ public static class PrototypeStageBuilder
         // 모델에 조작 스크립트(예: 예전 Kyle의 ThirdPersonController)가 섞여 있으면 혼자 걸어가고 애니메이터 값을 덮어쓴다.
         // 어떤 모델로 바꾸든 안전하도록 애니메이터만 남기고 모두 떼어 낸다.
         StripToAnimator(model);
+        HeadphoneBandSetup.Attach(model); // 목에 걸린 헤드폰의 밴드(생성 모델에는 귀 덮개만 있다)
         foreach (var t in model.GetComponentsInChildren<Transform>(true)) t.gameObject.tag = "Untagged"; // "Player" 태그는 몸통에만
         var animator = model.GetComponent<Animator>();
         animator.applyRootMotion = false;

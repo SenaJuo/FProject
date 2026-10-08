@@ -29,8 +29,37 @@ public static class StoryState
     public static bool MenuOpen;
 
     public static bool InputLocked => CutsceneActive || ControlLocked || MenuOpen;
-    /// <summary>메뉴(설명 팝업·인벤토리·가게)가 게임을 멈춘 중</summary>
+    /// <summary>메뉴(일시정지·설명 팝업·인벤토리·가게)가 게임을 멈춘 중</summary>
     public static bool Paused => MenuOpen || Walkman.InventoryShown || TapeShop.Current;
+    /// <summary>창(인벤토리·가게·설명 팝업·일시정지)을 마지막으로 닫은 프레임. 같은 Esc로 일시정지가 바로 열리지 않게 한다</summary>
+    public static int MenuClosedFrame = -1;
+
+    // ---------- 이야기 시계 ----------
+    // 실제 시간으로 흐르되(슬로모션·타격 멈춤과 상관없이) 메뉴가 게임을 멈춘 동안은 서 있다.
+    // 연출의 기다림·자막·페이드가 이 시계를 써야 일시정지 화면 뒤에서 컷신이 흘러가 버리지 않는다.
+    static int clockFrame = -1;
+    static float clockNow, clockDelta;
+
+    /// <summary>이야기 시계의 지금(초)</summary>
+    public static float Now { get { Tick(); return clockNow; } }
+    /// <summary>이번 프레임에 이야기 시계가 흐른 시간(멈춘 동안 0)</summary>
+    public static float DeltaTime { get { Tick(); return clockDelta; } }
+
+    /// <summary>프레임마다 한 번 시계를 진행한다(일시정지 메뉴가 매 프레임 가장 먼저 부른다. 읽을 때도 부른다)</summary>
+    public static void Tick()
+    {
+        if (clockFrame == Time.frameCount) return;
+        clockFrame = Time.frameCount;
+        clockDelta = Paused ? 0f : Time.unscaledDeltaTime;
+        clockNow += clockDelta;
+    }
+
+    /// <summary>이야기 시계로 기다린다(WaitForSecondsRealtime 대신: 일시정지 중에는 멈춘다)</summary>
+    public static System.Collections.IEnumerator Sleep(float seconds)
+    {
+        float until = Now + seconds;
+        while (Now < until) yield return null;
+    }
 
     /// <summary>null이 아니면 화면 가운데에 편지를 크게 펼쳐 보여 준다(편지 뒷면 읽기)</summary>
     public static string LetterHeading, LetterText;
@@ -54,7 +83,7 @@ public static class StoryState
     public static string Speaker { get; private set; }
     public static string Line { get; private set; }
     static float lineUntil;
-    public static bool LineVisible => Line != null && Time.unscaledTime < lineUntil;
+    public static bool LineVisible => Line != null && Now < lineUntil;
 
     /// <summary>자막을 띄운다. speaker가 비어 있으면 지문(괄호 설명)처럼 이름 없이 보인다.</summary>
     public static void Say(string speaker, string line, float seconds)
@@ -62,16 +91,10 @@ public static class StoryState
         if (SkipRequested) return; // 건너뛰는 중에는 자막을 띄우지 않는다
         Speaker = speaker;
         Line = line;
-        lineUntil = Time.unscaledTime + seconds;
+        lineUntil = Now + seconds;
     }
 
     public static void ClearLine() => lineUntil = 0f;
-
-    /// <summary>떠 있는 자막을 그만큼 더 띄운다(메뉴로 멈춘 동안 사라지지 않게)</summary>
-    public static void HoldLine(float seconds)
-    {
-        if (LineVisible) lineUntil += seconds;
-    }
 
     public static void ResetAll()
     {
@@ -91,5 +114,11 @@ public static class StoryState
 
     // 에디터에서 도메인 재로드 없이 플레이를 다시 시작해도 이전 값이 남지 않게 한다
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
-    static void OnPlayStart() => ResetAll();
+    static void OnPlayStart()
+    {
+        ResetAll();
+        clockFrame = -1;
+        clockNow = clockDelta = 0f;
+        MenuClosedFrame = -1;
+    }
 }

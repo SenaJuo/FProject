@@ -16,7 +16,7 @@ using UnityEngine;
 ///  9) 큰길 북쪽 끝 → 검문소 컷신(검은 승합차가 통과) → 구역 2 시작점 저장
 /// 10) 방패 경찰: 정면 가벼운 주먹은 막힘, 돌려차기(20)는 방패를 쳐냄, 옆에서는 맞음
 /// 11) 광장 진입 → 저격수 소개(느린 화면) → 트인 곳에서 조준선·피격, 트럭 뒤에서는 맞지 않음
-/// 12) 옥상: 경비 싸움 → 저격수 제압 → 심문 → 항구 길 → (이어서 계속)
+/// 12) 옥상: 경비 싸움 → 저격수 제압 → 심문 → 항구 길(가게 2 저장) → 철조망 문(F) → 3번 부두 → (이어서 계속)
 /// </summary>
 public static class Chapter1Test
 {
@@ -56,6 +56,13 @@ public static class Chapter1Test
     {
         lines.Add($"[{Time.realtimeSinceStartup:0000.0}] {(d ? d.CurrentPhase.ToString() : "-")} | {t}");
         System.IO.File.WriteAllLines(log, lines);
+    }
+
+    static void Use(StoryInteractable it)
+    {
+        if (it.oneShot) it.enabled = false; // 실제로 F를 눌렀을 때처럼 한 번 쓰면 꺼진다
+        var del = (System.Action)typeof(StoryInteractable).GetField("Used", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(it);
+        del?.Invoke();
     }
 
     static bool Waited(float s) => Time.realtimeSinceStartup - since > s;
@@ -163,7 +170,7 @@ public static class Chapter1Test
                 break;
             case 18:
                 lawn.route = lawnRoute;
-                Tp(new Vector3(139f, 0.15f, 60f), 90f); Note("출구 싸움 구역으로"); Next();
+                Tp(new Vector3(148f, 0.15f, 60f), 90f); Note("출구 싸움 구역으로(출구 틈)"); Next();
                 break;
             case 19:
                 if (d.CurrentPhase == Chapter1Director.Phase.ExitFight && Waited(1.5f))
@@ -182,7 +189,7 @@ public static class Chapter1Test
                 Tp(new Vector3(171.6f, 0.15f, 63f), 90f); Note("가게 앞으로"); Next();
                 break;
             case 22:
-                if (Waited(1.5f)) { Note($"가게 앞: 저장 지점 {Checkpoint()}, 저장 표시 {Time.unscaledTime - GameManager.Instance.SavedAt < 2.5f}, 체력 {d.player.GetComponent<Health>().Current}/{d.player.GetComponent<Health>().Max} (저장 때 회복 {GameManager.Instance.LastSaveHealed}), 설명 {TutorialUI.ToastId}"); Shot("shop_front"); Next(); }
+                if (Waited(1.5f)) { Note($"가게 앞: 저장 지점 {Checkpoint()}, 저장 표시 {StoryState.Now - GameManager.Instance.SavedAt < 2.5f}, 체력 {d.player.GetComponent<Health>().Current}/{d.player.GetComponent<Health>().Max} (저장 때 회복 {GameManager.Instance.LastSaveHealed}), 설명 {TutorialUI.ToastId}"); Shot("shop_front"); Next(); }
                 break;
             case 23:
                 Tp(new Vector3(171.6f, 0.15f, 66.4f), 90f); Next();
@@ -352,11 +359,43 @@ public static class Chapter1Test
                 else if (Waited(40f)) End("심문 뒤 항구 단계로 넘어가지 않음");
                 break;
             case 51:
-                if (Waited(0.4f)) { Tp(new Vector3(164f, 0.15f, 262f), 0f); Note("항구 길로"); Next(); }
+                // 가게 2 앞 인도: 다가가면 저장
+                if (Waited(0.4f)) { Tp(new Vector3(156.6f, 0.15f, 285.5f), 0f); Note("항구 길 · 가게 2 앞으로"); Next(); }
                 break;
             case 52:
-                if (d.CurrentPhase == Chapter1Director.Phase.End && Waited(2.5f)) { Note($"끝: 페이드 {StoryState.Fade:0.00}, 자막 '{StoryState.Line}'"); End("완료"); }
-                else if (Waited(6f)) End("끝 단계로 넘어가지 않음");
+                if (Waited(0.8f))
+                {
+                    var gm = GameManager.Instance;
+                    Note($"가게 2: 가까운 가게 '{(TapeShop.Nearby ? TapeShop.Nearby.shopName : "없음")}', 저장 시각 {gm.SavedAt:0.0} / 지금 {StoryState.Now:0.0}, 자막 '{StoryState.Line}'");
+                    Shot("shop2");
+                    Tp(new Vector3(160f, 0.15f, 315.4f), 0f);
+                    Next();
+                }
+                break;
+            case 53:
+                if (Waited(0.6f))
+                {
+                    Note($"철조망 문 앞: 안내 '{StoryState.Nearby?.prompt}', 단계 {d.CurrentPhase}(기대 Harbor)");
+                    Use(d.gateUse);
+                    Next();
+                }
+                break;
+            case 54:
+                if (d.CurrentPhase == Chapter1Director.Phase.Docks && Waited(1.6f))
+                {
+                    Note($"문 열림: 왼짝 위치 x {d.gateLeaf.position.x:0.0}(기대 {d.gateOpenPos.x:0.0}), 목표 '{StoryState.Objective}', 길잡이 {StoryState.Waypoint?.name}");
+                    Tp(new Vector3(164f, 0.02f, 322f), 0f);
+                    Next();
+                }
+                else if (Waited(6f)) End("철조망 문이 열리지 않음");
+                break;
+            case 55:
+                if (Waited(1.2f)) { Shot("docks_from_gate"); Tp(new Vector3(182f, 0.02f, 401f), 0f); Note("3번 부두 앞 마당으로"); Next(); }
+                break;
+            case 56:
+                // 반장 소개가 시작되면 여기까지(보스전·새벽 장면은 BossTest가 따로 확인한다)
+                if (d.CurrentPhase == Chapter1Director.Phase.BossIntro && Waited(1f)) { Note($"반장 소개 시작: 자막 '{StoryState.Line}'"); End("완료"); }
+                else if (Waited(8f)) End("반장 소개로 넘어가지 않음");
                 break;
         }
         if (Waited(40f)) End($"시간 초과(단계 {step})");

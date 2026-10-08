@@ -25,7 +25,6 @@ public class CutsceneSkip : MonoBehaviour
     GUIStyle keyStyle, labelStyle;
     float styleScale = -1f;
 
-    void Awake() => useGUILayout = false; // GUILayout을 쓰지 않는다
 
     public static void Ensure()
     {
@@ -34,7 +33,7 @@ public class CutsceneSkip : MonoBehaviour
 
     void Update()
     {
-        bool can = StoryState.CutsceneActive && !StoryState.SkipRequested;
+        bool can = StoryState.CutsceneActive && !StoryState.SkipRequested && !StoryState.Paused; // 일시정지 중에는 건너뛰지 않는다
         bool held = can && (SimulateHold || (Keyboard.current != null && Keyboard.current.spaceKey.isPressed));
         if (held)
         {
@@ -55,6 +54,8 @@ public class CutsceneSkip : MonoBehaviour
         if (shown <= 0.01f) return;
         float s = Screen.height / 1080f;
         GUI.depth = -20;
+        // 배치(Layout) 단계는 그리는 순서(GUI.depth)만 정하고 바로 끝낸다 — 이 단계를 아예 끄면(useGUILayout=false) 순서가 무시되고 먼저 생긴 순으로 굳었다
+        if (Event.current.type == EventType.Layout) return;
         if (!ring) { ring = MakeRing(128, 0.78f); dot = MakeRing(128, 0f); }
 
         float r = 30f * s;

@@ -20,6 +20,8 @@ public class HumanoidIK : MonoBehaviour
     public Transform aimTarget;
     [Tooltip("오른손에 쥔 물건(총). 매 프레임 총구가 대상을 향하도록 돌린다")]
     public Transform heldItem;
+    [Tooltip("쥔 물건이 손뼈에서 떨어진 자리(손뼈 축 기준). 손가락 뼈가 없는 모델이라 손바닥 안에 오도록 맞춘다")]
+    public Vector3 heldOffset = new(0f, -0.02f, 0.06f);
     public bool aim;
 
     [Header("왼손으로 쥐기(방패)")]
@@ -114,7 +116,7 @@ public class HumanoidIK : MonoBehaviour
         // 쥔 총은 손에 붙어 다니되, 겨누는 동안에는 총구(+z)가 대상을 정확히 향하게 한다
         if (heldItem && rightHand)
         {
-            heldItem.position = rightHand.position + rightHand.rotation * new Vector3(0f, -0.02f, 0.06f);
+            heldItem.position = rightHand.position + rightHand.rotation * heldOffset;
             if (!animator.enabled && rightLowerArm)
             {
                 // 쓰러져 물리로 넘어간 몸(래그돌): 쥔 물건을 팔뚝 방향으로 눕힌다(허공에 수평으로 떠 있지 않게)

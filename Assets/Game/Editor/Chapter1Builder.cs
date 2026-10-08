@@ -62,6 +62,18 @@ public static partial class Chapter1Builder
         public StoryTrigger checkpointView, squareTrigger, harborTrigger;
         public EnemyAI sniper;
         public Bounds square;
+        // 가게 2 · 구역 3(항구)
+        public TapeShop shop2;
+        public StoryTrigger shop2Approach, pierTrigger;
+        public Transform shop2Save, zone3Start, pier, gateLeaf, ship, craneTop;
+        public Vector3 gateOpenPos;
+        public StoryInteractable gateUse;
+        public Searchlight searchlight;
+        public CombatZone dockZone, pierZone;
+        public EnemyAI boss;
+        public EnemyAI[] pierThugs;
+        public Transform burnBarrel, dawnSeat;
+        public FireFlicker barrelFire;
     }
 
     public static void Build()
@@ -90,6 +102,7 @@ public static partial class Chapter1Builder
 
         BuildThugs(people, routes, triggers, b);
         BuildMarketSquare(M, X, triggers, people, routes, b);
+        BuildHarbor(M, X, triggers, people, routes, b);
 
         // ---------- 카메라 ----------
         var mainCam = Object.FindAnyObjectByType<Camera>();
@@ -162,11 +175,32 @@ public static partial class Chapter1Builder
         d.roofZone = b.roofZone;
         d.harborTrigger = b.harborTrigger;
         d.harborEnd = b.harborEnd;
+        d.shop2 = b.shop2;
+        d.shop2Approach = b.shop2Approach;
+        d.shop2Save = b.shop2Save;
+        d.gateLeaf = b.gateLeaf;
+        d.gateOpenPos = b.gateOpenPos;
+        d.gateUse = b.gateUse;
+        d.zone3Start = b.zone3Start;
+        d.pier = b.pier;
+        d.pierTrigger = b.pierTrigger;
+        d.searchlight = b.searchlight;
+        d.dockZone = b.dockZone;
+        d.pierZone = b.pierZone;
+        d.boss = b.boss;
+        d.bossBrain = b.boss ? b.boss.GetComponent<BossCleaner>() : null;
+        d.pierThugs = b.pierThugs;
+        d.burnBarrel = b.burnBarrel;
+        d.dawnSeat = b.dawnSeat;
+        d.barrelFire = b.barrelFire;
         d.dynamicB = P.VCam(cams, "Shot_Dynamic_B", Vector3.zero, Vector3.forward, 40f);
 
         P.SetupEnvironment(VolumePath);
+        var skyCycle = SetupHarborSky(mainCam); // 그라데이션 하늘·수평선 실루엣(장면 전체), 새벽 연출용
+        skyCycle.transform.SetParent(systems.transform);
+        d.skyCycle = skyCycle;
         // 1장은 숨어 다니는 구간이 넓다: 프롤로그보다 주변광을 조금 올려 어둠 속 길과 생울타리 윤곽이 보이게 한다
-        RenderSettings.ambientLight = new Color(0.135f, 0.145f, 0.19f);
+        RenderSettings.ambientLight = new Color(0.2f, 0.21f, 0.27f); // 너무 어두워 적이 안 보였다(0.135 → 0.2)
         P.BakeNavMesh(NavMeshPath);
         P.EnforceMaterialKeywords();
 
@@ -430,6 +464,9 @@ public static partial class Chapter1Builder
         TallHedge(g, new Vector3(108.6f, G, 51.4f), 90f);
         TallHedge(g, new Vector3(103.8f, G, 54.6f), 0f);
         Bench(g, new Vector3(104.4f, G, 48.6f), 90f, M);
+        TallHedge(g, new Vector3(121.5f, G, 63.4f), 0f);   // 관리 도로 북쪽: 도로 순찰을 피해 숨는 곳
+        TallHedge(g, new Vector3(129.5f, G, 63.4f), 0f);
+        TallHedge(g, new Vector3(125.5f, G, 56.6f), 0f);   // 관리 도로 남쪽(잔디밭 순찰 쪽도 가린다)
         Bench(g, new Vector3(117.5f, G, 44.6f), 0f, M);
         Bench(g, new Vector3(126.5f, G, 44.6f), 0f, M);
 
@@ -489,7 +526,7 @@ public static partial class Chapter1Builder
         b.plateTrigger = Trigger(triggers, "PlateTrigger", new Vector3(104.4f, 1f, LaneZ + 0.2f), new Vector3(2.6f, 2f, 4.4f));
 
         // 테이프 줍는 곳(회복약도 함께): 이야기상 꼭 지나는 차 옆 상자 + 찾아가면 있는 곳 셋
-        b.vanTape = TapeSpot(g, triggers, "VanTape", new Vector3(103.4f, G, LaneZ - 2.3f), 2, 1, box: true);
+        b.vanTape = TapeSpot(g, triggers, "VanTape", new Vector3(105.2f, G, LaneZ - 2.4f), 2, 1, box: true); // 산책길(x 106.2) 바로 옆: 길잡이만 따라가도 줍는다
         TapeSpot(g, triggers, "PavilionTape", new Vector3(84.3f, G + 0.47f, 58.6f), 1, 1, box: false);   // 정자 벤치 위(정자 순찰 곁)
         TapeSpot(g, triggers, "RestroomTape", new Vector3(114.6f, G, 41.3f), 1, 1, box: true);           // 화장실 뒤(그 조직원이 서 있던 곳 옆)
     }
@@ -887,6 +924,10 @@ public static partial class Chapter1Builder
         // 가운데 잔디밭을 도는 순찰: 산책길(x 106.2)을 옆에서 본다
         Patrol(people, routes, "Thug_Lawn", new Vector3(113f, G, 48f), 90f,
             new Vector3(113f, G, 47.6f), new Vector3(128f, G, 47.6f), new Vector3(128f, G, 54.4f), new Vector3(113f, G, 54.4f));
+        // 관리 도로를 오가는 순찰: 출구로 가는 지름길(관리 도로)에 서 있다 — 숨어서 때를 보거나, 등 뒤에서 제압하거나,
+        // 잔디밭 길로 돌아가거나(거기엔 잔디밭 순찰). 그냥 뛰어 지나가면 들킨다
+        Patrol(people, routes, "Thug_Lane", new Vector3(134f, G, LaneZ - 0.4f), -90f,
+            new Vector3(134f, G, LaneZ - 0.4f), new Vector3(121f, G, LaneZ - 0.4f)); // 서쪽 끝은 통화 엿듣는 자리(x 103~106)에서 15m 넘게(시야 11m)
         // 정자 둘레
         Patrol(people, routes, "Thug_Pavilion", new Vector3(78f, G, 52f), 0f,
             new Vector3(78f, G, 52f), new Vector3(78f, G, 68f), new Vector3(90f, G, 68f), new Vector3(90f, G, 52f));
@@ -900,9 +941,10 @@ public static partial class Chapter1Builder
         b.exitGunner = gun;
         var zoneGo = new GameObject("ExitZone");
         zoneGo.transform.SetParent(triggers);
-        zoneGo.transform.position = new Vector3(141f, 1.5f, LaneZ);
+        // 구역은 출구 틈(철망이 끊긴 곳)만: 경비 둘은 그 앞 공원에서 순찰하므로 등 뒤로 몰래 다가갈 틈이 실제로 생긴다
+        zoneGo.transform.position = new Vector3(ParkX1 - 1.25f, 1.5f, LaneZ);
         var zc = zoneGo.AddComponent<BoxCollider>();
-        zc.size = new Vector3(10f, 3f, 22f);
+        zc.size = new Vector3(7.5f, 3f, 12f);
         zc.isTrigger = true;
         var zone = zoneGo.AddComponent<CombatZone>();
         zone.enemies = new[] { e1, e2, gun };
@@ -919,6 +961,9 @@ public static partial class Chapter1Builder
         ai.windup = 0.62f;
         ai.recover = 0.6f;
         ai.attackCooldown = 1.5f;
+        ai.heavyEvery = gunner ? 0 : 3; // 세 번째 주먹마다 붉게 오래 예고하는 강타: 피할 이유
+        ai.heavyDamage = 20;
+        ai.heavyWindup = 0.95f;
         if (gunner)
         {
             ai.ranged = true;
@@ -970,9 +1015,7 @@ public static partial class Chapter1Builder
             bodyBox.transform.localRotation = Quaternion.identity;
             GameObjectUtility.SetStaticEditorFlags(bodyBox, 0);
         }
-        var lens = P.Box(torch, "Lens", Vector3.zero, new Vector3(0.05f, 0.05f, 0.006f), Mat("FlashLens"), Vector2.one, collider: false);
-        lens.transform.localPosition = new Vector3(0f, 0f, 0.123f);
-        lens.transform.localRotation = Quaternion.identity;
+        var lens = LensDisc(torch); // 둥근 렌즈(네모 상자는 손전등 앞에 하얀 네모가 따로 떠 "등이 둘"처럼 보였다)
         GameObjectUtility.SetStaticEditorFlags(lens, 0);
         var light = P.AddLight(torch, "Beam", new Vector3(0f, 0f, 0.15f), LightType.Spot, new Color(1f, 0.95f, 0.84f), 26f, 14f, 48f, Quaternion.identity, local: true);
         light.shadows = LightShadows.Soft;
@@ -986,6 +1029,7 @@ public static partial class Chapter1Builder
         cr.shadowCastingMode = ShadowCastingMode.Off;
         cr.receiveShadows = false;
         ik.heldItem = torch;
+        ik.heldOffset = new Vector3(0f, 0.02f, 0.07f); // 손전등 몸통이 주먹 안에 쥐어지고 머리만 앞으로 나오게(총 자리 기본값은 손등 위에 떠 보였다)
 
         var sight = ai.gameObject.AddComponent<PatrolSight>();
         sight.flashlight = light;
@@ -1002,6 +1046,23 @@ public static partial class Chapter1Builder
     }
 
     static Mesh beamCone;
+
+    /// <summary>손전등 렌즈: 지름 4.4cm 납작한 원반(+z를 본다). 손전등 머리 안쪽에 살짝 들어가게</summary>
+    public static GameObject LensDisc(Transform torch)
+    {
+        var old = torch.Find("Lens");
+        if (old) Object.DestroyImmediate(old.gameObject);
+        var lens = new GameObject("Lens");
+        lens.transform.SetParent(torch, false);
+        lens.transform.localPosition = new Vector3(0f, 0f, 0.121f);
+        lens.transform.localRotation = Quaternion.Euler(90f, 0f, 0f); // 원기둥 축(y)을 손전등 축(z)으로
+        lens.transform.localScale = new Vector3(0.044f, 0.002f, 0.044f);
+        lens.AddComponent<MeshFilter>().sharedMesh = Resources.GetBuiltinResource<Mesh>("Cylinder.fbx");
+        var r = lens.AddComponent<MeshRenderer>();
+        r.sharedMaterial = AssetDatabase.LoadAssetAtPath<Material>("Assets/Game/Art/Prologue/Materials/FlashLens.mat");
+        r.shadowCastingMode = ShadowCastingMode.Off;
+        return lens;
+    }
 
     /// <summary>손전등 빛줄기 원뿔: 꼭짓점이 렌즈, 길이 7m, 끝 반지름은 손전등 빛 각도(48°)에 맞춘다. v는 렌즈(0)→끝(1)</summary>
     static Mesh BeamConeMesh()

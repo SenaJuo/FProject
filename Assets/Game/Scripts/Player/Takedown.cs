@@ -4,7 +4,8 @@ using UnityEngine.InputSystem;
 
 /// <summary>
 /// 몰래 제압(Q): 눈치채지 못한 적의 등 뒤(reach 안, 뒤쪽 ±backAngle°)에 붙으면 "Q 몰래 제압" 안내가 뜨고,
-/// 누르면 등 뒤로 바짝 붙어 뒤통수를 강하게 쳐 한 번에 쓰러뜨린다. 제압당한 적은 소리치지 않는다(근처 순찰이 몰려오지 않는다).
+/// 누르면 등 뒤로 바짝 붙어 팔로 목을 졸라(두 사람 동작 ChokeHold·ChokeVictim, Blender에서 제작) 2초 남짓 만에 기절시킨다. 그동안 카메라가 옆에서 가까이 비춘다.
+/// 제압당한 적은 소리치지 않는다(근처 순찰이 몰려오지 않는다).
 ///  · 손전등 순찰: 발각 전(의심 막대가 다 차기 전)
 ///  · 그 밖의 적: 아직 싸움을 시작하지 않았을 때(구역에 들어오기 전 등)
 ///  · 옥상 저격수처럼 한자리를 지키며 조준경을 들여다보는 적: 언제든 등 뒤에서
@@ -74,8 +75,14 @@ public class Takedown : MonoBehaviour
         return best;
     }
 
-    /// <summary>제압할 때 레이가 서는 자리: 적 등 뒤 0.7m(적이 선 높이)</summary>
-    static Vector3 BehindPoint(EnemyAI e) => e.transform.position - e.transform.forward * 0.7f + Vector3.up * 0.02f;
+    /// <summary>제압할 때 레이가 서는 자리: 적 등 뒤 0.18m(Blender에서 맞물려 만든 동작의 간격 0.10 × 모델 배율 1.8)</summary>
+    static Vector3 BehindPoint(EnemyAI e) => e.transform.position - e.transform.forward * 0.18f + Vector3.up * 0.02f;
+
+    [Tooltip("목 조르기 동작(Blender에서 만든 두 사람 클립, 2.47초) 중 적이 축 늘어져 쓰러지는 때(초)")]
+    public float limpAt = 2.1f;
+    [Tooltip("동작 전체 길이(초): 레이가 팔을 풀고 일어설 때까지")]
+    public float chokeLength = 2.45f;
+    const string RayState = "ChokeHold", VictimState = "ChokeVictim", Locomotion = "Idle Walk Run Blend";
 
     bool Clear(Vector3 from, Vector3 to, EnemyAI e)
     {
@@ -95,42 +102,116 @@ public class Takedown : MonoBehaviour
 
     static bool Unaware(EnemyAI e)
     {
+        // 보스는 목을 조를 수 없다(도망칠 때 잠시 꺼져 있어도 — 때려서 막아야 한다)
+        if (e.GetComponent<BossCleaner>()) return false;
         var sight = e.GetComponent<PatrolSight>();
         if (sight) return !sight.Alerted && sight.Suspicion < 0.95f;
         return !e.IsActive || e.holdPosition;
     }
 
+    /// <summary>목 조르기 중(시험용)</summary>
+    public static bool Choking { get; private set; }
+
     IEnumerator Perform(EnemyAI e)
     {
         busy = true;
         Target = null;
+        Choking = true;
         int generation = TimeRewind.Generation;
-        // 등 뒤 0.7m에 붙어 적을 본다
-        Vector3 back = BehindPoint(e);
-        Vector3 look = e.transform.position - back;
-        look.y = 0f;
-        player.Teleport(back, Quaternion.LookRotation(look.sqrMagnitude > 0.001f ? look : transform.forward));
         var sight = e.GetComponent<PatrolSight>();
-        if (sight) sight.Silence(); // 맞아도 소리치지 않는다
+        if (sight) { sight.Silence(); sight.Holding = true; } // 맞아도 소리치지 않고, 순찰 걸음도 멈춘다
         e.Deactivate();
-        player.BeginBusy(0.8f, "Cross");
-        HitFeel.Swing(HitFeel.Tier.Heavy, transform.position + Vector3.up * 1.3f);
-        yield return new WaitForSeconds(0.28f); // 크로스 주먹이 가장 멀리 뻗는 순간
-        bool rewound = generation != TimeRewind.Generation; // 되감기·다시 시작: 적 상태는 이미 되돌아갔다
-        if (rewound || !player.IsBusy || player.IsDead)
+        // 바짝 붙는 동안 두 사람의 몸(충돌체)이 서로 밀어내지 않게 한다 — 안 그러면 레이가 뒤로 밀려나 팔이 목에 닿지 않았다
+        var mineCol = GetComponent<CharacterController>();
+        var theirCols = e.GetComponentsInChildren<Collider>();
+        foreach (var c in theirCols) if (c && mineCol) Physics.IgnoreCollision(mineCol, c, true);
+        // 등 뒤에 바짝 붙어 적과 같은 쪽을 본다(두 사람 동작이 이 간격·방향에 맞춰 만들어져 있다)
+        Vector3 facing = e.transform.forward; facing.y = 0f;
+        player.Teleport(BehindPoint(e), Quaternion.LookRotation(facing.sqrMagnitude > 0.001f ? facing : transform.forward));
+        player.BeginBusy(chokeLength, null);
+
+        // 두 사람 동작을 같이 튼다. 적이 손전등을 겨누던 손 자세(IK)는 끈다
+        Animator mine = player.animator, theirs = e.body;
+        var theirIk = theirs ? theirs.GetComponent<HumanoidIK>() : null;
+        if (theirIk) { theirIk.aim = false; theirIk.look = false; }
+        if (mine) mine.CrossFadeInFixedTime(RayState, 0.12f);
+        if (theirs) theirs.CrossFadeInFixedTime(VictimState, 0.12f);
+        // 손가락: 레이는 팔을 꽉 움켜쥐고, 적은 감긴 팔뚝을 붙잡는다(편 손이 보이지 않게)
+        var myFingers = mine ? mine.GetComponentInChildren<FingerPose>() : null;
+        var theirFingers = theirs ? theirs.GetComponentInChildren<FingerPose>() : null;
+        bool myFist = myFingers && myFingers.alwaysFist, theirFist = theirFingers && theirFingers.alwaysFist;
+        if (myFingers) myFingers.alwaysFist = true;
+        if (theirFingers) theirFingers.alwaysFist = true;
+        HitFeel.Swing(HitFeel.Tier.Medium, transform.position + Vector3.up * 1.4f);
+        var shot = CloseUp(e);
+
+        bool interrupted = false;
+        for (float t = 0f; t < limpAt; t += Time.deltaTime)
         {
-            // 다른 적에게 맞아 끊겼다 → 제압당하던 적도 알아챈다
-            if (!rewound && !e.Health.IsDead) { if (sight) sight.Alert(false); else e.Activate(); }
+            if (generation != TimeRewind.Generation || !player.IsBusy || player.IsDead || e.Health.IsDead) { interrupted = true; break; }
+            yield return null;
+        }
+
+        bool rewound = generation != TimeRewind.Generation; // 되감기·다시 시작: 적 상태는 이미 되돌아갔다
+        if (interrupted && (rewound || !player.IsBusy || player.IsDead))
+        {
+            // 다른 적에게 맞아 끊겼다 → 졸리던 적은 풀려나 알아챈다
+            EndShot(shot);
+            if (myFingers) myFingers.alwaysFist = myFist;
+            if (theirFingers) theirFingers.alwaysFist = theirFist;
+            foreach (var c in theirCols) if (c && mineCol) Physics.IgnoreCollision(mineCol, c, false);
+            if (theirs && !e.Health.IsDead) theirs.CrossFadeInFixedTime(Locomotion, 0.15f);
+            if (mine && !player.IsDead) mine.CrossFadeInFixedTime(Locomotion, 0.15f);
+            if (!rewound && !e.Health.IsDead) { if (sight) { sight.Holding = false; sight.Alert(false); } else e.Activate(); }
             busy = false;
+            Choking = false;
             yield break;
         }
-        if (!e.Health.IsDead)
-        {
-            Vector3 head = e.transform.position + Vector3.up * 1.55f;
-            HitFeel.Impact(HitFeel.Tier.Heavy, head, e.transform.position - transform.position, e.gameObject, false);
-            e.Health.TakeDamage(9999, transform.position); // 뒤에서 맞아 앞으로 쓰러진다
-        }
-        yield return new WaitForSeconds(0.5f);
+
+        // 축 늘어진다: 적은 앞으로 무너지고(물리), 레이는 동작 끝까지 팔을 풀며 일어선다
+        if (!e.Health.IsDead) e.Health.TakeDamage(9999, e.transform.position - transform.forward * 0.2f);
+        for (float t = limpAt; t < chokeLength && player.IsBusy; t += Time.deltaTime) yield return null;
+        if (mine && !player.IsDead) mine.CrossFadeInFixedTime(Locomotion, 0.25f);
+        if (myFingers) myFingers.alwaysFist = myFist;
+        EndShot(shot);
+        foreach (var c in theirCols) if (c && mineCol) Physics.IgnoreCollision(mineCol, c, false);
         busy = false;
+        Choking = false;
+    }
+
+    static void EndShot(GameObject shot)
+    {
+        if (shot) Destroy(shot);
+        if (savedBlend.HasValue)
+        {
+            var brain = FindAnyObjectByType<Unity.Cinemachine.CinemachineBrain>();
+            if (brain) brain.DefaultBlend = savedBlend.Value;
+            savedBlend = null;
+        }
+    }
+
+    static Unity.Cinemachine.CinemachineBlendDefinition? savedBlend;
+
+    /// <summary>옆에서 두 사람을 가까이 비추는 카메라(가려지지 않는 쪽을 고른다). 짧게 넘어간다</summary>
+    GameObject CloseUp(EnemyAI e)
+    {
+        var brain = FindAnyObjectByType<Unity.Cinemachine.CinemachineBrain>();
+        if (!brain) return null;
+        Vector3 neck = e.transform.position + Vector3.up * 1.45f;
+        Vector3 f = e.transform.forward, r = e.transform.right;
+        Vector3[] spots = { neck + r * 1.5f + f * 0.9f + Vector3.up * 0.1f, neck - r * 1.5f + f * 0.9f + Vector3.up * 0.1f, neck + f * 1.9f + Vector3.up * 0.15f };
+        Vector3 at = spots[0];
+        foreach (var spot in spots)
+        {
+            if (!Physics.Linecast(neck, spot, out var hit, ~0, QueryTriggerInteraction.Ignore) || hit.collider.GetComponentInParent<Health>()) { at = spot; break; }
+        }
+        var go = new GameObject("TakedownCloseUp");
+        go.transform.SetPositionAndRotation(at, Quaternion.LookRotation(neck - Vector3.up * 0.15f - at));
+        var cam = go.AddComponent<Unity.Cinemachine.CinemachineCamera>();
+        var lens = cam.Lens; lens.FieldOfView = 42f; cam.Lens = lens;
+        cam.Priority = 100;
+        savedBlend ??= brain.DefaultBlend;
+        brain.DefaultBlend = new Unity.Cinemachine.CinemachineBlendDefinition(Unity.Cinemachine.CinemachineBlendDefinition.Styles.EaseInOut, 0.3f);
+        return go;
     }
 }

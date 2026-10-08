@@ -73,6 +73,26 @@ public class HitFeel : MonoBehaviour
         if (finisher) h.StartCoroutine(h.TapeStretch(point));
     }
 
+    /// <summary>잠깐 느린 화면(완벽 회피 등): scale 배속으로 seconds(실제 초) 동안, 끝에 0.2초 걸쳐 돌아온다</summary>
+    public static void SlowMotion(float scale, float seconds) => I.StartSlow(scale, seconds);
+
+    void StartSlow(float scale, float seconds)
+    {
+        if (timeRoutine != null) StopCoroutine(timeRoutine);
+        timeRoutine = StartCoroutine(SlowRoutine(scale, seconds));
+    }
+
+    IEnumerator SlowRoutine(float scale, float seconds)
+    {
+        if (Time.timeScale < 0.99f && !Mathf.Approximately(Time.timeScale, ownedScale)) yield break; // 메뉴·되감기가 시간을 쥐고 있다
+        Set(scale);
+        yield return new WaitForSecondsRealtime(seconds);
+        for (float k = 0f; k < 1f; k += Time.unscaledDeltaTime / 0.2f) { if (!Owned()) yield break; Set(Mathf.Lerp(scale, 1f, k)); yield return null; }
+        if (Owned()) Time.timeScale = 1f;
+        ownedScale = -1f;
+        timeRoutine = null;
+    }
+
     /// <summary>예전 방식 호출(공격 판정 코드의 hitStop 값)</summary>
     public static void HitStop(float seconds) => I.TimeSequence(seconds, false);
 
@@ -104,6 +124,19 @@ public class HitFeel : MonoBehaviour
     }
 
     void Set(float s) { Time.timeScale = s; ownedScale = s; }
+
+    /// <summary>
+    /// 일시정지: 타격 멈춤·마무리 슬로모션이 시간을 쥐고 있으면 끝낸다(true). 메뉴를 닫을 때 정상 속도로 돌아가야 하기 때문 —
+    /// 그대로 두면 이 코루틴은 "남이 시간을 가져갔다"며 손을 떼고, 메뉴는 멈춤 속도를 되살려 게임이 느린 채로 굳었다
+    /// </summary>
+    public static bool ReleaseTime()
+    {
+        if (!instance || instance.timeRoutine == null || !instance.Owned()) return false;
+        instance.StopCoroutine(instance.timeRoutine);
+        instance.timeRoutine = null;
+        instance.ownedScale = -1f;
+        return true;
+    }
     bool Owned() => Mathf.Approximately(Time.timeScale, ownedScale);
 
     IEnumerator Delayed(float seconds, System.Action action)

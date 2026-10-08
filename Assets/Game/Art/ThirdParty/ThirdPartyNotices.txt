@@ -37,6 +37,19 @@
    출처: https://3d.varco.ai 작업 흐름(그림 생성 → 3D 생성)으로 사용자 계정에서 생성
    사용 조건: VARCO 3D 이용약관을 따른다 — 상업 출시 전 생성물 이용 범위를 다시 확인할 것
 
+4-1. VARCO Sound (NC AI) — 타이틀 전용 곡 (2026-10-07 생성)
+   파일: Resources/Music/Title/title-1.mp3(누아르 재즈), title-2.mp3(피아노와 첼로), title-3.mp3(되감기 피아노)
+   출처: https://sound.varco.ai 음악 모드로 사용자 계정에서 생성. 6가지 방향 × 2곡 = 12곡 중 골랐다
+         (모두 연주곡 표시 instrumental=true. 크기 흐름·템포·밝기·찢김·끊김을 Editor/MusicQA.cs로 재서 비교)
+   사용 조건: VARCO Sound 이용약관을 따른다 — 상업 출시 전 생성물 이용 범위를 다시 확인할 것
+
+5-1. VARCO 이미지 생성(NC AI, "바로크") — 타이틀 화면 그림 (2026-10-07 생성)
+   파일: Art/Title/TitleBackground.png(비 오는 창가 책상의 카세트 플레이어, 흑백 + 붉은 REW 버튼),
+         Art/Title/TitleLogo.png("REWIND" 글씨, 검은 바탕을 투명하게 바꿈 — Editor/TitleBuilder.cs)
+   출처: https://3d.varco.ai 작업 흐름의 그림 생성(nano-banana-2)으로 사용자 계정에서 생성. 배경 12장·로고 8장 중 골랐다
+         (실제 회사 상표가 찍힌 후보는 뺐다)
+   사용 조건: VARCO 이용약관을 따른다 — 상업 출시 전 생성물 이용 범위를 다시 확인할 것
+
 6. Unity Technologies — Starter Assets: Third Person
    파일: Assets/Starter Assets/ (Idle·Walk·Run·Jump·Land 애니메이션을 Animation/HumanoidLocomotionIK.controller에서 쓴다)
    출처: Unity 에셋 스토어 "Starter Assets - ThirdPerson" (Unity 공식 무료 에셋)
@@ -44,3 +57,10 @@
    상업 출시 전 에셋 스토어 페이지의 라이선스 표기를 다시 확인할 것
 
 게임 안 설정은 Assets/Game/Editor/CombatAnimationSetup.cs (메뉴 Game/Animation/Setup Combat Clips) 에 있다.
+
+[2026-10-08] 1장 구역 3 항구
+   소품 6개: Art/Baroque/Props/{SteelDrums,BurnBarrel,Forklift,PalletStack,RopeCoil,NetPile}.glb — VARCO 3D(그림 생성 → 3D 생성), 사용자 계정
+   캐릭터: Art/Baroque/Characters/Cleaner(정리반 반장) — VARCO 3D 생성 + 자동 리깅
+   화물선: Art/Harbor/CargoShip.fbx — Blender에서 직접 만듦(Blender/CargoShip.blend)
+   가게 2 음악 9곡: Resources/Music/{harbor_blues,lighthouse,dock_soul}-{1..3}.mp3 — VARCO Sound(연주곡), 사용자 계정
+   사용 조건: VARCO 이용약관을 따른다 — 상업 출시 전 생성물 이용 범위를 다시 확인할 것

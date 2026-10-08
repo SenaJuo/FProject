@@ -20,6 +20,8 @@ public class ShieldGuard : MonoBehaviour, IRewindable
     public float guardAngle = 70f;
     public int breakDamage = 18;
     public float guardBreak = 2.4f;
+    [Tooltip("정면으로 두 번 연달아 막은 뒤 방패로 밀칠 때의 피해(동작을 끊는 게 목적)")]
+    public int bashDamage = 4;
     [Tooltip("왼손 손목 회전(방어 자세 기준): 주먹이 앞을 보고 세로로 손잡이를 쥐게")]
     public Vector3 gripEuler = new(0f, -90f, -90f); // 손목 후보 여섯을 가까이 찍어 비교해 고른 값(주먹이 세로로 손잡이를 쥔다)
     [Range(0f, 1f)] public float gripRotationWeight = 1f;
@@ -101,11 +103,42 @@ public class ShieldGuard : MonoBehaviour, IRewindable
             return false;
         }
         shake = 1f;
+        // 정면으로 두 번 연달아 막으면 방패로 밀쳐낸다: 연타로는 돌려차기(세 번째)까지 닿지 못한다 → 옆으로 돌거나 완벽 회피로 틈을 만든다
+        blockStreak = Time.time - lastBlockAt < 1.4f ? blockStreak + 1 : 1;
+        lastBlockAt = Time.time;
+        if (blockStreak >= 2) { blockStreak = 0; bashPending = true; }
         ProceduralSfx.PlayAt(Clang, at, 0.85f, 0.6f, UnityEngine.Random.Range(0.95f, 1.08f));
         HitFeel.HitStop(0.045f);
         Spark(at);
         if (!anyBlocked) { anyBlocked = true; FirstBlocked?.Invoke(this); }
         return true;
+    }
+
+    int blockStreak;
+    float lastBlockAt = -9f;
+    bool bashPending;
+
+    /// <summary>완벽 회피에 당해 방패가 내려간다(돌려차기로 쳐낸 것과 같다)</summary>
+    public void ForceBreak()
+    {
+        if (Dropped) return;
+        brokenFor = guardBreak;
+    }
+
+    /// <summary>방패 밀치기: 레이를 뒤로 밀어 연타를 끊는다(가벼운 피해)</summary>
+    void Bash()
+    {
+        var gm = GameManager.Instance;
+        var player = gm && gm.player ? gm.player : FindAnyObjectByType<PlayerController>();
+        if (!player || health.IsDead || Broken) return;
+        Vector3 to = player.transform.position - transform.position; to.y = 0f;
+        if (to.magnitude > 2.6f) return;
+        var ai = GetComponent<EnemyAI>();
+        if (ai && ai.body) ai.body.CrossFadeInFixedTime("Cross", 0.05f);
+        ProceduralSfx.PlayAt(Clang, shield.position, 1f, 0.6f, 0.7f);
+        player.GetComponent<Health>().TakeDamage(bashDamage, transform.position);
+        player.Shove(transform.position); // 직전에 맞아 피해가 안 들어가도(무적 시간) 밀려나며 연타가 끊긴다
+        brokenFor = Mathf.Max(brokenFor, 0.9f); // 밀친 뒤 방패가 잠깐 내려간다: 밀려난 뒤 바로 다시 들어가 칠 틈(연타만으로도 느리지만 이길 수 있게)
     }
 
     static void Spark(Vector3 at)
@@ -123,6 +156,7 @@ public class ShieldGuard : MonoBehaviour, IRewindable
     void Update()
     {
         if (Dropped) return;
+        if (bashPending) { bashPending = false; Bash(); }
         if (brokenFor > 0f) brokenFor -= Time.deltaTime;
         shake = Mathf.MoveTowards(shake, 0f, Time.deltaTime * 6f);
         lowered = Mathf.MoveTowards(lowered, Broken ? 1f : 0f, Time.deltaTime * (Broken ? 9f : 2.5f));

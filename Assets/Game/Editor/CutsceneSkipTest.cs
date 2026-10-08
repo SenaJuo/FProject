@@ -21,8 +21,11 @@ public static class CutsceneSkipTest
     static string lastPhase;
     static bool letterShot;
 
+    static bool parcelUsed;
+
     public static void Begin(string logPath, string shotDir)
     {
+        parcelUsed = false;
         if (!EditorApplication.isPlaying || !Object.FindAnyObjectByType<PrologueDirector>()) throw new System.InvalidOperationException("플레이 중인 프롤로그 장면에서만 시작할 수 있다");
         log = logPath; dir = shotDir;
         System.IO.Directory.CreateDirectory(dir);
@@ -60,7 +63,7 @@ public static class CutsceneSkipTest
         var p = d.player;
         switch (step)
         {
-            case 0: if (phase == "Intro" && Waited(3f)) { Hold(true); Note("오프닝에서 누르기 시작(0.6초만)"); Next(); } break;
+            case 0: if (phase == "Intro" && Waited(0.6f)) { Hold(true); Note("오프닝에서 누르기 시작(0.6초만)"); Next(); } break;
             case 1:
                 if (Time.realtimeSinceStartup - holdStart > 0.3f && !lines.Exists(l => l.Contains("ring_half"))) Shot("ring_half");
                 if (Time.realtimeSinceStartup - holdStart > 0.6f) { Note($"떼기 직전 채움 {CutsceneSkip.Progress:0.00}"); Hold(false); Next(); }
@@ -69,10 +72,14 @@ public static class CutsceneSkipTest
                 if (Waited(1.5f)) { Note($"뗀 뒤 1.5초: 채움 {CutsceneSkip.Progress:0.00}, 건너뛰기 {StoryState.SkipRequested}, 단계 {phase}, 컷신 {StoryState.CutsceneActive} → 건너뛰지 않아야 한다"); Hold(true); Note("다시 끝까지 누르기"); Next(); }
                 break;
             case 3:
-                if (phase == "Home") { Note($"건너뜀: 누른 지 {Time.realtimeSinceStartup - holdStart:0.00}초 만에 집 단계, 컷신 {StoryState.CutsceneActive}, 페이드 {StoryState.Fade:0.00}, 책상 카세트 숨김 {!d.deskWalkman.activeSelf}"); Hold(false); Next(); }
+                if (phase == "Desk") { Note($"건너뜀: 누른 지 {Time.realtimeSinceStartup - holdStart:0.00}초 만에 책상 단계, 컷신 {StoryState.CutsceneActive}, 페이드 {StoryState.Fade:0.00}, 책상 카세트 숨김 {!d.deskWalkman.activeSelf}"); Hold(false); Next(); }
                 else if (Waited(6f)) End("오프닝 건너뛰기 실패");
                 break;
-            case 4: if (Waited(0.8f)) { Shot("after_intro_skip"); Use(d.homeDoor); Next(); } break;
+            case 4:
+                if (phase == "Desk" && StoryState.LetterText == null && !parcelUsed) { Use(d.deskParcel); parcelUsed = true; }
+                else if (StoryState.LetterText != null) d.CloseLetter();
+                else if (phase == "Home" && Waited(0.8f)) { Shot("after_intro_skip"); Use(d.homeDoor); Next(); }
+                break;
             case 5:
                 if (phase == "Street" && !StoryState.ControlLocked && Waited(1.2f)) { p.Teleport(d.friendDoor.transform.position + Vector3.back * 1.2f, Quaternion.identity); Use(d.friendDoor); Next(); }
                 break;

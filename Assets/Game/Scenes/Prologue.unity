@@ -20,7 +20,7 @@ RenderSettings:
   m_FogDensity: 0.016
   m_LinearFogStart: 0
   m_LinearFogEnd: 300
-  m_AmbientSkyColor: {r: 0.11, g: 0.12, b: 0.16, a: 1}
+  m_AmbientSkyColor: {r: 0.16, g: 0.17, b: 0.23, a: 1}
   m_AmbientEquatorColor: {r: 0.114, g: 0.125, b: 0.133, a: 1}
   m_AmbientGroundColor: {r: 0.047, g: 0.043, b: 0.035, a: 1}
   m_AmbientIntensity: 1
@@ -3157,6 +3157,96 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6955607043717724809, guid: f58a8c3546d9b4342bd870cb10928b80, type: 3}
   m_PrefabInstance: {fileID: 71292781}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &72159158
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 72159159}
+  - component: {fileID: 72159161}
+  - component: {fileID: 72159160}
+  m_Layer: 0
+  m_Name: Headphone_Band
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &72159159
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 72159158}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0.5257313, y: 0, z: 0, w: 0.85065067}
+  m_LocalPosition: {x: 0.0035156514, y: -0.731089, z: -1.3128165}
+  m_LocalScale: {x: 1.7999997, y: 1.7999998, z: 1.7999996}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 6330592934528618810}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!23 &72159160
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 72159158}
+  m_Enabled: 1
+  m_CastShadows: 1
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 55b992092aa504a479f1588d18cb7a00, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &72159161
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 72159158}
+  m_Mesh: {fileID: 8662017747151770772, guid: c6c8dc1d618b43a4a987e90f92448375, type: 3}
 --- !u!1 &72679686
 GameObject:
   m_ObjectHideFlags: 0
@@ -19051,7 +19141,12 @@ MonoBehaviour:
   carry: 0
   aimTarget: {fileID: 0}
   heldItem: {fileID: 1755028585}
+  heldOffset: {x: 0, y: -0.02, z: 0.06}
   aim: 0
+  leftGrip: {fileID: 0}
+  holdLeft: 0
+  leftRotationWeight: 0.8
+  leftElbowHint: {fileID: 0}
   lookTarget: {fileID: 0}
   look: 0
   blendSpeed: 6
@@ -19318,6 +19413,7 @@ MonoBehaviour:
     relaxed2: 0
     fist2: 0
   holdFist: 1.2
+  alwaysFist: 0
 --- !u!114 &449374564
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -43780,7 +43876,12 @@ MonoBehaviour:
   carry: 0
   aimTarget: {fileID: 0}
   heldItem: {fileID: 2029897030}
+  heldOffset: {x: 0, y: -0.02, z: 0.06}
   aim: 0
+  leftGrip: {fileID: 0}
+  holdLeft: 0
+  leftRotationWeight: 0.8
+  leftElbowHint: {fileID: 0}
   lookTarget: {fileID: 0}
   look: 0
   blendSpeed: 6
@@ -44047,6 +44148,7 @@ MonoBehaviour:
     relaxed2: 0
     fist2: 0
   holdFist: 1.2
+  alwaysFist: 0
 --- !u!1 &1193244523
 GameObject:
   m_ObjectHideFlags: 0
@@ -48896,6 +48998,9 @@ MonoBehaviour:
   attackCooldown: 1.1
   staggerable: 1
   telegraphColor: {r: 1, g: 0.3, b: 0.1, a: 1}
+  heavyEvery: 0
+  heavyDamage: 20
+  heavyWindup: 0.95
   aoeEvery: 0
   aoeRadius: 6
   aoeWindup: 1.2
@@ -48909,6 +49014,15 @@ MonoBehaviour:
   shotDamage: 45
   shotCooldown: 2.2
   aimIK: {fileID: 449374561}
+  holdPosition: 0
+  aimInterruptible: 0
+  awarenessArc: 0
+  laserWidth: 1
+  shotSound: 
+  shotVolume: 0.9
+  muzzleDistance: 0.16
+  keyLight: 1.6
+  retreatLeash: 6
 --- !u!4 &1349005716
 Transform:
   m_ObjectHideFlags: 0
@@ -65140,6 +65254,9 @@ MonoBehaviour:
   attackCooldown: 1.1
   staggerable: 1
   telegraphColor: {r: 1, g: 0.3, b: 0.1, a: 1}
+  heavyEvery: 0
+  heavyDamage: 20
+  heavyWindup: 0.95
   aoeEvery: 0
   aoeRadius: 6
   aoeWindup: 1.2
@@ -65153,6 +65270,15 @@ MonoBehaviour:
   shotDamage: 45
   shotCooldown: 2.2
   aimIK: {fileID: 1191159658}
+  holdPosition: 0
+  aimInterruptible: 0
+  awarenessArc: 0
+  laserWidth: 1
+  shotSound: 
+  shotVolume: 0.9
+  muzzleDistance: 0.16
+  keyLight: 1.6
+  retreatLeash: 6
 --- !u!43 &1860346872
 Mesh:
   m_ObjectHideFlags: 0
@@ -73494,12 +73620,17 @@ MonoBehaviour:
     - Night Drive
     - Neon Rain
     - Last Call
+    musicId: 
+    trackGains: []
     trackLength: 40
     playable: 1
     charges: 0
   secondsPerCharge: 5
-  playbackSpeed: 10
+  playbackSpeed: 4
   invulnerableAfterDeathRewind: 1.5
+  potions: 0
+  potionHeal: 25
+  musicVolume: 0.42
 --- !u!1 &3903092076535831116
 GameObject:
   m_ObjectHideFlags: 0
@@ -73774,6 +73905,7 @@ Transform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2601841785618200501}
+  - {fileID: 72159159}
   m_Father: {fileID: 8326664273076838968}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!143 &6517640697621655296
@@ -73948,8 +74080,10 @@ MonoBehaviour:
   jumpHeight: 1.4
   gravity: -25
   slideSpeed: 10
-  dodgeSpeed: 7
-  dodgeDuration: 0.55
+  dodgeDistance: 3.8
+  dodgeDuration: 0.64
+  dodgeRecovery: 0.18
+  dodgeIFrames: 0.35
   dodgeCooldown: 0.25
   dodgeTint: {r: 0.5, g: 0.9, b: 1, a: 1}
   animator: {fileID: 7453547082297860910}
@@ -73991,6 +74125,10 @@ MonoBehaviour:
     swingFrom: {x: 0, y: 0, z: 0}
     swingTo: {x: 0, y: 0, z: 0}
     animState: Kick
+  punchLean: 16
+  counterWindow: 1.1
+  counterDamageMultiplier: 3.5
+  counterRange: 7
 --- !u!95 &7453547082297860910
 Animator:
   serializedVersion: 7
@@ -74251,6 +74389,7 @@ MonoBehaviour:
     relaxed2: 0
     fist2: 0
   holdFist: 1.2
+  alwaysFist: 0
 --- !u!114 &7453547082297860912
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -74280,7 +74419,12 @@ MonoBehaviour:
   carry: 0
   aimTarget: {fileID: 0}
   heldItem: {fileID: 0}
+  heldOffset: {x: 0, y: -0.02, z: 0.06}
   aim: 0
+  leftGrip: {fileID: 0}
+  holdLeft: 0
+  leftRotationWeight: 0.8
+  leftElbowHint: {fileID: 0}
   lookTarget: {fileID: 0}
   look: 0
   blendSpeed: 6
