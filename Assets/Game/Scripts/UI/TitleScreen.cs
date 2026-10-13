@@ -37,7 +37,9 @@ public class TitleScreen : MonoBehaviour
     public Rect keyFf = new(0.661f, 0.660f, 0.073f, 0.087f);
     public Rect keyStop = new(0.721f, 0.685f, 0.073f, 0.093f);
 
-    static readonly string[] Items = { "게임 시작", "옵션", "종료" };
+    // 저장이 있으면 '이어하기'가 맨 위(기본 선택), 없으면 '게임 시작'
+    string[] items = { "게임 시작", "옵션", "종료" };
+    const string ContinueItem = "이어하기", NewGameItem = "새로 시작", StartItem = "게임 시작", OptionsItem = "옵션", QuitItem = "종료";
     static readonly Color Paper = new(0.92f, 0.90f, 0.86f);
     static readonly Color Dim = new(0.55f, 0.54f, 0.52f);
 
@@ -76,6 +78,7 @@ public class TitleScreen : MonoBehaviour
 
     void Start()
     {
+        if (SaveGame.HasSave) items = new[] { ContinueItem, NewGameItem, OptionsItem, QuitItem };
         Time.timeScale = 1f;
         AudioListener.pause = false;
         Cursor.lockState = CursorLockMode.None;
@@ -185,8 +188,8 @@ public class TitleScreen : MonoBehaviour
             return;
         }
 
-        if (Pressed(kb?.wKey, kb?.upArrowKey, pad?.dpad.up)) Select((selected + Items.Length - 1) % Items.Length);
-        if (Pressed(kb?.sKey, kb?.downArrowKey, pad?.dpad.down)) Select((selected + 1) % Items.Length);
+        if (Pressed(kb?.wKey, kb?.upArrowKey, pad?.dpad.up)) Select((selected + items.Length - 1) % items.Length);
+        if (Pressed(kb?.sKey, kb?.downArrowKey, pad?.dpad.down)) Select((selected + 1) % items.Length);
         // 결정은 Enter(패드 A)만: 게임에서 연타하던 Space·F가 타이틀로 넘어와 '종료'를 누르지 않게
         if (Pressed(kb?.enterKey, kb?.numpadEnterKey, pad?.buttonSouth) && t > 4.6f) Activate(selected);
     }
@@ -206,18 +209,21 @@ public class TitleScreen : MonoBehaviour
 
     void Activate(int index)
     {
-        switch (index)
+        switch (items[index])
         {
-            case 0: StartCoroutine(StartGame()); break;
-            case 1: Click(0.35f, 1.25f); PauseMenu.ShowOptions(); break;
-            case 2: Click(0.35f, 1.25f); Quit(); break;
+            case ContinueItem: StartCoroutine(StartGame(true)); break;
+            case StartItem:
+            case NewGameItem: StartCoroutine(StartGame(false)); break;
+            case OptionsItem: Click(0.35f, 1.25f); PauseMenu.ShowOptions(); break;
+            case QuitItem: Click(0.35f, 1.25f); Quit(); break;
         }
     }
 
     /// <summary>시험용: 게임 시작을 고른 것과 같다</summary>
-    public void StartGameNow() { if (state != State.Starting) StartCoroutine(StartGame()); }
+    public void StartGameNow() { if (state != State.Starting) StartCoroutine(StartGame(false)); }
 
-    IEnumerator StartGame()
+    /// <summary>cont = 이어하기(마지막 저장 지점부터), 아니면 프롤로그부터 새로</summary>
+    IEnumerator StartGame(bool cont)
     {
         state = State.Starting;
         startT = t;
@@ -225,6 +231,8 @@ public class TitleScreen : MonoBehaviour
         Click(1f, 0.85f); // 피아노 건반 같은 버튼을 꾹 누르는 소리
         if (whir && whir.clip) whir.Play();
         yield return new WaitForSecondsRealtime(2.4f);
+        if (cont && SaveGame.Continue()) yield break;
+        SaveGame.Enabled = true; // 타이틀에서 시작한 게임만 진행을 저장한다
         SceneManager.LoadScene(firstScene);
     }
 
@@ -541,7 +549,7 @@ public class TitleScreen : MonoBehaviour
             if (e.type == EventType.Repaint) lastMouse = e.mousePosition;
             if (mouseMoved) mouseArmed = true;
             float x = logoRect.x + 22f * s, y = logoRect.yMax + H * 0.05f;
-            for (int i = 0; i < Items.Length; i++)
+            for (int i = 0; i < items.Length; i++)
             {
                 var r = new Rect(x, y + i * 58f * s, 360f * s, 48f * s);
                 bool interactive = state == State.Menu && !PauseMenu.IsOpen;
@@ -560,7 +568,7 @@ public class TitleScreen : MonoBehaviour
                     float pulse = 0.8f + 0.2f * Mathf.Sin(t * 3f);
                     Label(new Rect(r.x - 34f * s, r.y, 30f * s, r.height), "▶", item, new Color(Paper.r, Paper.g, Paper.b, menuAlpha * pulse));
                 }
-                Label(new Rect(r.x + 8f * s, r.y, r.width, r.height), Items[i], item, on ? new Color(Paper.r, Paper.g, Paper.b, menuAlpha) : new Color(Dim.r, Dim.g, Dim.b, menuAlpha));
+                Label(new Rect(r.x + 8f * s, r.y, r.width, r.height), items[i], item, on ? new Color(Paper.r, Paper.g, Paper.b, menuAlpha) : new Color(Dim.r, Dim.g, Dim.b, menuAlpha));
             }
             Label(new Rect(0, H - H * 0.065f - 40f * s, W - 40f * s, 30f * s), "W/S 선택   Enter 결정", hint, new Color(Dim.r, Dim.g, Dim.b, menuAlpha * 0.6f));
         }
@@ -686,13 +694,8 @@ public class TitleScreen : MonoBehaviour
         keyLabel = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(20 * s), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
     }
 
-    static void Label(Rect r, string text, GUIStyle style, Color color)
-    {
-        style.normal.textColor = new Color(0f, 0f, 0f, 0.7f * color.a);
-        GUI.Label(new Rect(r.x + 2, r.y + 2, r.width, r.height), text, style);
-        style.normal.textColor = color;
-        GUI.Label(r, text, style);
-    }
+    static void Label(Rect r, string text, GUIStyle style, Color color) =>
+        UIText.Shadowed(r, text, style, new Color(0f, 0f, 0f, 0.7f * color.a), color); // 칸을 넘치면 글자를 줄인다
 
     static void Fill(Rect r, Color c)
     {

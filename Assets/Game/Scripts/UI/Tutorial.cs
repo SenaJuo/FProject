@@ -26,13 +26,39 @@ public static class Tutorial
     /// <summary>편지 뒷면을 읽었는가(이때부터 설명이 뜬다). 씬을 옮겨도 남는다.</summary>
     public static bool Unlocked { get; private set; }
 
+    // 한 번 띄운 설명은 다시 띄우지 않는다 — 플레이를 새로 시작하거나 이어 해도(PlayerPrefs에 남긴다).
+    // 전에는 메모리에만 있어 이어 할 때마다 회복약·완벽 회피 알림이 또 떴다(2026-10-13). 다시 보기는 Esc → 튜토리얼
     static readonly HashSet<string> shown = new();
+    const string SeenKey = "tutorial_seen";
+
+    static void LoadSeen()
+    {
+        shown.Clear();
+        foreach (var id in PlayerPrefs.GetString(SeenKey, "").Split(',')) if (id.Length > 0) shown.Add(id);
+    }
+
+    static void SaveSeen() { PlayerPrefs.SetString(SeenKey, string.Join(",", shown)); PlayerPrefs.Save(); }
+
+    /// <summary>시험용: 본 기록을 지운다(다음 Show부터 다시 뜬다)</summary>
+    public static void ForgetSeen() { shown.Clear(); PlayerPrefs.DeleteKey(SeenKey); }
+
+    /// <summary>Esc → 튜토리얼 목록(분류 순)</summary>
+    public static IEnumerable<Entry> All
+    {
+        get
+        {
+            var order = new[] { "카세트 플레이어", "전투", "잠입", "회복", "테이프 가게" };
+            var list = new List<Entry>(Catalog.Values);
+            list.Sort((a, b) => System.Array.IndexOf(order, a.category).CompareTo(System.Array.IndexOf(order, b.category)));
+            return list;
+        }
+    }
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     static void OnPlayStart()
     {
         Unlocked = false;
-        shown.Clear();
+        LoadSeen();
         TutorialUI.ClearPending();
         UnityEngine.SceneManagement.SceneManager.sceneLoaded -= OnSceneLoaded;
         UnityEngine.SceneManagement.SceneManager.sceneLoaded += OnSceneLoaded;
@@ -45,11 +71,10 @@ public static class Tutorial
 
     public static void Unlock() => Unlocked = true;
 
-    /// <summary>새 게임(타이틀에서 시작): 설명 잠금·띄운 기록·못 띄운 알림을 처음으로</summary>
+    /// <summary>새 게임(타이틀에서 시작): 설명 잠금·못 띄운 알림을 처음으로(본 설명은 새 게임에서도 다시 띄우지 않는다)</summary>
     public static void ResetProgress()
     {
         Unlocked = false;
-        shown.Clear();
         TutorialUI.ClearPending();
     }
 
@@ -58,6 +83,7 @@ public static class Tutorial
     {
         if (!Unlocked || shown.Contains(id) || !Catalog.TryGetValue(id, out var entry)) return;
         shown.Add(id);
+        SaveSeen();
         TutorialUI.Ensure().Enqueue(entry);
     }
 
@@ -87,6 +113,29 @@ public static class Tutorial
                     $"{H("R")}을 누르고 있으면 쓰러지기 전으로 돌아가고, 되감은 직후 {H("1.5초")} 동안은 공격을 받지 않습니다. " +
                     $"{H("Space")}를 누르면 되감기를 아끼는 대신 {H("마지막 저장 지점")}에서 다시 시작합니다.",
                     "rewind_3"),
+            },
+        },
+        ["genre"] = new Entry
+        {
+            id = "genre", category = "카세트 플레이어", title = "장르 테이프",
+            pages = new[]
+            {
+                new Page("되감을까, 능력을 쓸까",
+                    $"장르가 있는 테이프를 끼우고 {H("R")}을 누르면 잠깐 시간이 느려지며 고를 수 있습니다.\n\n" +
+                    $"{H("Q")} — 되감기\n{H("E")} — 그 테이프의 {H("장르 능력")} (되감기 1회를 씁니다)\n\n" +
+                    $"테이프의 장르와 능력은 {H("I")} 인벤토리에서 테이프를 고르면 보입니다."),
+                new Page($"시티팝 — {TapeAbility.Name(TapeGenre.CityPop)} ({TapeAbility.Seconds(TapeGenre.CityPop):0}초)",
+                    $"주변의 시간이 {H("4분의 1")}로 느려지고, {H("레이만 제 속도")}로 움직입니다.\n\n" +
+                    $"적이 굳은 듯 느려진 사이 여럿을 한꺼번에 정리하세요. 레이 뒤로 네온 잔상이 남습니다."),
+                new Page($"재즈 — {TapeAbility.Name(TapeGenre.Jazz)} ({TapeAbility.Seconds(TapeGenre.Jazz):0}초)",
+                    $"구르기의 {H("무적 시간이 두 배")}, 구르는 거리도 조금 늘어납니다.\n\n" +
+                    $"완벽 회피가 {H("더 쉽게")} 나오고, 회피 반격의 피해가 {H("1.5배")}입니다."),
+                new Page($"소울 — {TapeAbility.Name(TapeGenre.Soul)} ({TapeAbility.Seconds(TapeGenre.Soul):0}초)",
+                    $"주먹의 피해가 {H("1.5배")}입니다.\n\n" +
+                    $"방패 경찰의 방패도 {H("막지 못합니다")} — 정면에서 그대로 쳐도 들어갑니다."),
+                new Page($"앰비언트 — {TapeAbility.Name(TapeGenre.Ambient)} ({TapeAbility.Seconds(TapeGenre.Ambient):0}초)",
+                    $"받는 피해가 {H("절반")}으로 줄어듭니다.\n\n" +
+                    $"켜져 있는 동안 적을 쓰러뜨릴 때마다 체력이 {H("8")} 회복됩니다."),
             },
         },
         ["combat"] = new Entry
@@ -236,6 +285,7 @@ public class TutorialUI : MonoBehaviour
     static TutorialUI instance;
     static readonly Queue<Tutorial.Entry> queue = new(); // 장면이 바뀌어도 남는다(프롤로그 끝에 못 띄운 알림을 1장에서 띄운다)
     Tutorial.Entry toast, open;
+    bool fromMenu; // Esc → 튜토리얼에서 열었다: 시간·메뉴 상태는 일시정지 메뉴가 쥐고 있다
     float toastStart;
     int page;
     readonly Dictionary<string, Texture2D> images = new();
@@ -253,6 +303,16 @@ public class TutorialUI : MonoBehaviour
 
     /// <summary>지금 팝업이 열려 있는가(열려 있는 동안 게임은 멈추고 조작이 잠긴다)</summary>
     public static bool PopupOpen => instance && instance.open != null;
+    /// <summary>Esc → 튜토리얼에서 연 팝업이 열려 있다(일시정지 메뉴는 그동안 입력을 받지 않고 그리지 않는다)</summary>
+    public static bool MenuPopupOpen => instance && instance.open != null && instance.fromMenu;
+
+    /// <summary>일시정지 메뉴에서 설명을 연다: 시간·커서는 메뉴가 이미 멈춰 두었다</summary>
+    public void OpenFromMenu(Tutorial.Entry entry)
+    {
+        open = entry;
+        page = 0;
+        fromMenu = true;
+    }
     /// <summary>테스트용: 지금 떠 있는 알림의 id(없으면 null)</summary>
     public static string ToastId => instance && instance.toast != null ? instance.toast.id : null;
     public static int PageIndex => instance ? instance.page : 0;
@@ -325,6 +385,7 @@ public class TutorialUI : MonoBehaviour
 
     public void ClosePopup()
     {
+        if (fromMenu) { open = null; fromMenu = false; return; } // 메뉴로 돌아간다(시간은 메뉴가 계속 멈춰 둔다)
         open = null;
         Time.timeScale = 1f; // 정상 속도에서만 열린다
         StoryState.MenuOpen = false;
@@ -344,7 +405,7 @@ public class TutorialUI : MonoBehaviour
     void OnGUI()
     {
         if (open == null && (toast == null || StoryState.CutsceneActive || PauseMenu.IsOpen)) return; // 그릴 것이 없으면 바로 끝(일시정지 화면 위에는 알림을 띄우지 않는다)
-        float s = Screen.height / 1080f;
+        float s = UIText.Scale;
         BuildStyles(s);
         GUI.depth = -10; // HUD 위에
         // 배치(Layout) 단계는 그리는 순서(GUI.depth)만 정하고 바로 끝낸다 — 이 단계를 아예 끄면(useGUILayout=false) 순서가 무시되고 먼저 생긴 순으로 굳었다
@@ -368,7 +429,7 @@ public class TutorialUI : MonoBehaviour
         DrawIcon(icon, e.category, alpha, s);
 
         float x = icon.xMax + 18 * s;
-        Label(new Rect(x, r.y + 8 * s, w, 28 * s), $"{e.category}  ―", Mid(tiny, TextAnchor.MiddleLeft), Tint(Dim, alpha));
+        Label(new Rect(x, r.y + 8 * s, w - (x - r.x), 28 * s), e.category, Mid(tiny, TextAnchor.MiddleLeft), Tint(Dim, alpha));
         Label(new Rect(x, r.y + 34 * s, w - (x - r.x), 40 * s), e.title, Mid(bold, TextAnchor.MiddleLeft), Tint(Gold, alpha));
         var cap = new Rect(x, r.y + 74 * s, 26 * s, 24 * s);
         Fill(cap, Tint(Paper, alpha));
@@ -489,7 +550,7 @@ public class TutorialUI : MonoBehaviour
 
     static void Label(Rect r, string text, GUIStyle style, Color color, bool shadow = true)
     {
-        if (!shadow) { style.normal.textColor = color; GUI.Label(r, text, style); return; }
+        if (!shadow) { style.normal.textColor = color; UIText.Label(r, text, style); return; }
         // 그림자 + 글씨(강조 색 태그는 그대로 두고, 그림자는 색 태그를 지운 글씨로)
         // 색 태그를 지운 글씨는 한 번만 만든다(정규식을 매 프레임 돌리지 않게)
         if (!shadowTexts.TryGetValue(text, out var shadowText))
@@ -498,10 +559,7 @@ public class TutorialUI : MonoBehaviour
             if (shadowTexts.Count > 256) shadowTexts.Clear();
             shadowTexts[text] = shadowText;
         }
-        style.normal.textColor = new Color(0f, 0f, 0f, Shadow.a * color.a);
-        GUI.Label(new Rect(r.x + 2, r.y + 2, r.width, r.height), shadowText, style);
-        style.normal.textColor = color;
-        GUI.Label(r, text, style);
+        UIText.Shadowed(r, text, style, new Color(0f, 0f, 0f, Shadow.a * color.a), color, 2f, shadowText); // 칸을 넘치면 글자를 줄인다
     }
 
     static void Fill(Rect r, Color c)

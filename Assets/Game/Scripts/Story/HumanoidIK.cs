@@ -23,6 +23,10 @@ public class HumanoidIK : MonoBehaviour
     [Tooltip("쥔 물건이 손뼈에서 떨어진 자리(손뼈 축 기준). 손가락 뼈가 없는 모델이라 손바닥 안에 오도록 맞춘다")]
     public Vector3 heldOffset = new(0f, -0.02f, 0.06f);
     public bool aim;
+    [Tooltip("겨누지 않을 때 쥔 물건이 팔뚝 방향(팔꿈치→손목)을 따른다. 끄면 몸 정면을 본다")]
+    public bool followForearm;
+    [Tooltip("팔뚝 방향에서 물건을 위로 세우는 각도(진압봉은 손에서 위로 세워 쥔다. 손전등은 0)")]
+    public float heldPitch;
 
     [Header("왼손으로 쥐기(방패)")]
     [Tooltip("왼손이 붙잡을 자리(방패 손잡이). 위치와 방향을 그대로 따른다")]
@@ -122,6 +126,15 @@ public class HumanoidIK : MonoBehaviour
                 // 쓰러져 물리로 넘어간 몸(래그돌): 쥔 물건을 팔뚝 방향으로 눕힌다(허공에 수평으로 떠 있지 않게)
                 Vector3 arm = rightHand.position - rightLowerArm.position;
                 if (arm.sqrMagnitude > 0.0001f) heldItem.rotation = Quaternion.LookRotation(arm, Vector3.up);
+                return;
+            }
+            if (followForearm && rightLowerArm && aimWeight <= 0.5f)
+            {
+                // 주먹 안에 쥔다: 팔뚝을 그대로 이어 앞으로 나온다(손전등 머리·진압봉이 팔이 가리키는 쪽)
+                Vector3 dir = (rightHand.position - rightLowerArm.position).normalized;
+                Vector3 side = Vector3.Cross(transform.up, dir);
+                Vector3 along = side.sqrMagnitude > 0.0001f ? Quaternion.AngleAxis(-heldPitch, side.normalized) * dir : dir;
+                heldItem.SetPositionAndRotation(rightHand.position + dir * heldOffset.z, Quaternion.LookRotation(along, transform.up));
                 return;
             }
             Vector3 forward = aimTarget && aimWeight > 0.5f ? aimTarget.position - heldItem.position : transform.forward;

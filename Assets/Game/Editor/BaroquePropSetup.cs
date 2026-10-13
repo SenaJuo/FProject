@@ -78,6 +78,17 @@ public static class BaroquePropSetup
         ("PalletStack",         Axis.Y, 1.15f, true,  0f),
         ("RopeCoil",            Axis.X, 1.0f,  false, 0f),
         ("NetPile",             Axis.X, 1.6f,  true,  0f),
+        // 2장 경찰서 내부(바로크 3D, 2026-10-12): 후보 4장 중 고른 그림으로 생성
+        ("OfficeChair",         Axis.Y, 1.05f, true,  0f),
+        ("DeskComputer",        Axis.X, 0.75f, false, 0f),   // 평면 모니터·작은 본체·키보드·마우스 한 덩어리(폭 75cm)
+        ("FilingCabinet",       Axis.Y, 1.32f, true,  0f),
+        ("LockerRow",           Axis.Y, 1.85f, true,  0f),   // 사물함 넷
+        ("EvidenceShelf",       Axis.Y, 1.95f, true,  0f),
+        ("OfficeDesk",          Axis.Y, 0.75f, true,  0f),   // 철제 다리 + 서랍장(현대 사무용). 옛 나무 "Desk"는 집·전파사용
+        // 3장 한결 레코드 녹음실(바로크 3D, 2026-10-12)
+        ("MixingConsole",       Axis.X, 2.0f,  true,  0f),   // 폭 2m, 앞(+z)이 앉는 쪽(페이더)
+        ("StudioMic",           Axis.Y, 1.75f, false, 0f),
+        ("ReelToReel",          Axis.Y, 1.5f,  true,  0f),   // 릴이 앞(+z)
     };
 
     /// <summary>표에 있는 이름만 다시 만든다(새 소품을 추가했을 때)</summary>
@@ -139,6 +150,8 @@ public static class BaroquePropSetup
         }
         foreach (var r in root.GetComponentsInChildren<Renderer>())
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.On;
+        PropLods.Swap(model); // 무거운 메시는 LOD 복사본으로(멀수록 단순하게 — 모양 재기는 원본으로 이미 끝났다)
+        PropTextures.Swap(root); // 텍스처는 압축본으로(GLB 텍스처는 압축 없이 들어온다)
 
         string path = $"{PrefabRoot}/{name}.prefab";
         PrefabUtility.SaveAsPrefabAsset(root, path);

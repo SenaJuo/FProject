@@ -45,7 +45,7 @@ public class HUD : MonoBehaviour
 
     void OnGUI()
     {
-        float s = Screen.height / 1080f;
+        float s = UIText.Scale;
         GUI.depth = 10; // 게임 HUD는 맨 뒤(설명 알림·일시정지가 위)
         // 배치(Layout) 단계는 그리는 순서(GUI.depth)만 정하고 바로 끝낸다 — 이 단계를 아예 끄면(useGUILayout=false) 순서가 무시되고 먼저 생긴 순으로 굳었다
         if (Event.current.type == EventType.Layout) return;
@@ -59,6 +59,7 @@ public class HUD : MonoBehaviour
             Fill(new Rect(0, 0, Screen.width, bar), Color.black);
             Fill(new Rect(0, Screen.height - bar, Screen.width, bar), Color.black);
             DrawSubtitle(s, Screen.height - bar + 18 * s);
+            if (!string.IsNullOrEmpty(StoryState.Prompt)) DrawPrompt(StoryState.Prompt, s); // 컷신 속 선택(종장 R/F)도 보이게
             DrawStoryOverlay(s);
             return;
         }
@@ -96,14 +97,20 @@ public class HUD : MonoBehaviour
         if (walkman && !menu && !StoryState.WalkmanStowed) DrawWalkmanWidget(s); // 프롤로그에서는 아직 착용 전이라 숨긴다
         if (walkman && walkman.Rewinding) DrawPlayback(s);
         if (walkman && walkman.PromptOpen) DrawRewindPrompt(s);
+        if (walkman && walkman.ChoiceOpen && walkman.Inserted != null)
+        {
+            var g = walkman.Inserted.Genre;
+            DrawPrompt((Same(ref choiceSlot, (long)g, null) ? choiceSlot.text : choiceSlot.text = $"Q  되감기          E  {TapeAbility.Name(g)} ({TapeAbility.Seconds(g):0}초)"), s);
+        }
+        DrawAbility(s);
         if (walkman && walkman.InventoryOpen) DrawInventory(s);
         if (TapeShop.Current) DrawShop(TapeShop.Current, s);
         else if (TapeShop.Nearby && !player.IsDead && !menu)
-            ShadowLabel(new Rect(0, Screen.height * 0.62f, Screen.width, 34 * s), $"F: {TapeShop.Nearby.shopName}", normalCentre);
+            ShadowLabel(new Rect(0, Screen.height * RowInteract, Screen.width, 34 * s), (Same(ref interactSlot, 1, TapeShop.Nearby.shopName) ? interactSlot.text : interactSlot.text = $"F: {TapeShop.Nearby.shopName}"), normalCentre);
         else if (StoryState.Nearby && !player.IsDead && !menu)
-            ShadowLabel(new Rect(0, Screen.height * 0.62f, Screen.width, 34 * s), $"F: {StoryState.Nearby.prompt}", normalCentre);
+            ShadowLabel(new Rect(0, Screen.height * RowInteract, Screen.width, 34 * s), (Same(ref interactSlot, 2, StoryState.Nearby.prompt) ? interactSlot.text : interactSlot.text = $"F: {StoryState.Nearby.prompt}"), normalCentre);
         if (Takedown.Target && !player.IsDead && !menu)
-            ShadowLabel(new Rect(0, Screen.height * 0.58f, Screen.width, 34 * s), "Q: 몰래 제압", normalCentre);
+            ShadowLabel(new Rect(0, Screen.height * RowTakedown, Screen.width, 34 * s), "Q: 몰래 제압", normalCentre);
 
         // 중앙 메시지
         bool rewindUi = walkman && (walkman.PromptOpen || walkman.Rewinding);
@@ -118,11 +125,32 @@ public class HUD : MonoBehaviour
         DrawStoryOverlay(s);
     }
 
+    // 화면 가운데 아래 세로 칸(화면 높이 비율): 위에서부터 Q 제압 · F 상호작용 · 안내 상자(64) · 능력 이름+막대 · 기억의 일격 · 자막(0.78) · 보스 체력
+    // 칸끼리 겹치지 않게 한곳에 모았다(전에는 안내 상자 0.6과 F 0.62, 기억의 일격 0.8과 자막 0.78이 겹쳤다)
+    const float RowTakedown = 0.535f, RowInteract = 0.572f, RowPrompt = 0.612f, RowAbility = 0.676f, RowMemory = 0.728f;
+
+    /// <summary>켜진 테이프 능력: 화면 아래 가운데에 이름과 남은 시간 막대(장르 색)</summary>
+    void DrawAbility(float s)
+    {
+        if (PlayerController.MemoryStrikeReady)
+        {
+            // 기억의 일격: 되감은 직후 3초 — 다음 주먹이 세 배
+            ShadowLabel(new Rect(0, Screen.height * RowMemory, Screen.width, 30 * s), "기억의 일격", normalCentre);
+        }
+        var g = TapeAbility.Current;
+        if (g == TapeGenre.None || TapeAbility.Duration <= 0f) return;
+        float w = 320 * s;
+        var r = new Rect((Screen.width - w) / 2f, Screen.height * RowAbility + 38 * s, w, 8 * s); // 막대는 이름 글자 아래로 띄운다(글자 밑을 가렸다)
+        int tenths = Mathf.CeilToInt(Mathf.Max(0f, TapeAbility.Remaining) * 10f);
+        ShadowLabel(new Rect(r.x, r.y - 38 * s, w, 30 * s), (Same(ref abilitySlot, (long)g * 100000 + tenths, null) ? abilitySlot.text : abilitySlot.text = $"♪ {TapeAbility.Name(g)}  {tenths / 10f:0.0}"), normalCentre);
+        Bar(r, TapeAbility.Remaining / TapeAbility.Duration, TapeAbility.Tint(g));
+    }
+
     /// <summary>지금 눌러야 할 키 안내: 화면 가운데 아래쪽, 어두운 띠 위에 크게</summary>
     void DrawPrompt(string text, float s)
     {
         float w = 760 * s, h = 64 * s;
-        var r = new Rect((Screen.width - w) / 2f, Screen.height * 0.6f, w, h);
+        var r = new Rect((Screen.width - w) / 2f, Screen.height * RowPrompt, w, h);
         float pulse = 0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 5f);
         Fill(r, new Color(0f, 0f, 0f, 0.62f));
         Fill(new Rect(r.x, r.y, 4 * s, h), Tint(Accent, pulse));
@@ -160,9 +188,10 @@ public class HUD : MonoBehaviour
         GUI.BeginGroup(new Rect(r.x, r.y + r.height * (1f - fill), r.width + 3f, r.height * fill + 3f));
         var local = new Rect(0f, -r.height * (1f - fill), r.width, r.height);
         mark.normal.textColor = new Color(0f, 0f, 0f, 0.7f * color.a);
-        GUI.Label(new Rect(local.x + 2f, local.y + 2f, local.width, local.height), text, mark);
+        float o = UIText.ShadowOffset(mark.fontSize);
+        UIText.ShadowOnly(new Rect(local.x + o, local.y + o, local.width, local.height), text, mark);
         mark.normal.textColor = color;
-        GUI.Label(local, text, mark);
+        UIText.Label(local, text, mark);
         GUI.EndGroup();
     }
 
@@ -179,7 +208,9 @@ public class HUD : MonoBehaviour
         }
         string text = subtitleText;
         normalCentre.richText = true;
-        ShadowLabel(new Rect(80 * s, y, Screen.width - 160 * s, 60 * s), text, normalCentre);
+        // 왼쪽 아래 카세트와 오른쪽 아래 알림을 피해 가운데 칸에만 쓴다(넘치면 두 줄 → 그래도 넘치면 UIText가 줄인다)
+        float side = StoryState.CutsceneActive ? 340 * s : 480 * s; // 컷신: 오른쪽 아래 "Space 건너뛰기"(약 330)를 피한다 // 카세트 위 "+ 테이프 N개"(x 340~450)에서도 떨어지게
+                ShadowLabel(new Rect(side, y, Screen.width - side * 2f, 100 * s), text, normalCentre); // 위에서부터 쓴다: 보통 한두 줄, 좁은 화면은 세 줄까지
     }
 
     void DrawStoryOverlay(float s)
@@ -204,8 +235,8 @@ public class HUD : MonoBehaviour
         var text = letterText;
         head.normal.textColor = ink;
         text.normal.textColor = ink;
-        GUI.Label(new Rect(r.x, r.y + 44 * s, w, 50 * s), StoryState.LetterHeading ?? "", head);
-        GUI.Label(new Rect(r.x + 60 * s, r.y + 130 * s, w - 120 * s, h - 170 * s), StoryState.LetterText, text);
+        UIText.Label(new Rect(r.x, r.y + 44 * s, w, 50 * s), StoryState.LetterHeading ?? "", head);
+        UIText.Label(new Rect(r.x + 60 * s, r.y + 130 * s, w - 120 * s, h - 170 * s), StoryState.LetterText, text);
         ShadowLabel(new Rect(0, r.yMax + 22 * s, Screen.width, 30 * s), "F  닫기        Space 길게 누르기  건너뛰기", smallCentre);
     }
 
@@ -223,11 +254,17 @@ public class HUD : MonoBehaviour
                 ShadowLabel(new Rect(rect.x, rect.y - 38 * s, w, 34 * s), enemy.displayName, normal);
                 Bar(rect, ratio, Accent);
             }
+            if (enemy.ExecuteTelegraph && cam)
+            {
+                // 처형기(레이가 기억함): 머리 위 보라색 크게 — 지금 굴러라
+                Vector3 xs = cam.WorldToScreenPoint(enemy.transform.position + Vector3.up * (2.5f * enemy.transform.lossyScale.y));
+                if (xs.z > 0f) { var r = new Rect(xs.x - 60 * s, Screen.height - xs.y - 40 * s, 120 * s, 40 * s); normalCentre.normal.textColor = new Color(0.8f, 0.4f, 1f); UIText.Label(r, "!!!", normalCentre); normalCentre.normal.textColor = Paper; }
+            }
             if (enemy.HeavyTelegraph && cam)
             {
                 // 강타 예고: 머리 위 붉은 !! (피하라는 신호)
                 Vector3 hs = cam.WorldToScreenPoint(enemy.transform.position + Vector3.up * (2.5f * enemy.transform.lossyScale.y));
-                if (hs.z > 0f) { var r = new Rect(hs.x - 40 * s, Screen.height - hs.y - 34 * s, 80 * s, 34 * s); normalCentre.normal.textColor = Accent; GUI.Label(r, "!!", normalCentre); normalCentre.normal.textColor = Paper; }
+                if (hs.z > 0f) { var r = new Rect(hs.x - 40 * s, Screen.height - hs.y - 34 * s, 80 * s, 34 * s); normalCentre.normal.textColor = Accent; UIText.Label(r, "!!", normalCentre); normalCentre.normal.textColor = Paper; }
             }
             if (enemy.Foreseen > 0 && cam)
             {
@@ -307,17 +344,17 @@ public class HUD : MonoBehaviour
         // 남은 되감기만 보인다(테이프 상태 줄·조작 안내 줄은 뺐다 — 사용자 요청).
         // 끼운 테이프의 횟수만(최대 3 — R은 끼운 테이프만 쓴다). 인벤토리에 횟수가 남은 테이프가 더 있으면 옆에 개수만 적는다
         int current = walkman.CurrentCharges, spare = walkman.SpareTapeCount;
-        ShadowLabel(new Rect(x, y - 44 * s, 600 * s, 34 * s), $"남은 되감기 {current}회", normal);
+        ShadowLabel(new Rect(x, y - 44 * s, 600 * s, 34 * s), (Same(ref rewindSlot, current, null) ? rewindSlot.text : rewindSlot.text = $"남은 되감기 {current}회"), normal);
         Pips(new Rect(x + 190 * s, y - 38 * s, 0, 22 * s), current);
-        if (spare > 0) ShadowLabel(new Rect(x + 300 * s, y - 40 * s, 300 * s, 30 * s), $"+ 테이프 {spare}개", small);
+        if (spare > 0) ShadowLabel(new Rect(x + 300 * s, y - 40 * s, 300 * s, 30 * s), (Same(ref spareSlot, spare, null) ? spareSlot.text : spareSlot.text = $"+ 테이프 {spare}개"), small);
         DrawCassette(new Rect(x, y, w, h), tape, tape.CanPlay || walkman.Rewinding, tape.IsSpent ? 0.5f : 1f, s);
     }
 
     string StatusLine(CassetteTape tape)
     {
-        if (tape.IsSpent) return "다 쓴 테이프 — 가게에서 교환";
-        if (!tape.playable) return "주운 테이프 — 재생 불가 · 되감기 전용";
-        if (tape.rewound) return "되감은 테이프 — 재생 불가";
+        if (tape.IsSpent) return "다 씀";
+        if (!tape.playable) return "되감기 전용";
+        if (tape.rewound) return "재생 불가";
         if (!tape.CanPlay) return "A면 끝";
         return $"♪ {tape.CurrentTrack + 1}/{tape.trackTitles.Length}  {tape.trackTitles[tape.CurrentTrack]}";
     }
@@ -335,9 +372,17 @@ public class HUD : MonoBehaviour
         Fill(new Rect(label.x, r.y + 58 * k, label.width, 7 * k), Tint(tape != null && !tape.playable ? Teal : Accent, alpha));
         if (r.width / s > 165f) // 글자를 읽을 수 있을 만큼 큰 카세트에만 제목을 표시한다 (화면 크기와 무관)
         {
-            labelInk.fontSize = Mathf.RoundToInt(22 * k);
             labelInk.normal.textColor = new Color(0.12f, 0.11f, 0.10f, alpha);
-            GUI.Label(new Rect(label.x + 10 * k, label.y + 4 * k, label.width - 20 * k, 40 * k), tape?.title ?? "— EMPTY —", labelInk);
+            // 이름표: 한 줄에 들어가면 크게 한 줄, 길면 조금 작게 두 줄(끝이 …로 잘리지 않게)
+            string name = tape?.title ?? "— EMPTY —";
+            var nameRect = new Rect(label.x + 8 * k, label.y + 2 * k, label.width - 16 * k, 42 * k);
+            labelInk.fontSize = Mathf.RoundToInt(22 * k);
+            measure.text = name;
+            bool oneLine = labelInk.CalcSize(measure).x <= nameRect.width;
+            if (!oneLine) labelInk.fontSize = Mathf.RoundToInt(16 * k);
+            labelInk.wordWrap = !oneLine;
+            UIText.Label(oneLine ? new Rect(nameRect.x, nameRect.y + 2 * k, nameRect.width, 30 * k) : nameRect, name, labelInk);
+            labelInk.wordWrap = false;
         }
 
         var window = new Rect(r.x + 60 * k, r.y + 86 * k, r.width - 120 * k, 58 * k);
@@ -428,10 +473,8 @@ public class HUD : MonoBehaviour
             ShadowLabel(new Rect(left.x + 16 * s, infoY + 32 * s, sideW - 32 * s, 50 * s), StatusLine(inserted), smallWrap);
             ShadowLabel(new Rect(left.x + 16 * s, infoY + 84 * s, sideW, 26 * s), "되감기", small);
             Pips(new Rect(left.x + 90 * s, infoY + 86 * s, 0, 20 * s), inserted.charges);
-            string rLine = inserted.charges > 0 ? "R 되감기에는 이 테이프가 쓰인다"
-                         : walkman.SpareTapeCount > 0 ? "이 테이프는 횟수가 없다 — 횟수가 남은 테이프를 골라 F로 끼운다"
-                         : "되감을 횟수가 남은 테이프가 없다";
-            ShadowLabel(new Rect(left.x + 16 * s, infoY + 120 * s, sideW - 32 * s, 50 * s), rLine, smallWrap);
+            if (inserted.Genre != TapeGenre.None)
+                ShadowLabel(new Rect(left.x + 16 * s, infoY + 120 * s, sideW - 32 * s, 30 * s), $"E  {TapeAbility.Name(inserted.Genre)}  {TapeAbility.Seconds(inserted.Genre):0}초", small);
         }
 
         // 가운데: 슬롯 격자
@@ -472,7 +515,7 @@ public class HUD : MonoBehaviour
         if (tapes.Count > 0) DrawTapeDetails(detail, tapes[Mathf.Clamp(walkman.InventorySelected, 0, tapes.Count - 1)], s);
 
         ShadowLabel(new Rect(win.x, win.yMax - footerH + 12 * s, w, 30 * s),
-            "WASD 이동   클릭 선택   F / 더블클릭 카세트 플레이어에 끼우기   2 빠른 교체   I / Esc 닫기", smallCentre);
+            "F 끼우기    I 닫기", smallCentre);
     }
 
     void DrawTapeDetails(Rect d, CassetteTape tape, float s)
@@ -486,26 +529,26 @@ public class HUD : MonoBehaviour
         ShadowLabel(new Rect(x, y + 132 * s, w, 26 * s), "되감기", small);
         Pips(new Rect(x + 74 * s, y + 134 * s, 0, 20 * s), tape.charges);
 
-        ShadowLabel(new Rect(x, y + 170 * s, w, 26 * s), "수록곡", small);
-        for (int i = 0; i < tape.trackTitles.Length; i++)
+        if (tape.playable) ShadowLabel(new Rect(x, y + 170 * s, w, 26 * s), "수록곡", small);
+        for (int i = 0; tape.playable && i < tape.trackTitles.Length; i++) // 주운 테이프는 곡이 없다
         {
             string mark = !tape.playable ? "·" : i < tape.CompletedTracks ? "✓" : tape == walkman.Inserted && i == tape.CurrentTrack && tape.CanPlay ? "♪" : "·";
             ShadowLabel(new Rect(x + 8 * s, y + (198 + i * 26) * s, w, 26 * s), $"{mark} {i + 1}. {tape.trackTitles[i]}", small);
         }
 
-        float descY = y + (210 + tape.trackTitles.Length * 26) * s;
-        string desc = tape.IsSpent ? "되감기를 다 썼다. 테이프 가게에서 새 테이프 1개와 바꿀 수 있다."
-            : !tape.playable ? "현장에서 주운 테이프. 재생은 안 되지만 카세트 플레이어에 끼우면 R로 되감을 수 있다."
-            : tape.rewound ? "한 번 되감은 테이프라 다시 재생할 수 없다. 남은 횟수만큼 되감기는 가능하다."
-            : "재생하면 곡이 하나 끝날 때마다 되감기가 1회 충전된다 (최대 3회).";
-        ShadowLabel(new Rect(x, descY, w, 90 * s), desc, smallWrap);
+        // 장르 능력(R → E)만 짧게
+        if (tape.Genre != TapeGenre.None)
+        {
+            float descY = y + (210 + tape.trackTitles.Length * 26) * s;
+            ShadowLabel(new Rect(x, descY, w, 28 * s), $"E  {TapeAbility.Name(tape.Genre)}  {TapeAbility.Seconds(tape.Genre):0}초", small);
+        }
 
         // 장착 버튼
         var button = new Rect(x, d.yMax - 56 * s, w, 42 * s);
         bool equipped = tape == walkman.Inserted;
         Fill(button, equipped ? new Color(0.2f, 0.2f, 0.2f) : new Color(Gold.r * 0.55f, Gold.g * 0.45f, Gold.b * 0.25f));
         Frame(button, equipped ? SlotBorder : Gold, 2f * s);
-        ShadowLabel(new Rect(button.x, button.y + 9 * s, button.width, 26 * s), equipped ? "장착 중" : "카세트 플레이어에 끼우기  [F]", normalCentre);
+        ShadowLabel(new Rect(button.x, button.y + 9 * s, button.width, 26 * s), equipped ? "끼움" : "끼우기  F", normalCentre);
         var e = Event.current;
         if (!equipped && e.type == EventType.MouseDown && button.Contains(e.mousePosition))
         {
@@ -523,7 +566,7 @@ public class HUD : MonoBehaviour
         float h = titleH + pad * 2 + shop.stock.Count * (rowH + 10 * s) + footerH;
         int spent = walkman ? walkman.SpentTapeCount : 0;
         var win = Window(new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h), shop.shopName,
-            $"다 쓴 테이프 {spent}개 보유  ·  1개 = 새 테이프 1개", s);
+            $"다 쓴 테이프 {spent}개", s);
 
         for (int i = 0; i < shop.stock.Count; i++)
         {
@@ -534,8 +577,10 @@ public class HUD : MonoBehaviour
             Frame(row, selected ? Gold : SlotBorder, (selected ? 3f : 2f) * s);
 
             DrawCassette(new Rect(row.x + 12 * s, row.y + 10 * s, 114 * s, 72 * s), item.tape, false, item.traded ? 0.35f : 1f, s);
-            ShadowLabel(new Rect(row.x + 146 * s, row.y + 14 * s, 500 * s, 30 * s), item.tape.title, normalBold);
-            ShadowLabel(new Rect(row.x + 146 * s, row.y + 50 * s, 520 * s, 26 * s),
+            // 왼쪽 글자 칸은 오른쪽 상태 글자(폭 약 220) 앞에서 끝난다(좁은 화면에서 곡 목록과 "다 쓴 테이프 필요"가 붙었다)
+            float textW = row.width - 146 * s - 240 * s;
+            ShadowLabel(new Rect(row.x + 146 * s, row.y + 14 * s, textW, 30 * s), item.tape.title, normalBold);
+            ShadowLabel(new Rect(row.x + 146 * s, row.y + 50 * s, textW, 26 * s),
                 $"{item.tape.trackTitles.Length}곡  ·  {string.Join(" / ", item.tape.trackTitles)}", small);
             string status = item.traded ? "교환 완료" : spent > 0 ? "교환 가능" : "다 쓴 테이프 필요";
             ShadowLabel(new Rect(row.x, row.y + 32 * s, row.width - 20 * s, 30 * s), status, right);
@@ -580,7 +625,8 @@ public class HUD : MonoBehaviour
             Fill(new Rect(r.x, r.y, r.width, 2 * s), c); Fill(new Rect(r.x, r.yMax - 2 * s, r.width, 2 * s), c);
             Fill(new Rect(r.x, r.y, 2 * s, r.height), c); Fill(new Rect(r.xMax - 2 * s, r.y, 2 * s, r.height), c);
             Fill(new Rect(r.x + 6 * s, r.center.y - 2 * s, 4 * s, 4 * s), c); Fill(new Rect(r.xMax - 10 * s, r.center.y - 2 * s, 4 * s, 4 * s), c);
-            if (d < 12f) ShadowLabel(new Rect(r.center.x - 60 * s, r.yMax + 2 * s, 120 * s, 24 * s), $"테이프 {d:0}m", smallCentre);
+            int dm = Mathf.RoundToInt(d);
+            if (d < 12f) ShadowLabel(new Rect(r.center.x - 60 * s, r.yMax + 2 * s, 120 * s, 24 * s), (Same(ref tapeDistSlot, dm, null) ? tapeDistSlot.text : tapeDistSlot.text = $"테이프 {dm}m"), smallCentre);
         }
     }
 
@@ -599,10 +645,23 @@ public class HUD : MonoBehaviour
         GUI.matrix = matrix;
 
         int metres = Mathf.RoundToInt(Vector3.Distance(player.transform.position, target));
-        ShadowLabel(new Rect(centre.x - 60 * s, centre.y + size, 120 * s, 30 * s), $"{metres}m", smallCentre);
+        ShadowLabel(new Rect(centre.x - 60 * s, centre.y + size, 120 * s, 30 * s), (Same(ref metresSlot, metres, null) ? metresSlot.text : metresSlot.text = $"{metres}m"), smallCentre);
     }
 
     // ---------- 헬퍼 ----------
+
+    // 매 프레임 같은 글자를 새로 만들지 않게(GC 할당 줄이기, 2026-10-13 최적화): 열쇠(값)가 같으면 전에 만든 글자를 쓴다
+    struct TextSlot { public long key; public object of; public string text; }
+    static readonly GUIContent measure = new(); // 글자 폭 재기용(매 프레임 새로 만들지 않게)
+    TextSlot rewindSlot, spareSlot, metresSlot, abilitySlot, choiceSlot, interactSlot, tapeDistSlot;
+
+    /// <summary>같은 열쇠면 true(전 글자를 쓴다). 다르면 열쇠를 바꾸고 false(그 자리에서 slot.text를 새로 만든다)</summary>
+    static bool Same(ref TextSlot slot, long key, object of)
+    {
+        if (slot.text != null && slot.key == key && ReferenceEquals(slot.of, of)) return true;
+        slot.key = key; slot.of = of;
+        return false;
+    }
 
     /// <summary>제목 표시줄이 달린 테두리 창을 그리고, 창의 rect를 반환한다.</summary>
     Rect Window(Rect r, string heading, string subtitle, float s)
@@ -623,7 +682,7 @@ public class HUD : MonoBehaviour
         labelInk.fontSize = Mathf.RoundToInt(15 * s);
         labelInk.normal.textColor = new Color(0.07f, 0.07f, 0.08f);
         labelInk.alignment = TextAnchor.MiddleCenter;
-        GUI.Label(r, text, labelInk);
+        UIText.Label(r, text, labelInk);
         labelInk.alignment = TextAnchor.UpperLeft;
     }
 
@@ -661,7 +720,7 @@ public class HUD : MonoBehaviour
         right = new GUIStyle(normal) { alignment = TextAnchor.UpperRight };
         big = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(56 * s), alignment = TextAnchor.MiddleCenter, fontStyle = FontStyle.Bold, wordWrap = true };
         title = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(30 * s), fontStyle = FontStyle.Bold };
-        labelInk = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, clipping = TextClipping.Clip };
+        labelInk = new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold, wordWrap = false };
         letterHead = new GUIStyle(normalBold) { fontSize = Mathf.RoundToInt(28 * s), alignment = TextAnchor.UpperCenter };
         letterText = new GUIStyle(normal) { fontSize = Mathf.RoundToInt(25 * s), wordWrap = true, richText = true };
     }
@@ -707,10 +766,7 @@ public class HUD : MonoBehaviour
 
     static void ShadowLabel(Rect rect, string text, GUIStyle style)
     {
-        style.normal.textColor = Ink;
-        GUI.Label(new Rect(rect.x + 2, rect.y + 2, rect.width, rect.height), text, style);
-        style.normal.textColor = Paper;
-        GUI.Label(rect, text, style);
+        UIText.Shadowed(rect, text, style, Ink, Paper); // 칸을 넘치면 글자를 줄인다
     }
 
     static Texture2D CreateCircle(int size)

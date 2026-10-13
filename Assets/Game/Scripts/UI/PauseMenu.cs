@@ -13,7 +13,7 @@ using UnityEngine.SceneManagement;
 [DefaultExecutionOrder(-1000)] // 이야기 시계를 매 프레임 가장 먼저 진행한다
 public class PauseMenu : MonoBehaviour
 {
-    enum Page { Main, Options, Controls, Confirm }
+    enum Page { Main, Options, Controls, Tutorials, Confirm }
 
     static readonly Color Panel = new(0.05f, 0.05f, 0.06f, 0.95f);
     static readonly Color RowBg = new(0.10f, 0.10f, 0.11f, 1f);
@@ -24,8 +24,10 @@ public class PauseMenu : MonoBehaviour
     static readonly Color Dim = new(0.62f, 0.60f, 0.56f);
     static readonly Color Track = new(0.22f, 0.21f, 0.20f, 1f);
 
-    static readonly string[] MainItems = { "계속하기", "옵션", "조작법", "타이틀로", "게임 종료" };
-    const int ControlsItem = 2, TitleItem = 3, QuitItem = 4;
+    static readonly string[] MainItems = { "계속하기", "옵션", "조작법", "튜토리얼", "타이틀로", "게임 종료" };
+    const int ControlsItem = 2, TutorialsItem = 3, TitleItem = 4, QuitItem = 5;
+    static Tutorial.Entry[] tutorialList;
+    static Tutorial.Entry[] tutorials => tutorialList ??= System.Linq.Enumerable.ToArray(Tutorial.All); // 튜토리얼 목록(분류 순) + 맨 끝 "뒤로"
 
     // 조작법(키, 하는 일) — 화면 아래에 늘 띄우던 안내를 여기로 옮겼다
     static readonly (string key, string what)[] Controls =
@@ -34,7 +36,7 @@ public class PauseMenu : MonoBehaviour
         ("좌클릭", "공격 · 완벽 회피 뒤 반격"), ("우클릭", "구르기 · 완벽 회피"),
         ("Q", "몰래 제압 (적 등 뒤에서)"), ("F", "상호작용"),
         ("R (길게)", "되감기 (1회 = 5초)"), ("I", "인벤토리 (테이프 끼우기)"),
-        ("2", "다음 테이프로 교체"), ("1", "회복약"), ("H", "설명 다시 보기"), ("Esc", "일시정지"),
+        ("2", "다음 테이프로 교체"), ("1", "회복약"), ("H", "새 설명 알림 열기"), ("Esc", "일시정지 · 튜토리얼"),
     };
     static readonly string[] ConfirmItems = { "아니요", "예" };
     public const string TitleScene = "Title";
@@ -135,9 +137,11 @@ public class PauseMenu : MonoBehaviour
             return;
         }
 
+        if (TutorialUI.MenuPopupOpen) return; // 설명 팝업이 위에 떠 있다: Esc·H·A/D는 팝업이 받는다
         if (toggle || (pad != null && pad.buttonEast.wasPressedThisFrame)) { Back(); return; }
 
-        int count = page == Page.Main ? MainItems.Length : page == Page.Options ? OptionCount : page == Page.Controls ? 1 : ConfirmItems.Length;
+        int count = page == Page.Main ? MainItems.Length : page == Page.Options ? OptionCount : page == Page.Controls ? 1
+                  : page == Page.Tutorials ? tutorials.Length + 1 : ConfirmItems.Length;
         if (Pressed(kb?.wKey, kb?.upArrowKey, pad?.dpad.up)) Select((selected - 1 + count) % count);
         if (Pressed(kb?.sKey, kb?.downArrowKey, pad?.dpad.down)) Select((selected + 1) % count);
         if (page == Page.Confirm && Pressed(kb?.aKey, kb?.leftArrowKey, pad?.dpad.left, kb?.dKey, kb?.rightArrowKey, pad?.dpad.right))
@@ -231,7 +235,7 @@ public class PauseMenu : MonoBehaviour
     {
         UiSound();
         if (page == Page.Main || (standalone && page == Page.Options)) closeNextFrame = true;
-        else GoTo(Page.Main, page == Page.Options ? 1 : page == Page.Controls ? ControlsItem : confirmQuit ? QuitItem : TitleItem);
+        else GoTo(Page.Main, page == Page.Options ? 1 : page == Page.Controls ? ControlsItem : page == Page.Tutorials ? TutorialsItem : confirmQuit ? QuitItem : TitleItem);
     }
 
     void GoTo(Page to, int select)
@@ -259,10 +263,15 @@ public class PauseMenu : MonoBehaviour
                 if (index == 0) closeNextFrame = true;
                 else if (index == 1) GoTo(Page.Options, 0);
                 else if (index == ControlsItem) GoTo(Page.Controls, 0);
+                else if (index == TutorialsItem) GoTo(Page.Tutorials, 0);
                 else { confirmQuit = index == QuitItem; GoTo(Page.Confirm, 0); }
                 break;
             case Page.Controls:
                 GoTo(Page.Main, ControlsItem);
+                break;
+            case Page.Tutorials:
+                if (index >= tutorials.Length) GoTo(Page.Main, TutorialsItem);
+                else TutorialUI.Ensure().OpenFromMenu(tutorials[index]);
                 break;
             case Page.Options:
                 if (index == SliderCount) { GameSettings.ResetDefaults(); Preview(GameSettings.Channel.Sfx, true); }
@@ -321,8 +330,8 @@ public class PauseMenu : MonoBehaviour
 
     void OnGUI()
     {
-        if (!open) return;
-        float s = Screen.height / 1080f;
+        if (!open || TutorialUI.MenuPopupOpen) return; // 설명 팝업을 보는 동안은 그 팝업만
+        float s = UIText.Scale;
         BuildStyles(s);
         GUI.depth = -30; // HUD·설명 알림 위에
         // 배치(Layout) 단계는 그리는 순서(GUI.depth)만 정하고 바로 끝낸다 — 이 단계를 아예 끄면(useGUILayout=false) 순서가 무시되고 먼저 생긴 순으로 굳었다
@@ -339,6 +348,7 @@ public class PauseMenu : MonoBehaviour
             case Page.Main: DrawMain(s, mouseMoved); break;
             case Page.Options: DrawOptions(s, mouseMoved); break;
             case Page.Controls: DrawControls(s, mouseMoved); break;
+            case Page.Tutorials: DrawTutorials(s, mouseMoved); break;
             case Page.Confirm: DrawConfirm(s, mouseMoved); break;
         }
     }
@@ -355,7 +365,7 @@ public class PauseMenu : MonoBehaviour
 
     void DrawMain(float s, bool mouseMoved)
     {
-        var win = Window(520, 620, s, "일시정지");
+        var win = Window(520, 700, s, "일시정지");
         for (int i = 0; i < MainItems.Length; i++)
         {
             var r = new Rect(win.x + 60 * s, win.y + 120 * s + i * 82 * s, win.width - 120 * s, 64 * s);
@@ -438,12 +448,32 @@ public class PauseMenu : MonoBehaviour
         Label(new Rect(win.x, win.yMax - 48 * s, win.width, 30 * s), "Enter 또는 Esc 뒤로", small, Dim);
     }
 
+    /// <summary>튜토리얼 목록: 두 줄로 나눠 놓고, 고르면 설명 팝업이 열린다(닫으면 이 목록으로)</summary>
+    void DrawTutorials(float s, bool mouseMoved)
+    {
+        int half = (tutorials.Length + 1) / 2;
+        var win = Window(1000, 140 + half * 58 + 150, s, "튜토리얼");
+        float colW = (win.width - 120 * s) / 2f;
+        for (int i = 0; i < tutorials.Length; i++)
+        {
+            int col = i / half, row = i % half;
+            var r = new Rect(win.x + 50 * s + col * (colW + 20 * s), win.y + 104 * s + row * 58 * s, colW, 50 * s);
+            Row(r, i, mouseMoved, s);
+            Label(new Rect(r.x + 20 * s, r.y, 170 * s, r.height), tutorials[i].category, smallLeft, Dim);
+            Label(new Rect(r.x + 190 * s, r.y, r.width - 200 * s, r.height), tutorials[i].title, itemLeft, i == selected ? Gold : Paper);
+        }
+        var back = new Rect(win.x + (win.width - 260 * s) / 2f, win.yMax - 112 * s, 260 * s, 56 * s);
+        Row(back, tutorials.Length, mouseMoved, s);
+        Label(back, "뒤로", item, selected == tutorials.Length ? Gold : Paper);
+        Label(new Rect(win.x, win.yMax - 48 * s, win.width, 30 * s), "W/S 선택   Enter 보기   Esc 뒤로", small, Dim);
+    }
+
     void DrawConfirm(float s, bool mouseMoved)
     {
         var win = Window(640, 380, s, confirmQuit ? "게임을 종료할까요?" : "타이틀 화면으로 돌아갈까요?");
         Label(new Rect(win.x, win.y + 96 * s, win.width, 60 * s), confirmQuit
-            ? "아직 진행 저장 기능이 없어, 다음에는 처음부터 시작합니다.\n소리 설정은 저장됩니다."
-            : "지금까지의 진행은 저장되지 않습니다.\n다시 시작하면 프롤로그부터 시작합니다.", small, Dim);
+            ? "마지막 저장 지점까지 저장됨"
+            : "마지막 저장 지점 이후의 진행은 사라집니다", small, Dim);
         for (int i = 0; i < ConfirmItems.Length; i++)
         {
             float w = (win.width - 140 * s) / 2f;
@@ -488,13 +518,8 @@ public class PauseMenu : MonoBehaviour
         percent = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(24 * s), alignment = TextAnchor.MiddleRight };
     }
 
-    static void Label(Rect r, string text, GUIStyle style, Color color)
-    {
-        style.normal.textColor = new Color(0f, 0f, 0f, 0.6f);
-        GUI.Label(new Rect(r.x + 2, r.y + 2, r.width, r.height), text, style);
-        style.normal.textColor = color;
-        GUI.Label(r, text, style);
-    }
+    static void Label(Rect r, string text, GUIStyle style, Color color) =>
+        UIText.Shadowed(r, text, style, new Color(0f, 0f, 0f, 0.6f), color); // 칸을 넘치면 글자를 줄인다
 
     static void Fill(Rect r, Color c)
     {

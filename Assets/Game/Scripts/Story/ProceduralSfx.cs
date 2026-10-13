@@ -60,6 +60,18 @@ public static class ProceduralSfx
         return Mathf.Clamp(press + latch, -1f, 1f);
     });
 
+    /// <summary>
+    /// 건물 경보(반복): 높은음·낮은음이 0.5초씩 번갈아 — 각 음이 0.5초에 정수 번 돌아 이음매 없이 반복된다.
+    /// 부드러운 사각파(홀수 배음 셋)라 전자 경보기처럼 들린다
+    /// </summary>
+    public static AudioClip AlarmLoop => Get("Alarm", 2f, (t, rng) =>
+    {
+        float f = Mathf.Repeat(t, 1f) < 0.5f ? 960f : 770f;
+        float p = 2 * Mathf.PI * f * t;
+        float tone = Mathf.Sin(p) + Mathf.Sin(3 * p) / 3f + Mathf.Sin(5 * p) / 5f;
+        return tone * 0.32f;
+    });
+
     /// <summary>끊김 없이 반복되는 빗소리(잡음을 낮은 주파수 쪽으로 걸러 '쏴아' 소리로 만든다)</summary>
     public static AudioClip RainLoop
     {

@@ -38,6 +38,8 @@ public class FingerPose : MonoBehaviour
         grip = 0f;
     }
 
+    float appliedGrip = -1f;
+
     void LateUpdate()
     {
         if (joints == null) return;
@@ -45,6 +47,9 @@ public class FingerPose : MonoBehaviour
         if (fighting || alwaysFist) fistUntil = Time.time + holdFist;
         float target = Time.time < fistUntil ? 1f : 0f;
         grip = Mathf.MoveTowards(grip, target, Time.unscaledDeltaTime * 8f);
+        // 손가락 뼈는 애니메이터가 건드리지 않는다(사람형 아바타 밖): 쥔 정도가 그대로면 지난번 회전이 남아 있으니 다시 넣지 않는다
+        if (grip == appliedGrip) return;
+        appliedGrip = grip;
         foreach (var j in joints)
         {
             if (!j.bone) continue;

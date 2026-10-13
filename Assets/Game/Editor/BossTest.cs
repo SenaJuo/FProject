@@ -87,22 +87,34 @@ public static class BossTest
                 else if (Waited(30f)) End("싸움으로 넘어가지 않음");
                 break;
             case 4:
-                if (Waited(2.5f))
+                if (Waited(0.5f))
+                {
+                    // 넘어가는 장면: 외치며 엄폐물로 달려가는 중(순간 이동하지 않는다), 그동안 무적
+                    float toCover = d.bossBrain.coverPoint ? Vector3.Distance(d.boss.transform.position, d.bossBrain.coverPoint.position) : -1f;
+                    Note($"2단계로 넘어가는 중: 진행 {d.bossBrain.Transitioning}(기대 True), 무적 {d.boss.Health.Invulnerable}(기대 True), 자막 [{StoryState.Speaker}] {StoryState.Line}, 엄폐물까지 {toCover:0.0}m");
+                    Shot("boss_to_cover");
+                    Next();
+                }
+                break;
+            case 5:
+                if (!d.bossBrain.Transitioning && Waited(0.3f))
                 {
                     int helpers = 0; foreach (var r in d.bossBrain.reinforcements) if (r && r.gameObject.activeInHierarchy && r.IsActive) helpers++;
-                    Note($"2단계: 단계 {d.bossBrain.Phase}(기대 2), 권총 {d.boss.ranged}, 부하 등장 {helpers}(기대 2), 체력 {d.boss.Health.Current}");
+                    float atCover = d.bossBrain.coverPoint ? Vector3.Distance(d.boss.transform.position, d.bossBrain.coverPoint.position) : -1f;
+                    Note($"2단계: 단계 {d.bossBrain.Phase}(기대 2), 권총 {d.boss.ranged}, 부하 등장 {helpers}(기대 2), 체력 {d.boss.Health.Current}, 엄폐물까지 {atCover:0.0}m, 무적 {d.boss.Health.Invulnerable}(기대 False), 활성 {d.boss.IsActive}");
                     Shot("boss_phase2");
                     foreach (var r in d.bossBrain.reinforcements) if (r && r.gameObject.activeInHierarchy) r.GetComponent<Health>().TakeDamage(999, p.transform.position);
                     d.boss.Health.TakeDamage(d.boss.Health.Current - d.boss.Health.Max / 5, p.transform.position);
                     Tp(new Vector3(222f, 0.02f, 404f), new Vector3(201f, 0f, 413f)); // 멀리 떨어져서 반장이 불에 닿게 둔다
                     Next();
                 }
+                else if (Waited(6f)) End("엄폐물에 도착하지 못함(넘어가는 장면이 끝나지 않음)");
                 break;
-            case 5:
+            case 6:
                 if (d.CurrentPhase == Chapter1Director.Phase.Burn && Waited(0.8f)) { Note($"3단계 달리기: 목표 '{StoryState.Objective}'"); Shot("burn_run"); Next(); }
                 else if (Waited(8f)) End("3단계(태우러 달리기)로 넘어가지 않음");
                 break;
-            case 6:
+            case 7:
                 if (!string.IsNullOrEmpty(StoryState.Prompt) && Waited(0.3f))
                 {
                     Note($"불에 들어감: 안내 '{StoryState.Prompt}', 시간 배율 {Time.timeScale:0.00}, 목표 '{StoryState.Objective}'");
@@ -112,7 +124,7 @@ public static class BossTest
                 }
                 else if (Waited(14f)) End("불에 들어가 R 안내가 뜨지 않음");
                 break;
-            case 7:
+            case 8:
                 if (!w.Rewinding && Waited(1.5f))
                 {
                     var line = GameObject.Find("BossMemoryPath");
@@ -124,7 +136,7 @@ public static class BossTest
                     Next();
                 }
                 break;
-            case 8:
+            case 9:
                 if (Waited(0.3f))
                 {
                     // 도망치는 반장의 등 뒤에 붙어도 Q 제압 대상이 되면 안 된다(엔딩까지 목 조르는 자세로 남는 버그)
@@ -133,15 +145,15 @@ public static class BossTest
                     Next();
                 }
                 break;
-            case 9:
+            case 10:
                 if (d.CurrentPhase == Chapter1Director.Phase.Finale && Waited(3f)) { Shot("finale_down"); Next(); }
                 else if (Waited(10f) && d.CurrentPhase != Chapter1Director.Phase.Finale) End("막은 뒤 마무리로 넘어가지 않음");
                 break;
-            case 10:
+            case 11:
                 if (StoryState.Speaker == "대니 (녹음)" && Waited(0.5f)) { Shot("dawn"); Next(); }
                 else if (Waited(30f)) End("새벽 녹음 장면이 나오지 않음");
                 break;
-            case 11:
+            case 12:
                 if (d.CurrentPhase == Chapter1Director.Phase.End && Waited(1f)) End("완료");
                 else if (Waited(45f)) End("끝 단계로 넘어가지 않음");
                 break;

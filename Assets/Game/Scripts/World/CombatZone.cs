@@ -59,7 +59,7 @@ public class CombatZone : MonoBehaviour, IRewindable
         if (HoldsPlayer) return;
         started = false;
         foreach (var gate in closeOnEnter) gate.Open();
-        foreach (var enemy in enemies) if (enemy && !enemy.Health.IsDead) enemy.Deactivate();
+        foreach (var enemy in enemies) if (enemy && !enemy.GetComponent<Health>().IsDead) enemy.Deactivate();
     }
 
     public object CaptureState() => (started, IsCleared, Remaining);
@@ -81,7 +81,8 @@ public class CombatZone : MonoBehaviour, IRewindable
             if (!enemy) continue; // 빈 칸은 건너뛴다
             Remaining++;
             enemy.Zone = this;
-            enemy.Health.Died += OnEnemyDied;
+            // enemy.Health는 EnemyAI.Awake에서 채워진다: 숨겨 둔(꺼 둔) 적은 아직 비어 있으니 컴포넌트를 직접 찾는다
+            enemy.GetComponent<Health>().Died += OnEnemyDied;
         }
     }
 

@@ -284,6 +284,7 @@ public static partial class Chapter1Builder
             var guard = ai.gameObject.AddComponent<ShieldGuard>();
             guard.shield = shield.transform;
             guard.ik = ai.aimIK;
+            HoldPoseSetup.Equip(ai); // 왼팔뚝에 방패, 오른손에 진압봉(블렌더 자세 레이어)
         }
         return ai;
     }

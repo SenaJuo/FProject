@@ -132,7 +132,7 @@ public static partial class Chapter1Builder
         rainAudio.transform.SetParent(systems.transform);
         rainAudio.spatialBlend = 0f;
         rainAudio.volume = 0.45f;
-        P.CreateRain(player.transform, M["RainStreak"]);
+        // 비 없음(2026-10-13): P.CreateRain을 부르지 않는다
 
         var d = systems.AddComponent<Chapter1Director>();
         d.player = player;
@@ -141,7 +141,7 @@ public static partial class Chapter1Builder
         d.gameplayCamera = gameplay;
         d.gameplayRig = rig;
         d.dynamicA = dynA;
-        d.rainAudio = rainAudio;
+        // 비 없음(2026-10-13 사용자 요청): 빗소리를 연결하지 않는다
         d.zoneStart = b.zoneStart;
         d.parkExit = b.parkExit;
         d.spotTrigger = b.spotTrigger;
@@ -200,7 +200,7 @@ public static partial class Chapter1Builder
         skyCycle.transform.SetParent(systems.transform);
         d.skyCycle = skyCycle;
         // 1장은 숨어 다니는 구간이 넓다: 프롤로그보다 주변광을 조금 올려 어둠 속 길과 생울타리 윤곽이 보이게 한다
-        RenderSettings.ambientLight = new Color(0.2f, 0.21f, 0.27f); // 너무 어두워 적이 안 보였다(0.135 → 0.2)
+        RenderSettings.ambientLight = new Color(0.4f, 0.41f, 0.48f); // 너무 어둡다(0.135 → 0.2 → 0.3 → 0.4, BrightnessPass)
         P.BakeNavMesh(NavMeshPath);
         P.EnforceMaterialKeywords();
 
@@ -1042,6 +1042,7 @@ public static partial class Chapter1Builder
         folder.SetParent(routes);
         for (int i = 0; i < route.Length; i++) points[i] = P.Marker(folder, $"P{i}", route[i], 0f);
         sight.route = points;
+        HoldPoseSetup.Equip(ai); // 손전등을 쥔 자세(블렌더 자세 레이어) — 싸우면 바닥에 떨어뜨린다
         return sight;
     }
 

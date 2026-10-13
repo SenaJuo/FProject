@@ -90,9 +90,16 @@ public static class CounterTest
                 next = Time.unscaledTime + 0.18f;
                 break;
             case 4:
+            {
                 Shot("01_counter_kick");
+                // 반격 중 옆의 다른 적에게 맞아도 끊기지 않는가(무적)
+                var ph = p.GetComponent<Health>();
+                int before = ph.Current;
+                ph.TakeDamage(15, p.transform.position + p.transform.right * 1.2f);
+                Note($"   반격 중 다른 적에게 맞음: 레이 체력 {before} → {ph.Current}(기대 그대로), 레이 상태 {State()}(기대 Attack)");
                 next = Time.unscaledTime + 0.6f;
                 break;
+            }
             case 5:
             {
                 int dealt = hpBefore - thug.Health.Current;
@@ -116,6 +123,7 @@ public static class CounterTest
                 next = Time.unscaledTime + 1.6f / Mathf.Max(0.3f, Time.timeScale); // 게임 시간 1.6초 남짓
                 break;
             case 7:
+                Note($"   반격이 끝난 뒤 무적 풀림: {!p.GetComponent<Health>().Invulnerable}(기대 True)");
                 Note($"   1.6초 뒤: 반격 준비 {p.CounterReady}(기대 False), 공격 → 반격 {Counter()}(기대 False)");
                 Done();
                 break;

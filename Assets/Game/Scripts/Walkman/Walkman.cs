@@ -30,13 +30,15 @@ public class Walkman : MonoBehaviour
     [Header("음악")]
     [Range(0f, 1f)] public float musicVolume = 0.42f;
 
-    enum Phase { Playing, Prompt, Playback, Recover }
+    enum Phase { Playing, Prompt, Playback, Recover, Choice }
 
     /// <summary>Walkman에 든 테이프: (재생 가능하면) 재생되고, R로 되감을 때 이 테이프를 쓴다.</summary>
     public CassetteTape Inserted { get; private set; }
     /// <summary>현재 되감기(또는 사망 화면)가 사용 중인 테이프.</summary>
     public CassetteTape RewindTape { get; private set; }
     public bool PromptOpen => phase == Phase.Prompt;
+    /// <summary>장르 테이프로 R을 눌러 Q(되감기)·E(능력)를 고르는 중</summary>
+    public bool ChoiceOpen => phase == Phase.Choice;
     public bool PlayingBack => phase == Phase.Playback;
     public bool Rewinding => phase is Phase.Playback or Phase.Recover;
     public bool InventoryOpen { get; private set; }
@@ -46,14 +48,14 @@ public class Walkman : MonoBehaviour
     public float RewoundSeconds { get; private set; }
     public float MaxRewind { get; private set; }
     public int NotchesSoFar => Mathf.Max(1, Mathf.CeilToInt(RewoundSeconds / secondsPerCharge - 0.001f));
-    public int RewindableTapeCount => tapes.FindAll(t => t.charges > 0).Count;
+    public int RewindableTapeCount { get { int n = 0; foreach (var t in tapes) if (t.charges > 0) n++; return n; } } // FindAll은 매번 목록을 새로 만들어(HUD가 매 프레임 부른다) 직접 센다
     /// <summary>가진 테이프 전부의 남은 되감기 횟수(R은 끼운 테이프가 비면 다른 테이프로 되감는다)</summary>
     public int TotalCharges { get { int n = 0; foreach (var t in tapes) n += t.charges; return n; } }
     /// <summary>끼운 테이프의 남은 되감기 횟수(테이프 한 개당 최대 3회). 화면에는 이것만 보인다</summary>
     public int CurrentCharges => Inserted?.charges ?? 0;
     /// <summary>인벤토리에 있는, 횟수가 남은 다른 테이프 수</summary>
-    public int SpareTapeCount => tapes.FindAll(t => t.charges > 0 && t != Inserted).Count;
-    public int SpentTapeCount => tapes.FindAll(t => t.IsSpent).Count;
+    public int SpareTapeCount { get { int n = 0; foreach (var t in tapes) if (t.charges > 0 && t != Inserted) n++; return n; } }
+    public int SpentTapeCount { get { int n = 0; foreach (var t in tapes) if (t.IsSpent) n++; return n; } }
     /// <summary>카세트 릴이 회전한 각도. HUD에서 쓴다.</summary>
     public float ReelAngle { get; private set; }
 
@@ -105,15 +107,17 @@ public class Walkman : MonoBehaviour
             case Phase.Prompt: UpdatePrompt(); return;
             case Phase.Playback: UpdatePlayback(); return;
             case Phase.Recover: return;
+            case Phase.Choice: UpdateChoice(); return;
         }
         if (InventoryOpen) { UpdateInventory(); return; }
         if (health.IsDead || TapeShop.Current) return;
 
         // 컷신 중이거나 아직 되감기 능력을 모르는 구간(프롤로그 첫 회차)에는 조작을 받지 않는다. 녹화와 재생은 계속된다.
         bool locked = StoryState.InputLocked || StoryState.RewindLocked;
+        if (!locked && Inserted != null && Inserted.Genre != TapeGenre.None) Tutorial.Show("genre"); // 장르 테이프를 처음 끼우면 장르 능력 설명(한 번만)
         // 연출로 시간을 붙잡은 동안(1장 강제 되감기)에는 열지 않는다: 닫을 때 시간이 정상 속도로 풀려 버렸다
         if (!locked && !StoryState.HoldTime && inventoryAction.WasPressedThisFrame()) { OpenInventory(); return; }
-        if (!locked && rewindAction.WasPressedThisFrame()) { TryRewindNow(); return; }
+        if (!locked && rewindAction.WasPressedThisFrame()) { if (!TryOpenChoice()) TryRewindNow(); return; }
         if (!StoryState.InputLocked && healAction != null && healAction.WasPressedThisFrame()) UsePotion();
 
         float dt = Time.unscaledDeltaTime;
@@ -136,7 +140,7 @@ public class Walkman : MonoBehaviour
         if (tape.CompletedTracks > finishedBefore && tape.charges < CassetteTape.MaxCharges)
         {
             tape.charges++;
-            Announce($"♪ {tape.trackTitles[finishedBefore]} 끝 — 되감기 {tape.charges}회 충전");
+            Announce("+1 되감기");
         }
     }
 
@@ -151,7 +155,7 @@ public class Walkman : MonoBehaviour
         {
             bool swapped = Inserted != null;
             Inserted = tape;
-            if (swapped) Announce($"다 쓴 테이프를 빼고 「{tape.title}」을(를) 끼웠다 (되감기 {tape.charges}회)");
+            if (swapped) Announce($"▶ {tape.title}");
         }
     }
 
@@ -172,8 +176,13 @@ public class Walkman : MonoBehaviour
         var tape = tapes[index];
         if (tape == Inserted) return;
         Inserted = tape;
-        Announce(tape.CanPlay ? $"카세트 플레이어에 끼움: {tape.title} ▶ 재생"
-            : $"카세트 플레이어에 끼움: {tape.title} — 재생은 안 되고 R 되감기에 쓸 수 있다 ({tape.charges}회)");
+        Announce($"▶ {tape.title}");
+    }
+
+    /// <summary>불러온 저장에서: 알림 없이 그 번호의 테이프를 끼운다(없으면 비운다)</summary>
+    public void EquipIndex(int index)
+    {
+        Inserted = index >= 0 && index < tapes.Count ? tapes[index] : (tapes.Count > 0 ? tapes[0] : null);
     }
 
     void CycleInserted(int direction)
@@ -257,7 +266,7 @@ public class Walkman : MonoBehaviour
         potions--;
         nextPotionTime = Time.unscaledTime + 0.6f;
         ProceduralSfx.PlayAt(HitFeel.Clip("potion") ?? ProceduralSfx.ButtonClick, transform.position, 0.8f, 0f);
-        Announce($"회복약: 체력 +{gained}   (남은 회복약 {potions}개)");
+        Announce($"체력 +{gained}");
     }
 
     // ---------- 음악(이어폰) ----------
@@ -304,17 +313,62 @@ public class Walkman : MonoBehaviour
 
     // ---------- 되감기 ----------
 
+    // ---------- 장르 테이프: R → Q 되감기 / E 능력 ----------
+
+    TapeAbility ability;
+    float choiceUntil, choiceScale;
+    bool rewindByQ;
+
+    /// <summary>장르가 있는 테이프(횟수 남음)를 끼웠으면 고르기 창을 연다. 장르가 없으면 예전처럼 바로 되감는다</summary>
+    bool TryOpenChoice()
+    {
+        var tape = ManualRewindTape();
+        if (tape == null || tape.Genre == TapeGenre.None || StoryState.FreeRewind) return false; // 튜토리얼 연습 되감기는 그대로
+        if (TimeRewind.RecordedSeconds < 0.2f) return false;
+        if (!ability) ability = GetComponent<TapeAbility>() ?? gameObject.AddComponent<TapeAbility>();
+        if (TapeAbility.Current != TapeGenre.None) ability.EndNow(); // 켜진 능력 위에서 다시 고른다
+        phase = Phase.Choice;
+        choiceUntil = Time.unscaledTime + 4f;
+        choiceScale = Time.timeScale;
+        Time.timeScale = Mathf.Min(Time.timeScale, 0.15f); // 고르는 동안 세상이 거의 멈춘다
+        if (effect) effect.SetWeight(0.15f);
+        return true;
+    }
+
+    void UpdateChoice()
+    {
+        var kb = Keyboard.current;
+        bool q = kb != null && kb.qKey.wasPressedThisFrame, e = kb != null && kb.eKey.wasPressedThisFrame;
+        bool cancel = rewindAction.WasPressedThisFrame() || (kb != null && kb.escapeKey.wasPressedThisFrame) || Time.unscaledTime > choiceUntil || health.IsDead;
+        if (!q && !e && !cancel) return;
+        Choose(q ? 1 : e ? 2 : 0);
+    }
+
+    /// <summary>고르기 창을 닫는다: 1 = 되감기(Q), 2 = 능력(E), 0 = 취소. 열린 창이 없으면 장르 테이프로 연 뒤 바로 고른다(시험용)</summary>
+    public bool Choose(int pick)
+    {
+        if (phase != Phase.Choice && !TryOpenChoice()) return false;
+        phase = Phase.Playing;
+        Time.timeScale = choiceScale > 0.99f ? 1f : choiceScale;
+        if (effect) effect.SetWeight(0f);
+        if (pick == 1) { rewindByQ = true; TryRewindNow(); return true; }
+        if (pick != 2) return true;
+        var tape = ManualRewindTape();
+        if (tape == null) return false;
+        tape.charges--; // 횟수만 쓴다: 테이프는 계속 재생된다(되감기와 다른 점)
+        ability.Activate(tape.Genre);
+        return true;
+    }
+
     void TryRewindNow()
     {
         var tape = ManualRewindTape();
         if (tape == null)
         {
-            Announce(Inserted == null ? "카세트 플레이어에 테이프가 없다"
-                   : SpareTapeCount > 0 ? "끼운 테이프는 되감기 횟수가 없다 — I로 다른 테이프를 끼운다"
-                   : "되감을 수 있는 테이프가 없다");
+            Announce(SpareTapeCount > 0 ? "되감기 없음 — I" : "되감기 없음");
             return;
         }
-        if (TimeRewind.RecordedSeconds < 0.2f) { Announce("아직 되감을 시간이 없다"); return; }
+        if (TimeRewind.RecordedSeconds < 0.2f) return;
         TimeRewind.RecordNow();
         BeginPlayback(tape, false);
     }
@@ -435,7 +489,8 @@ public class Walkman : MonoBehaviour
     void UpdatePlayback()
     {
         // 누르고 있으면: 계속 거꾸로 재생한다. 떼면: 다음 5초 지점에서 멈춘다.
-        if (stopAt < 0f && !rewindAction.IsPressed())
+        bool holding = rewindAction.IsPressed() || (rewindByQ && Keyboard.current != null && Keyboard.current.qKey.isPressed);
+        if (stopAt < 0f && !holding)
             stopAt = Mathf.Min(MaxRewind, NotchesSoFar * secondsPerCharge);
 
         float dt = Time.unscaledDeltaTime;
@@ -450,6 +505,7 @@ public class Walkman : MonoBehaviour
     IEnumerator StopTape()
     {
         phase = Phase.Recover;
+        rewindByQ = false;
         var tape = RewindTape;
         int cost = Mathf.Clamp(Mathf.CeilToInt(stopAt / secondsPerCharge - 0.001f), 1, tape.charges);
         bool practice = StoryState.FreeRewind; // 튜토리얼 연습: 횟수를 쓰지 않고, 재생용 테이프도 그대로 둔다
@@ -468,9 +524,10 @@ public class Walkman : MonoBehaviour
         Time.timeScale = 1f;
         if (fromDeath) health.GrantInvulnerability(invulnerableAfterDeathRewind);
         phase = Phase.Playing;
+        if (!practice) PlayerController.MemoryStrikeUntil = Time.unscaledTime + 3f; // 기억의 일격: 3초 안의 첫 주먹은 세 배
 
         SwapOutSpent(); // 끼운 테이프를 다 썼으면 인벤토리에서 횟수가 남은 테이프를 꺼내 끼운다
-        Announce($"남은 횟수 : {CurrentCharges}번"); // 되감은 뒤에는 지금 테이프의 남은 횟수만 짧게 알린다(연습이면 줄지 않은 횟수)
+        // 남은 횟수는 왼쪽 아래 칸으로 보인다(알림 없음)
     }
 
     IEnumerator Fade(float duration, float to)

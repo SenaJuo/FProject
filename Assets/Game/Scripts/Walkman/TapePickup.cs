@@ -35,6 +35,18 @@ public class TapePickup : MonoBehaviour
         visual.localRotation = Quaternion.Euler(0f, Time.time * 90f, 0f);
     }
 
+    /// <summary>불러온 저장에서: 이미 주웠으면 테이프를 감추고, 남겨 둔 회복약 수를 맞춘다</summary>
+    public void RestoreState(bool taken, int potionsLeft)
+    {
+        tapeTaken = taken;
+        if (visual) visual.gameObject.SetActive(!taken);
+        if (taken)
+        {
+            potions = potionsLeft;
+            if (potions <= 0) gameObject.SetActive(false);
+        }
+    }
+
     void OnTriggerEnter(Collider other)
     {
         if (!other.TryGetComponent(out Walkman walkman)) return;

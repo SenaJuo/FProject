@@ -23,6 +23,16 @@ public class EnemyAI : MonoBehaviour, IRewindable
     public bool staggerable = true;
     public Color telegraphColor = new(1f, 0.3f, 0.1f);
 
+    [Header("처형기 (executeEvery = 0이면 없음) — 정예·보스: 예고 없이 빠른 큰 공격. 처음엔 못 보지만, 한 번 맞고 되감으면 레이가 기억해 보라색으로 예고된다")]
+    public int executeEvery;
+    public int executeDamage = 45;
+    public float executeWindup = 0.3f;
+    /// <summary>레이가 처형기를 맞아 본 적들(되감아도 지워지지 않는다 — 레이만 기억한다)</summary>
+    public static readonly System.Collections.Generic.HashSet<EnemyAI> KnownExecute = new();
+    /// <summary>처형기를 준비 중이고 레이가 그것을 기억한다(HUD가 보라색 예고를 그린다)</summary>
+    public bool ExecuteTelegraph => state == State.Windup && currentIsExecute && KnownExecute.Contains(this);
+    bool currentIsExecute;
+
     [Header("강타 (heavyEvery = 0이면 사용 안 함) — 붉게 오래 예고하는 센 주먹: 맞받아 치지 말고 피하라는 신호")]
     public int heavyEvery;
     public int heavyDamage = 20;
@@ -104,6 +114,24 @@ public class EnemyAI : MonoBehaviour, IRewindable
         Health.Damaged += OnDamaged;
         Health.Died += OnDied;
         TimeRewind.Register(this);
+        CullWhenOffscreen();
+    }
+
+    /// <summary>
+    /// 최적화(2026-10-13): 화면 밖 적은 뼈·피부 계산을 건너뛴다. 전에는 모든 적이 화면 밖에서도 매 프레임 피부를 다시 계산했다(updateWhenOffscreen).
+    /// 경계 상자는 엉덩이 뼈 기준 2.6m 정육면체로 넉넉히 잡아 화면 가장자리에서 굳어 보이지 않게 한다.
+    /// 애니메이터는 상태·이벤트(공격 타이밍)는 계속 돌고, 뼈를 옮기는 것만 멈춘다(CullUpdateTransforms) — 전투 판정은 그대로.
+    /// </summary>
+    void CullWhenOffscreen()
+    {
+        foreach (var smr in GetComponentsInChildren<SkinnedMeshRenderer>(true))
+        {
+            var b = smr.localBounds;
+            smr.localBounds = new Bounds(b.center, Vector3.one * Mathf.Max(2.6f, b.size.x, b.size.y, b.size.z));
+            smr.updateWhenOffscreen = false;
+        }
+        var anim = GetComponentInChildren<Animator>();
+        if (anim) anim.cullingMode = AnimatorCullingMode.CullUpdateTransforms;
     }
 
     void OnEnable() => All.Add(this);
@@ -221,8 +249,12 @@ public class EnemyAI : MonoBehaviour, IRewindable
         if (keyLightSource.enabled != on) keyLightSource.enabled = on;
     }
 
+    [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+    static void ClearKnown() => KnownExecute.Clear();
+
     void OnDestroy()
     {
+        KnownExecute.Remove(this);
         GameManager.PlayerRespawned -= ResetToSpawn;
         TimeRewind.Unregister(this);
     }
@@ -310,11 +342,16 @@ public class EnemyAI : MonoBehaviour, IRewindable
 
             case State.Windup:
                 timer += dt;
-                float duration = currentIsAoe ? aoeWindup : currentIsHeavy ? heavyWindup : windup;
+                float duration = WindupDuration;
                 float t = Mathf.Clamp01(timer / duration);
                 // 준비 동작 초반에는 플레이어를 따라가다가 방향을 확정한다. 그래야 늦은 회피가 통한다.
                 if (!currentIsAoe && t < 0.6f) Face(toPlayer, 360f);
-                if (tint) tint.SetTint(currentIsHeavy ? HeavyColor : telegraphColor, currentIsHeavy ? Mathf.Max(t, 0.5f + 0.5f * Mathf.Sin(timer * 18f)) : t);
+                if (currentIsExecute)
+                {
+                    // 처형기: 모르면 아무 빛도 없다(그냥 빠른 주먹처럼 보인다). 기억하면 보라색으로 번쩍인다
+                    if (tint) tint.SetTint(ExecuteColor, KnownExecute.Contains(this) ? 0.6f + 0.4f * Mathf.Sin(timer * 30f) : 0f);
+                }
+                else if (tint) tint.SetTint(currentIsHeavy ? HeavyColor : telegraphColor, currentIsHeavy ? Mathf.Max(t, 0.5f + 0.5f * Mathf.Sin(timer * 18f)) : t);
                 if (currentIsAoe) ShowIndicator(t);
                 if (!currentIsAoe && body && !punchStarted && timer >= duration - PunchImpactDelay)
                 {
@@ -344,7 +381,8 @@ public class EnemyAI : MonoBehaviour, IRewindable
         state = State.Windup;
         timer = 0f;
         currentIsAoe = aoe;
-        currentIsHeavy = !aoe && !ranged && heavyEvery > 0 && (attackCount + 1) % heavyEvery == 0;
+        currentIsExecute = !aoe && !ranged && executeEvery > 0 && (attackCount + 1) % executeEvery == 0;
+        currentIsHeavy = !currentIsExecute && !aoe && !ranged && heavyEvery > 0 && (attackCount + 1) % heavyEvery == 0;
         if (currentIsHeavy) Tutorial.Show("perfect"); // 처음 강타를 보면 완벽 회피를 알려 준다
         punchStarted = false;
         StopMoving();
@@ -373,7 +411,14 @@ public class EnemyAI : MonoBehaviour, IRewindable
             var pc = playerHealth.GetComponent<PlayerController>();
             if (inReach && pc && pc.IsDodging && pc.DodgeAge <= PerfectWindow) { Expose(); return; }
             if (foreseen && pc && pc.SinceDodge <= ForeseenWindow && distance <= attackRange + 3f) { Expose(); return; }
-            if (inReach) DamagePlayer(currentIsHeavy ? heavyDamage : damage);
+            if (inReach && currentIsExecute)
+            {
+                bool first = KnownExecute.Add(this); // 맞았다: 이제 레이는 이 공격을 안다
+                DamagePlayer(executeDamage);
+                HitFeel.Impact(HitFeel.Tier.Heavy, playerHealth.transform.position + Vector3.up * 1.4f, playerHealth.transform.position - transform.position, playerHealth.gameObject, false, false);
+                if (first && GameManager.Instance) GameManager.Instance.Notify("기억했다", 2f);
+            }
+            else if (inReach) DamagePlayer(currentIsHeavy ? heavyDamage : damage);
         }
 
         state = State.Recover;
@@ -392,13 +437,16 @@ public class EnemyAI : MonoBehaviour, IRewindable
     public void Foresee(int attacks, bool replace = false) => Foreseen = replace ? attacks : Mathf.Max(Foreseen, attacks);
     /// <summary>공격 준비 중이면 공격까지 남은 초, 아니면 -1</summary>
     public float WindupLeft => state == State.Windup ? WindupDuration - timer : -1f;
-    public float WindupDuration => ranged ? aimTime : currentIsAoe ? aoeWindup : currentIsHeavy ? heavyWindup : windup;
+    /// <summary>주먹을 준비·내지르거나 맞아 휘청이는 중(손에 든 자세를 잠깐 푼다)</summary>
+    public bool InAction => state is State.Windup or State.Recover or State.Stagger or State.Dead;
+    public float WindupDuration => ranged ? aimTime : currentIsAoe ? aoeWindup : currentIsExecute ? executeWindup : currentIsHeavy ? heavyWindup : windup;
 
     void DamagePlayer(int amount)
     {
         if (playerHealth.TakeDamage(amount, transform.position)) HitPlayer?.Invoke(this);
     }
     static readonly Color HeavyColor = new(1f, 0.05f, 0.02f);
+    static readonly Color ExecuteColor = new(0.75f, 0.2f, 1f);
     bool currentIsHeavy, exposed;
 
     /// <summary>완벽 회피에 당했다: 1.2초 동안 휘청이며 막지도 치지도 못한다(방패도 내려간다)</summary>

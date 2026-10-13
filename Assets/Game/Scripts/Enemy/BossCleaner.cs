@@ -1,4 +1,6 @@
+using System.Collections;
 using UnityEngine;
+using UnityEngine.AI;
 
 /// <summary>
 /// 정리반 반장(전직 형사, 레이의 옛 선배) — 3번 부두 앞 보스. EnemyAI와 함께 붙는다.
@@ -24,12 +26,18 @@ public class BossCleaner : MonoBehaviour, IRewindable
 
     EnemyAI ai;
     Health health;
-    float phase2Started;
+    NavMeshAgent agent;
+    float phase2Started, baseSpeed;
+    Coroutine toCover;
+    /// <summary>2단계로 넘어가는 중(외치고 엄폐물로 달려가는 동안 — 무적, 공격하지 않는다)</summary>
+    public bool Transitioning => toCover != null;
 
     void Awake()
     {
         ai = GetComponent<EnemyAI>();
         health = GetComponent<Health>();
+        agent = GetComponent<NavMeshAgent>();
+        baseSpeed = agent ? agent.speed : 0f;
         TimeRewind.Register(this);
     }
 
@@ -43,13 +51,15 @@ public class BossCleaner : MonoBehaviour, IRewindable
         int p = (int)state;
         // 테이프를 태우러 달리기 시작한 뒤(3단계)로는 되돌리지 않는다: 그 되감기 자체가 연출의 일부다
         if (Phase >= 3 || p == Phase) return;
+        CancelTransition();
         Phase = p;
         Apply(false);
+        if (Phase == 2 && !health.IsDead) ai.Activate(); // 되감아 돌아온 2단계: 달려가던 중이었어도 바로 싸운다
     }
 
     void Update()
     {
-        if (health.IsDead || Phase >= 3 || !ai.IsActive) return;
+        if (health.IsDead || Phase >= 3 || Transitioning || !ai.IsActive) return;
         float ratio = health.Current / (float)health.Max;
         if (Phase == 1 && ratio <= phase2At) { Phase = 2; phase2Started = Time.time; Apply(true); PhaseChanged?.Invoke(this, 2); }
         else if (Phase == 2)
@@ -66,22 +76,63 @@ public class BossCleaner : MonoBehaviour, IRewindable
     void Apply(bool fresh)
     {
         bool gun = Phase == 2;
+        if (gun && fresh) { toCover = StartCoroutine(RunToCover()); return; }
         ai.ranged = gun;
         ai.holdPosition = gun;
-        if (ai.aimIK && ai.aimIK.heldItem) ai.aimIK.heldItem.gameObject.SetActive(gun);
+        ShowGun(gun);
         if (!gun && ai.aimIK) ai.aimIK.aim = false;
-        if (gun && fresh)
-        {
-            if (coverPoint) ai.PlaceAt(coverPoint.position, coverPoint.rotation);
-            StoryState.Say("정리반 반장", "애들아! 나와!", 1.6f);
-            // 숨어 있던 부하: 꺼져 있던 동안은 체력이 아직 0(Awake 전)이라 '쓰러짐'으로 읽힌다 → 켜져 있지 않으면 먼저 켠다
-            foreach (var r in reinforcements)
-            {
-                if (!r) continue;
-                if (!r.gameObject.activeSelf) r.gameObject.SetActive(true);
-                if (!r.Health.IsDead) r.Activate();
-            }
-        }
         if (Phase >= 3) ai.Deactivate();
+    }
+
+    void ShowGun(bool on)
+    {
+        if (ai.aimIK && ai.aimIK.heldItem) ai.aimIK.heldItem.gameObject.SetActive(on);
+    }
+
+    /// <summary>
+    /// 2단계로 넘어가는 장면: 하던 주먹을 끊고 → 그 순간 외치며 부하를 부르고 → 총을 뽑아 → 엄폐물(드럼통 뒤)로 눈에 보이게 달려간 뒤 쏘기 시작한다.
+    /// 예전에는 엄폐물로 순간 이동했고, 싸우던 동작이 끝난 뒤에야 외침이 들려 어색했다.
+    /// </summary>
+    IEnumerator RunToCover()
+    {
+        ai.Deactivate();          // 하던 주먹·조준을 바로 끊는다
+        health.Invulnerable = true;
+        StoryState.Say("정리반 반장", "애들아! 나와!", 1.8f);
+        // 숨어 있던 부하: 꺼져 있던 동안은 체력이 아직 0(Awake 전)이라 '쓰러짐'으로 읽힌다 → 켜져 있지 않으면 먼저 켠다
+        foreach (var r in reinforcements)
+        {
+            if (!r) continue;
+            if (!r.gameObject.activeSelf) r.gameObject.SetActive(true);
+            if (!r.Health.IsDead) r.Activate();
+        }
+        yield return new WaitForSeconds(0.3f);
+        ShowGun(true);            // 허리에서 권총을 뽑는다
+        if (coverPoint && agent && agent.enabled && agent.isOnNavMesh)
+        {
+            Vector3 dest = NavMesh.SamplePosition(coverPoint.position, out var hit, 3f, NavMesh.AllAreas) ? hit.position : coverPoint.position;
+            agent.speed = Mathf.Max(baseSpeed, 6.5f); // 엄폐물까지는 전력으로 달린다
+            agent.isStopped = false;
+            agent.SetDestination(dest);
+            float until = Time.time + 3.5f;
+            while (Time.time < until && (agent.pathPending || agent.remainingDistance > 0.6f)) yield return null;
+            agent.speed = baseSpeed;
+        }
+        else if (coverPoint) ai.PlaceAt(coverPoint.position, coverPoint.rotation);
+        // 엄폐물에 붙어 레이를 보며 쏘기 시작한다
+        ai.ranged = true;
+        ai.holdPosition = true;
+        health.Invulnerable = false;
+        phase2Started = Time.time;
+        toCover = null;
+        if (!health.IsDead) ai.Activate();
+    }
+
+    void CancelTransition()
+    {
+        if (toCover == null) return;
+        StopCoroutine(toCover);
+        toCover = null;
+        health.Invulnerable = false;
+        if (agent) agent.speed = baseSpeed;
     }
 }

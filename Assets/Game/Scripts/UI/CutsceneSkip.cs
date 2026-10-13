@@ -52,7 +52,7 @@ public class CutsceneSkip : MonoBehaviour
     void OnGUI()
     {
         if (shown <= 0.01f) return;
-        float s = Screen.height / 1080f;
+        float s = UIText.Scale;
         GUI.depth = -20;
         // 배치(Layout) 단계는 그리는 순서(GUI.depth)만 정하고 바로 끝낸다 — 이 단계를 아예 끄면(useGUILayout=false) 순서가 무시되고 먼저 생긴 순으로 굳었다
         if (Event.current.type == EventType.Layout) return;
@@ -85,13 +85,14 @@ public class CutsceneSkip : MonoBehaviour
         }
         var key = keyStyle;
         key.normal.textColor = new Color(1f, 1f, 1f, shown);
-        GUI.Label(box, "Space", key);
+        UIText.Label(box, "Space", key);
         var label = labelStyle;
         label.normal.textColor = new Color(0f, 0f, 0f, 0.6f * shown);
         var lr = new Rect(box.x - 220 * s, centre.y - 18 * s, 200 * s, 36 * s);
-        GUI.Label(new Rect(lr.x + 2, lr.y + 2, lr.width, lr.height), "건너뛰기", label);
+        float o = UIText.ShadowOffset(label.fontSize);
+        UIText.ShadowOnly(new Rect(lr.x + o, lr.y + o, lr.width, lr.height), "건너뛰기", label);
         label.normal.textColor = new Color(0.92f, 0.9f, 0.85f, shown);
-        GUI.Label(lr, "건너뛰기", label);
+        UIText.Label(lr, "건너뛰기", label);
     }
 
     /// <summary>inner = 0이면 꽉 찬 원, 0~1이면 그만큼 속이 빈 고리</summary>

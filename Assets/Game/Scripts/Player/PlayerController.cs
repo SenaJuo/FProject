@@ -144,11 +144,15 @@ public class PlayerController : MonoBehaviour, IRewindable
 
     void OnDisable() => Time.timeScale = 1f;
 
+    /// <summary>레이 자신의 시간 배율: 세상(timeScale)이 느려져도 레이만 제 속도로 움직이게 곱한다(테이프 능력 「네온 러시」)</summary>
+    public static float SelfTime = 1f;
+
     void Update()
     {
         if (TimeRewind.PlayingBack || TapeShop.Current || (walkman && walkman.InventoryOpen)) return;
         if (!controller.enabled) return; // 래그돌·순간이동 중
-        float dt = Time.deltaTime;
+        if (counterGuard && !(state == State.Attack && counterStrike)) { counterGuard = false; if (state != State.Dodge) health.Invulnerable = false; }
+        float dt = Time.deltaTime * SelfTime; // 산데비스탄(네온 러시): 세상이 느려져도 레이는 제 속도
         bool locked = StoryState.InputLocked;
         Vector3 input = locked ? Vector3.zero : CameraRelative(moveAction.ReadValue<Vector2>());
         onSteepSlope = controller.isGrounded && Vector3.Angle(groundNormal, Vector3.up) > controller.slopeLimit;
@@ -276,7 +280,7 @@ public class PlayerController : MonoBehaviour, IRewindable
         }
 
         if (input.sqrMagnitude > 0.001f)
-            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(input), turnSpeed * Time.deltaTime);
+            transform.rotation = Quaternion.RotateTowards(transform.rotation, Quaternion.LookRotation(input), turnSpeed * Time.deltaTime * SelfTime);
 
         return input * (sprintAction.IsPressed() ? sprintSpeed : walkSpeed);
     }
@@ -379,6 +383,9 @@ public class PlayerController : MonoBehaviour, IRewindable
         Vector3 center = transform.position + Vector3.up + transform.forward * attackReach;
         int damage = Mathf.RoundToInt(attackPower * (counterStrike ? counterDamageMultiplier : step.damageMultiplier));
         var tier = comboIndex >= 2 ? HitFeel.Tier.Heavy : comboIndex == 1 ? HitFeel.Tier.Medium : HitFeel.Tier.Light;
+        // 기억의 일격: 되감은 직후 — 레이는 이미 본 미래를 안다. 첫 주먹은 세 배, 가장 무거운 타격감
+        bool memory = MemoryStrikeReady;
+        if (memory) { damage *= 3; tier = HitFeel.Tier.Heavy; }
         var struck = new System.Collections.Generic.HashSet<Health>();
 
         foreach (var hit in Physics.OverlapSphere(center, step.radius, ~0, QueryTriggerInteraction.Ignore))
@@ -394,7 +401,12 @@ public class PlayerController : MonoBehaviour, IRewindable
             HitFeel.Impact(tier, p, target.transform.position - transform.position, target.gameObject, false, finisher);
         }
         if (counterStrike && struck.Count > 0) CounterLanded?.Invoke();
+        if (memory && struck.Count > 0) MemoryStrikeUntil = 0f;
     }
+
+    /// <summary>되감기가 끝난 실제 시각 + 3초. 그 안에 처음 맞힌 주먹이 「기억의 일격」(세 배)</summary>
+    public static float MemoryStrikeUntil;
+    public static bool MemoryStrikeReady => Time.unscaledTime < MemoryStrikeUntil;
 
     // ---------- 회피 반격 ----------
 
@@ -414,6 +426,8 @@ public class PlayerController : MonoBehaviour, IRewindable
     EnemyAI counterTarget;
     float counterUntil;
     bool counterStrike;
+    /// <summary>반격 무적을 이 스크립트가 켰다(구르기·컷신의 무적과 섞이지 않게 끝날 때 이것만 푼다)</summary>
+    bool counterGuard;
 
     /// <summary>완벽 회피에 당한 적이 부른다: 잠깐 동안 공격 입력이 그 적에게 달려드는 반격이 된다</summary>
     public void OfferCounter(EnemyAI enemy)
@@ -433,6 +447,9 @@ public class PlayerController : MonoBehaviour, IRewindable
         if (state == State.Dodge) EndDodge();
         BeginAttack(combo.Length - 1, Vector3.zero);
         counterStrike = true;
+        // 반격하는 동안은 무적: 주변의 다른 적에게 맞아 돌려차기가 끊기지 않게(반격이 끝나면 푼다)
+        health.Invulnerable = true;
+        counterGuard = true;
         // 노린 적을 정확히 본다 — 주변의 다른 적이 아니라 빈틈 난 그 적에게
         lungeTarget = e.transform;
         if (to.sqrMagnitude > 0.001f) transform.rotation = Quaternion.LookRotation(to);
@@ -566,6 +583,7 @@ public class PlayerController : MonoBehaviour, IRewindable
     public void Shove(Vector3 source, float force = 6f)
     {
         if (state is State.Dead or State.Dodge or State.Busy) return;
+        if (state == State.Attack && counterStrike) return; // 반격 돌려차기는 밀쳐도 끊기지 않는다
         Vector3 away = transform.position - source;
         away.y = 0f;
         hurtPush = away.sqrMagnitude > 0.001f ? away.normalized * force : Vector3.zero;

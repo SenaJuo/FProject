@@ -34,6 +34,17 @@ public class GameManager : MonoBehaviour, IRewindable
         checkpointPosition = player.transform.position;
         checkpointRotation = player.transform.rotation;
         TimeRewind.Register(this);
+        // 계단 현상 줄이기(2026-10-13): SMAA는 멈춘 화면의 모서리만 다듬어서, 움직일 때 계단 끝·타일 줄이 여전히 반짝였다
+        // → TAA(앞 프레임과 섞어 깜빡임을 없앤다)
+        var cam = Camera.main;
+        if (cam && cam.TryGetComponent(out UnityEngine.Rendering.Universal.UniversalAdditionalCameraData data))
+        {
+            data.antialiasing = UnityEngine.Rendering.Universal.AntialiasingMode.TemporalAntiAliasing;
+            data.antialiasingQuality = UnityEngine.Rendering.Universal.AntialiasingQuality.High;
+            var taa = data.taaSettings;
+            taa.quality = UnityEngine.Rendering.Universal.TemporalAAQuality.High;
+            data.taaSettings = taa;
+        }
     }
 
     void OnDestroy() => TimeRewind.Unregister(this);
@@ -168,6 +179,9 @@ public class GameManager : MonoBehaviour, IRewindable
         pendingRespawn = null;
         RespawnPlayer();
     }
+
+    /// <summary>기다리지 않고 바로 저장 지점에서 다시 시작한다(화면이 어두운 동안 옮길 때)</summary>
+    public void RespawnNow() => RespawnPlayer();
 
     void RespawnPlayer()
     {

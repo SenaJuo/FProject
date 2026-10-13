@@ -44,11 +44,15 @@ public class Health : MonoBehaviour, IRewindable
         invulnerableUntil = 0f;
     }
 
+    /// <summary>받는 피해 배율(앰비언트 테이프 능력 「고요」가 잠시 낮춘다)</summary>
+    [System.NonSerialized] public float damageTakenScale = 1f;
+
     public bool TakeDamage(int amount, Vector3 source)
     {
         if (IsDead || Invulnerable || Time.time < invulnerableUntil || amount <= 0) return false;
         if (Blocks != null && Blocks(amount, source)) { Blocked?.Invoke(amount, source); return false; }
 
+        if (!Mathf.Approximately(damageTakenScale, 1f)) amount = Mathf.Max(1, Mathf.RoundToInt(amount * damageTakenScale)); // 테이프 능력(고요)
         Current = Mathf.Max(0, Current - amount);
         invulnerableUntil = Time.time + invulnerableAfterHit;
         Damaged?.Invoke(amount, source);

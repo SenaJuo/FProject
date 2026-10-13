@@ -23,6 +23,8 @@ public class Searchlight : MonoBehaviour, IRewindable
 
     /// <summary>시험용</summary>
     public float Suspicion { get; private set; }
+    [Tooltip("걸렸을 때 외치는 사람과 말(비우면 외치지 않는다 — 장면 감독이 따로 말할 때)")]
+    public string shoutSpeaker = "조직원", shoutLine = "탐조등에 걸렸다! 저기다!";
     public bool Alarmed => alarmUntil > Time.time;
     public Vector3 Aim => aim;
 
@@ -134,7 +136,7 @@ public class Searchlight : MonoBehaviour, IRewindable
             if (!sight || sight.Alerted || sight.Enemy.Health.IsDead) continue;
             if (Vector3.Distance(sight.transform.position, player.position) <= alertRadius) sight.Alert(false);
         }
-        StoryState.Say("조직원", "탐조등에 걸렸다! 저기다!", 1.8f);
+        if (!string.IsNullOrEmpty(shoutLine)) StoryState.Say(shoutSpeaker, shoutLine, 1.8f);
         Spotted?.Invoke(this);
     }
 

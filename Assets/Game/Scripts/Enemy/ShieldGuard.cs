@@ -46,6 +46,8 @@ public class ShieldGuard : MonoBehaviour, IRewindable
     const float Standoff = 0.2f;      // 손목에서 방패 가운데 면까지(손가락이 닿지 않는 거리)
     const float GripHeight = 0.52f;   // 방패 바닥에서 손잡이까지(0.9m 방패의 가운데보다 조금 위)
     const float OutwardYaw = -14f;    // 몸 정면에서 왼쪽 바깥으로 트는 각도
+    const float PosedStandoff = 0.12f, PosedGripHeight = 0.6f; // 쥔 자세(HoldPose): 팔뚝 앞 12cm, 팔뚝이 방패 바닥에서 60cm
+    bool posed;
 
     static AudioClip Clang => ProceduralSfx.Recorded("ShieldBlock") ?? HitFeel.Clip("impact_light") ?? ProceduralSfx.PlasticHit;
 
@@ -71,7 +73,9 @@ public class ShieldGuard : MonoBehaviour, IRewindable
         elbowHint = new GameObject("ShieldElbowHint").transform;
         elbowHint.SetParent(transform, false);
         elbowHint.localPosition = ElbowUp;
-        if (ik)
+        posed = GetComponent<HoldPose>();
+        if (ik && posed) ik.holdLeft = false; // 블렌더 자세(왼팔뚝이 가슴 앞을 가로지른다)가 방패를 받친다
+        else if (ik)
         {
             ik.leftGrip = guard;
             ik.leftElbowHint = elbowHint;
@@ -91,6 +95,7 @@ public class ShieldGuard : MonoBehaviour, IRewindable
     bool Blocks(int amount, Vector3 source)
     {
         if (Broken || Dropped || !shield) return false;
+        if (TapeAbility.Current == TapeGenre.Soul) return false; // 소울 테이프 능력 「그루브」: 방패째 뚫는다
         Vector3 to = source - transform.position;
         to.y = 0f;
         if (to.sqrMagnitude > 0.0001f && Vector3.Angle(transform.forward, to) > guardAngle) return false; // 옆·뒤
@@ -175,9 +180,11 @@ public class ShieldGuard : MonoBehaviour, IRewindable
     {
         // 애니메이션·IK가 끝난 뒤의 실제 왼손 자리 앞에 방패를 곧게 세운다
         if (Dropped || !shield || !hand) return;
-        var rot = transform.rotation * Quaternion.Euler(-4f * lowered, OutwardYaw - 55f * lowered, 18f * lowered + Mathf.Sin(Time.time * 60f) * 3f * shake);
+        var rot = transform.rotation * Quaternion.Euler(-4f * lowered, (posed ? 0f : OutwardYaw) - 55f * lowered, 18f * lowered + Mathf.Sin(Time.time * 60f) * 3f * shake);
         Vector3 forward = rot * Vector3.forward, up = rot * Vector3.up;
-        shield.SetPositionAndRotation(hand.position + forward * Standoff - up * GripHeight, rot);
+        // 쥔 자세: 방패는 왼팔뚝(팔꿈치~손목 가운데)에 끼워져 그 앞에 선다
+        Vector3 grip = posed && elbow ? Vector3.Lerp(elbow.position, hand.position, 0.5f) : hand.position;
+        shield.SetPositionAndRotation(grip + forward * (posed ? PosedStandoff : Standoff) - up * (posed ? PosedGripHeight : GripHeight), rot);
     }
 
     void Drop()
@@ -232,7 +239,7 @@ public class ShieldGuard : MonoBehaviour, IRewindable
         if (box) box.enabled = false;
         shield.SetParent(transform, true);
         Dropped = false;
-        if (ik) ik.holdLeft = true;
+        if (ik && !posed) ik.holdLeft = true;
     }
 
     struct Snapshot { public float broken; public bool dropped; }

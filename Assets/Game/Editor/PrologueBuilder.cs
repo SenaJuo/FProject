@@ -113,7 +113,7 @@ public static class PrologueBuilder
         rainAudio.transform.SetParent(systems.transform);
         rainAudio.spatialBlend = 0f;
         rainAudio.volume = 0.45f;
-        var rain = CreateRain(player.transform, M["RainStreak"]);
+        ParticleSystem rain = null; // 비 없음(2026-10-13)
 
         var muzzle = AddLight(systems.transform, "MuzzleFlash", Vector3.zero, LightType.Point, new Color(1f, 0.8f, 0.5f), 12f, 7f);
 
@@ -144,7 +144,7 @@ public static class PrologueBuilder
         director.roomThugs = roomThugs;
         director.dannyBody = dannyRagdoll;
         director.rewindEffect = rewind;
-        director.rainAudio = rainAudio;
+        // 비 없음(2026-10-13 사용자 요청): 빗소리를 연결하지 않는다
         director.rain = rain;
         director.muzzleFlash = muzzle;
 
@@ -664,17 +664,17 @@ public static class PrologueBuilder
         moon.name = "Moonlight";
         moon.transform.rotation = Quaternion.Euler(38f, -35f, 0f);
         moon.color = new Color(0.55f, 0.64f, 0.85f);
-        moon.intensity = 0.32f;
+        moon.intensity = 0.75f; // 너무 어둡다는 지적으로 올렸다(0.32 → 0.55 → 0.75, BrightnessPass)
         moon.shadows = LightShadows.Soft;
 
         RenderSettings.skybox = null;
         RenderSettings.sun = moon;
         RenderSettings.ambientMode = AmbientMode.Flat;
-        RenderSettings.ambientLight = new Color(0.16f, 0.17f, 0.23f); // 너무 어두워 적이 안 보였다(0.11 → 0.16)
+        RenderSettings.ambientLight = new Color(0.4f, 0.41f, 0.48f); // 너무 어둡다(0.11 → 0.16 → 0.3 → 0.4, BrightnessPass)
         RenderSettings.fog = true;
         RenderSettings.fogMode = FogMode.Exponential;
-        RenderSettings.fogDensity = 0.016f;
-        RenderSettings.fogColor = new Color(0.04f, 0.048f, 0.068f);
+        RenderSettings.fogDensity = 0.011f;
+        RenderSettings.fogColor = new Color(0.07f, 0.078f, 0.105f);
         RenderSettings.reflectionIntensity = 0.4f;
 
         string path = volumePath ?? $"{ArtRoot}/PrologueVolume.asset"; // 장면마다 따로 둔다(지우고 다시 만들기 때문)
@@ -687,12 +687,12 @@ public static class PrologueBuilder
         bloom.scatter.Override(0.72f);
         profile.Add<Tonemapping>(true).mode.Override(TonemappingMode.ACES);
         var color = profile.Add<ColorAdjustments>(true);
-        color.postExposure.Override(0.95f);
+        color.postExposure.Override(1.7f);
         color.contrast.Override(12f);
         color.saturation.Override(-12f);
         color.colorFilter.Override(new Color(0.88f, 0.94f, 1f));
         var vignette = profile.Add<Vignette>(true);
-        vignette.intensity.Override(0.32f);
+        vignette.intensity.Override(0.24f);
         vignette.smoothness.Override(0.5f);
         var grain = profile.Add<FilmGrain>(true);
         grain.type.Override(FilmGrainLookup.Thin1);
@@ -772,6 +772,25 @@ public static class PrologueBuilder
             EditorUtility.SetDirty(mat);
             AssetDatabase.SaveAssetIfDirty(mat);
         }
+        TrimSmallShadows(); // 모든 장면 빌더가 저장 직전에 여기를 지난다
+    }
+
+    /// <summary>
+    /// 최적화(2026-10-13): 대각선 0.8m보다 작은 물체(손전등·병·창틀 장식 등)는 그림자를 드리우지 않는다.
+    /// 밤 장면이라 거의 보이지 않는 그림자인데 1장에만 352개였다. 사람(스킨 메시)은 그대로 둔다.
+    /// </summary>
+    internal static int TrimSmallShadows()
+    {
+        int n = 0;
+        foreach (var r in Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.On || r.bounds.size.magnitude >= 0.8f) continue;
+            if (r.GetComponentInParent<Animator>()) continue; // 사람이 든 물건·사람 몸에 붙은 것은 그대로
+            r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            EditorUtility.SetDirty(r);
+            n++;
+        }
+        return n;
     }
 
     /// <summary>

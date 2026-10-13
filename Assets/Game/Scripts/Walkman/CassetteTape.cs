@@ -1,6 +1,9 @@
 using System;
 using UnityEngine;
 
+/// <summary>테이프 장르: 끼운 테이프의 장르가 R → E로 쓰는 능력을 정한다(장르 없는 테이프는 되감기만)</summary>
+public enum TapeGenre { None, Jazz, Soul, CityPop, Ambient }
+
 [Serializable]
 public class CassetteTape
 {
@@ -31,6 +34,18 @@ public class CassetteTape
     public bool CanPlay => playable && !rewound && position < Length;
     /// <summary>다 쓴 상태: 남은 되감기도 없고 더 얻을 방법도 없다. 테이프 상점에서 새 테이프로 바꿔 준다.</summary>
     public bool IsSpent => charges == 0 && (rewound || !playable);
+
+    /// <summary>곡 음원 이름으로 정해지는 장르(이미 지은 장면의 테이프에도 그대로 적용된다)</summary>
+    public TapeGenre Genre => GenreOf(musicId);
+
+    public static TapeGenre GenreOf(string musicId) => musicId switch
+    {
+        "rain_jazz" or "harbor_neon" => TapeGenre.Jazz,
+        "dock_soul" or "harbor_blues" or "alley_radio" => TapeGenre.Soul,
+        "citypop_1" or "late_radio" or "night_drive" => TapeGenre.CityPop,
+        "lighthouse" or "seven_hope" => TapeGenre.Ambient,
+        _ => TapeGenre.None,
+    };
 
     public CassetteTape CloneFresh() => new()
     {

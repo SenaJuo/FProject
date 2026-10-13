@@ -145,7 +145,8 @@ public class PatrolSight : MonoBehaviour, IRewindable
         {
             // 순찰 중에는 손전등을 앞으로 들고 비춘다. 싸울 때는 팔을 내리고 주먹을 쓴다
             ik.aimTarget = beamTarget;
-            ik.aim = patrolling;
+            // 쥔 자세(HoldPose)가 있으면 팔을 IK로 뻗지 않는다 — 블렌더 자세로 팔을 반쯤 내려 비춘다
+            ik.aim = patrolling && !GetComponent<HoldPose>();
         }
     }
 

@@ -112,9 +112,9 @@ public class TapeShop : MonoBehaviour
         item.traded = true;
         var fresh = item.tape.CloneFresh();
         fresh.playable = true;
-        fresh.charges = 0;
+        fresh.charges = CassetteTape.MaxCharges; // 저장 지점에서 받은 테이프는 처음부터 꽉 차 있다(2026-10-13 사용자 요청)
         walkman.AddTape(fresh);
-        Say($"교환: {spent.title} → {fresh.title}");
+        Say($"{fresh.title}");
         Traded?.Invoke(this, spent, fresh);
     }
 

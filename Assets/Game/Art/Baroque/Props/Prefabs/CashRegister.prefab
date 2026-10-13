@@ -40,6 +40,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 8442866084315174884}
     m_Modifications:
+    - target: {fileID: -8376637417679579094, guid: 8e9957349b9f0af44aaf621d58593b6c, type: 3}
+      propertyPath: 'm_Materials.Array.data[0]'
+      value: 
+      objectReference: {fileID: 2100000, guid: 5c5de11a4b404f247b2aa902cd69431e, type: 2}
     - target: {fileID: -775087538475059120, guid: 8e9957349b9f0af44aaf621d58593b6c, type: 3}
       propertyPath: m_LocalScale.x
       value: 0.50063646
@@ -92,6 +96,10 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 5643035917855207076, guid: 8e9957349b9f0af44aaf621d58593b6c, type: 3}
+      propertyPath: m_Mesh
+      value: 
+      objectReference: {fileID: 4300000, guid: 9fdcfe75f701a934197d091f7b7f5857, type: 2}
     - target: {fileID: 8688467083786147558, guid: 8e9957349b9f0af44aaf621d58593b6c, type: 3}
       propertyPath: m_Name
       value: Model

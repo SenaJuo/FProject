@@ -153,8 +153,67 @@ public class Chapter1Director : MonoBehaviour
         if (exitGunner) exitGunner.FirstAim = () => Tutorial.Show("aim");
         if (gate) { gateClosedPos = gate.position; gateClosedRot = gate.rotation; }
 
-        if (GameManager.Instance) GameManager.Instance.Save(zoneStart);
+        // 타이틀 '이어하기'로 왔으면 저장 지점부터, 아니면 처음부터
+        var resume = SaveGame.TakePending(gameObject.scene.name);
+        if (resume != null && resume.checkpoint != CpStart)
+        {
+            SaveGame.ApplyInventory(resume, walkman);
+            StartCoroutine(Resume(resume.checkpoint));
+            return;
+        }
+        if (resume != null) SaveGame.ApplyInventory(resume, walkman);
+        Checkpoint(zoneStart, CpStart);
         StartCoroutine(Run());
+    }
+
+    // ---------- 진행 저장 ----------
+
+    const string CpStart = "c1_start", CpShop1 = "c1_shop1", CpZone2 = "c1_zone2", CpShop2 = "c1_shop2", CpZone3 = "c1_zone3";
+
+    /// <summary>저장 지점: 쓰러지면 여기서 다시 시작하고(체력 회복), 파일에도 기록한다(타이틀 '이어하기')</summary>
+    void Checkpoint(Transform point, string id)
+    {
+        if (!point) return;
+        if (GameManager.Instance) GameManager.Instance.Save(point);
+        SaveGame.Write(id, walkman);
+    }
+
+    /// <summary>
+    /// 이어하기: 저장 지점으로 옮기고 지나온 구역의 적을 치운 뒤, 그 지점부터 진행을 잇는다.
+    /// (테이프·회복약·주운 자리·가게는 SaveGame.ApplyInventory가 이미 되돌렸다)
+    /// </summary>
+    IEnumerator Resume(string id)
+    {
+        Arm(endTrigger, false);
+        Arm(squareTrigger, false);
+        Arm(harborTrigger, false);
+        Arm(pierTrigger, false);
+        StoryState.Fade = 1f;
+        StoryState.ControlLocked = true;
+        spotter.CanDetect = false;
+        Transform at; float behindZ; IEnumerator next;
+        switch (id)
+        {
+            // 단계를 옮기기 전에 먼저 맞춘다: 가게 앞에 서자마자 가게 저장이 다시 일어나는데, 단계가 처음(Opening)이면 '1장 처음'으로 덮어썼다
+            case CpShop1: at = shopSave; behindZ = 70f; CurrentPhase = Phase.Avenue; next = FromAvenue(); break;
+            case CpZone2: at = zone2Start; behindZ = 128f; CurrentPhase = Phase.Avenue; next = FromCheckpointScene(); break;
+            case CpShop2: at = shop2Save; behindZ = 275f; CurrentPhase = Phase.Harbor; next = HarborFromGate(); break;
+            default: // CpZone3
+                at = zone3Start; behindZ = 300f; CurrentPhase = Phase.Docks; next = FromDocks();
+                if (gateLeaf) gateLeaf.position = gateOpenPos; // 철조망 문은 이미 열었다
+                if (gateUse) gateUse.gameObject.SetActive(false);
+                break;
+        }
+        // 지나온 구역의 적은 이미 처리했다(앞으로 갈 길만 남는다)
+        foreach (var e in UnityEngine.Object.FindObjectsByType<EnemyAI>(FindObjectsSortMode.None))
+            if (e.transform.position.z < behindZ) e.gameObject.SetActive(false);
+        if (at) player.Teleport(at.position, at.rotation);
+        gameplayRig.SnapBehindTarget();
+        if (GameManager.Instance && at) GameManager.Instance.Save(at); // 쓰러지면 여기서 다시
+        yield return Wait(0.4f);
+        yield return FadeTo(0f, 1.2f);
+        StoryState.ControlLocked = false;
+        yield return next;
     }
 
     void OnDestroy()
@@ -241,7 +300,12 @@ public class Chapter1Director : MonoBehaviour
 
         CurrentPhase = Phase.Park;
         yield return new WaitUntil(() => exitZone.IsCleared);
+        yield return FromAvenue();
+    }
 
+    /// <summary>큰길(가게 1) → 구역 2. 이어하기(가게 1)도 여기서 시작한다</summary>
+    IEnumerator FromAvenue()
+    {
         CurrentPhase = Phase.Avenue;
         yield return Wait(0.8f);
         StoryState.Say(Ray, "…하아. 놈들 차가 시내 쪽으로 빠졌어. 따라가 보자.", 3.2f);
@@ -250,11 +314,15 @@ public class Chapter1Director : MonoBehaviour
         Arm(endTrigger, true);
 
         yield return new WaitUntil(() => Reached(endTrigger));
+        yield return FromCheckpointScene();
+    }
 
-        // ---------- 구역 2: 시장 광장 ----------
+    /// <summary>구역 2: 검문소 엿보기 → 광장 → 저격수 → 심문 → 항구 길. 이어하기(구역 2)도 여기서 시작한다</summary>
+    IEnumerator FromCheckpointScene()
+    {
         yield return CheckpointScene();
         CurrentPhase = Phase.Checkpoint;
-        if (GameManager.Instance) GameManager.Instance.Save(zone2Start); // 구역 시작점 자동 저장
+        Checkpoint(zone2Start, CpZone2); // 구역 시작점 자동 저장
         StoryState.Objective = "검문소를 지나 시장 광장으로 들어간다";
         StoryState.Waypoint = checkpointLook;
         // 광장 입구는 검문소를 정리한 뒤에야 센다: 경찰을 남겨 둔 채 빠져나가면 저격수 구간까지 경찰이 따라와 끝없이 쓰러졌다
@@ -279,10 +347,14 @@ public class Chapter1Director : MonoBehaviour
         StoryState.Waypoint = harborEnd;
         yield return new WaitUntil(() => gateUsed || !gateUse);
         yield return OpenHarborGate();
+        yield return FromDocks();
+    }
 
-        // ---------- 구역 3: 3번 부두 ----------
+    /// <summary>구역 3: 3번 부두 → 반장 → 새벽. 이어하기(구역 3)도 여기서 시작한다</summary>
+    IEnumerator FromDocks()
+    {
         CurrentPhase = Phase.Docks;
-        if (GameManager.Instance && zone3Start) GameManager.Instance.Save(zone3Start); // 구역 시작점 자동 저장
+        if (zone3Start) Checkpoint(zone3Start, CpZone3); // 구역 시작점 자동 저장
         StoryState.Say(Ray, "3번 부두… 새벽 다섯 시 배. 그 전에 끝낸다.", 3.2f);
         StoryState.Objective = "3번 부두로 간다";
         StoryState.Waypoint = pier;
@@ -312,9 +384,10 @@ public class Chapter1Director : MonoBehaviour
         StoryState.Objective = null;
         StoryState.Waypoint = null;
         yield return FadeTo(1f, 1.4f);
-        StoryState.Say("", "(이어서 계속)", 30f);
-        yield return StoryState.Sleep(8f);
-        UnityEngine.SceneManagement.SceneManager.LoadScene(PauseMenu.TitleScene); // 지금 만든 데까지 끝: 타이틀로
+        yield return StoryState.Sleep(2f);
+        // 2장으로: 테이프·회복약을 그대로 들고 간다
+        SaveGame.CarryOver("Chapter2", "c2_start", walkman);
+        UnityEngine.SceneManagement.SceneManager.LoadScene("Chapter2");
     }
 
     // ---------- 구역 2 ----------
@@ -887,7 +960,7 @@ public class Chapter1Director : MonoBehaviour
 
     void OnShop2Approach()
     {
-        if (GameManager.Instance) GameManager.Instance.Save(shop2Save);
+        Checkpoint(shop2Save, CpShop2);
         if (!StoryState.LineVisible) StoryState.Say(Ray, "…부두 앞에 불 켜진 수리점이라. 여기도 그쪽 사람인가.", 3f);
     }
 
@@ -896,7 +969,7 @@ public class Chapter1Director : MonoBehaviour
     void OnShopApproach()
     {
         // 가게는 저장 지점이다(찾아가는 목표가 아니라, 길에 있으면 들른다)
-        if (GameManager.Instance) GameManager.Instance.Save(shopSave);
+        Checkpoint(shopSave, ShopId());
         Tutorial.Show("shop");
         if (!StoryState.LineVisible) StoryState.Say(Ray, "…이 새벽에 불 켜진 레코드 가게라.", 2.6f);
     }
@@ -905,22 +978,27 @@ public class Chapter1Director : MonoBehaviour
     {
         if (opened == shop2)
         {
-            if (GameManager.Instance) GameManager.Instance.Save(shop2Save);
+            Checkpoint(shop2Save, CpShop2);
             if (shop2Greeted) return;
             shop2Greeted = true;
             StoryState.Say("수리점 노인", "…그 카세트 플레이어. 어디서 났는지 알 것 같군. 정리반 반장을 만나러 가나? 그 사람도 예전엔 형사였지.", 5f);
             return;
         }
         if (opened != shop) return;
-        if (GameManager.Instance) GameManager.Instance.Save(shopSave);
+        Checkpoint(shopSave, ShopId());
         if (shopGreeted) return;
         shopGreeted = true;
         // 주인은 안쪽 방에 있다(목소리만 들린다)
         StoryState.Say("가게 주인 (안쪽에서)", "…이 시간에 손님이라. 둘러봐. 다 쓴 테이프가 있으면 바꿔 주지.", 4f);
     }
 
+    /// <summary>가게 1 저장 지점: 출구 싸움을 끝낸 뒤에만 '가게부터 이어하기'(싸움 전에 들렀으면 1장 처음부터)</summary>
+    string ShopId() => CurrentPhase >= Phase.Avenue ? CpShop1 : CpStart;
+
     void OnTraded(TapeShop at, CassetteTape given, CassetteTape received)
     {
+        // 바꾼 테이프도 바로 기록한다(가게에 들어설 때 저장한 뒤에 바꿨다)
+        SaveGame.Write(at == shop2 ? CpShop2 : ShopId(), walkman);
         if (at == shop2 && !shop2Traded)
         {
             shop2Traded = true;
