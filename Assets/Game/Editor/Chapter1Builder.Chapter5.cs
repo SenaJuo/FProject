@@ -11,7 +11,8 @@ using P = PrologueBuilder;
 /// 5장 「30주년」 + 종장 장면 — 한결 타워 지하. 메뉴: Game/Build Chapter 5.
 ///
 /// 배치(미터, y 0):
-///   지하 주차장: x -30~30, z 0~60, 천장 3.6. 남쪽 입구에서 시작. 서남쪽 구석에 7번(가게). 북쪽 벽 가운데 화물 엘리베이터.
+///   지하 주차장: x -18~18, z 0~40, 천장 3.6. 남쪽 입구에서 시작. 서남쪽 구석에 7번(가게). 북쪽 벽 가운데 화물 엘리베이터.
+///     (2026-10-14 "주차장이 쓸데없이 넓다" → 60×60에서 36×40으로 줄였다. 싸움 한 판 + 가게 + 엘리베이터만 있는 곳이다)
 ///   연구소(따로, x 300~360, z 0~40): 복도 z 16~24 · 북쪽 실험실 넷(문이 열려 있다) · 남쪽 장비실. 동쪽 끝 격벽.
 ///   마스터 테이프 홀(따로, x 400~440, z 0~40, 높이 8): 가운데 받침대의 거대한 릴 녹음기와 마스터 테이프 · 서북쪽 방송 콘솔
 ///     · 북쪽 벽 높이 4m의 유리 관람석(윗선 셋이 서 있다).
@@ -147,35 +148,35 @@ public static partial class Chapter1Builder
         g.SetParent(parent);
         var concrete = P.Lit("GarageConcrete", P.Tex("Concrete", 256, P.ConcretePixel), new Color(0.72f, 0.72f, 0.72f), 0.25f);
         var paint = P.Lit("GaragePaintGreen", null, new Color(0.25f, 0.45f, 0.35f), 0.4f);
-        const float x0 = -30f, x1 = 30f, z0 = 0f, z1 = 60f, h = 3.6f;
-        P.Box(g, "Floor", new Vector3(0f, -0.15f, 30f), new Vector3(x1 - x0, 0.3f, z1 - z0), paint, new Vector2(4f, 4f));
-        P.Box(g, "Ceiling", new Vector3(0f, h + 0.15f, 30f), new Vector3(x1 - x0, 0.3f, z1 - z0), concrete, new Vector2(4f, 4f));
-        P.Box(g, "Wall_W", new Vector3(x0, h / 2f, 30f), new Vector3(0.4f, h, z1 - z0), concrete, new Vector2(4f, 4f));
-        P.Box(g, "Wall_E", new Vector3(x1, h / 2f, 30f), new Vector3(0.4f, h, z1 - z0), concrete, new Vector2(4f, 4f));
+        const float x0 = -18f, x1 = 18f, z0 = 0f, z1 = 40f, h = 3.6f, cz = (z0 + z1) / 2f;
+        P.Box(g, "Floor", new Vector3(0f, -0.15f, cz), new Vector3(x1 - x0, 0.3f, z1 - z0), paint, new Vector2(4f, 4f));
+        P.Box(g, "Ceiling", new Vector3(0f, h + 0.15f, cz), new Vector3(x1 - x0, 0.3f, z1 - z0), concrete, new Vector2(4f, 4f));
+        P.Box(g, "Wall_W", new Vector3(x0, h / 2f, cz), new Vector3(0.4f, h, z1 - z0), concrete, new Vector2(4f, 4f));
+        P.Box(g, "Wall_E", new Vector3(x1, h / 2f, cz), new Vector3(0.4f, h, z1 - z0), concrete, new Vector2(4f, 4f));
         P.Box(g, "Wall_N", new Vector3(0f, h / 2f, z1), new Vector3(x1 - x0, h, 0.4f), concrete, new Vector2(4f, 4f));
-        P.Box(g, "Wall_S_W", new Vector3(-17f, h / 2f, z0), new Vector3(26f, h, 0.4f), concrete, new Vector2(4f, 4f));
-        P.Box(g, "Wall_S_E", new Vector3(17f, h / 2f, z0), new Vector3(26f, h, 0.4f), concrete, new Vector2(4f, 4f));
+        P.Box(g, "Wall_S_W", new Vector3(-11f, h / 2f, z0), new Vector3(14f, h, 0.4f), concrete, new Vector2(4f, 4f));
+        P.Box(g, "Wall_S_E", new Vector3(11f, h / 2f, z0), new Vector3(14f, h, 0.4f), concrete, new Vector2(4f, 4f));
         P.Box(g, "Wall_S_Gate", new Vector3(0f, h / 2f, z0 - 0.5f), new Vector3(8f, h, 0.4f), H["ShedDark"], Vector2.one); // 들어온 셔터(내려왔다)
-        // 기둥 · 주차선 · 차
-        foreach (float x in new[] { -18f, -6f, 6f, 18f })
-            foreach (float z in new[] { 14f, 28f, 42f })
+        // 기둥 · 주차선 · 차: 양옆 벽에 차 한 줄씩, 가운데는 싸움판(기둥 넷과 차 둘이 엄폐물)
+        foreach (float x in new[] { -9f, 9f })
+            foreach (float z in new[] { 13f, 27f })
                 P.Box(g, "Pillar", new Vector3(x, h / 2f, z), new Vector3(0.8f, h, 0.8f), concrete, new Vector2(2f, 2f));
         var rnd = new System.Random(5);
         string[] cars = { "Sedan", "Sedan", "PoliceCar", "BlackVan" };
-        foreach (float z in new[] { 8f, 20f, 34f, 48f })
-            foreach (float x in new[] { -27f, 27f })
+        foreach (float z in new[] { 9f, 19f, 29f })
+            foreach (float x in new[] { -15.5f, 15.5f })
                 if (rnd.NextDouble() < 0.8) TryProp(cars[rnd.Next(cars.Length)], g, new Vector3(x, 0f, z), x < 0 ? 90f : -90f);
-        foreach (var (x, z) in new[] { (-12f, 22f), (12f, 36f), (0f, 48f) }) TryProp("Sedan", g, new Vector3(x, 0f, z), rnd.Next(2) == 0 ? 0f : 180f);
+        foreach (var (x, z) in new[] { (-5f, 16f), (6f, 25f) }) TryProp("Sedan", g, new Vector3(x, 0f, z), rnd.Next(2) == 0 ? 0f : 180f);
         // 형광등
-        foreach (float x in new[] { -18f, 0f, 18f })
-            foreach (float z in new[] { 8f, 22f, 36f, 50f })
+        foreach (float x in new[] { -9f, 9f })
+            foreach (float z in new[] { 7f, 19f, 31f })
             {
                 P.Box(g, "FluorPanel", new Vector3(x, h - 0.03f, z), new Vector3(1.2f, 0.04f, 0.3f), P.Unlit("GarageFluor", new Color(0.95f, 1f, 0.95f) * 2.4f), Vector2.one, collider: false);
                 var l = P.AddLight(g, "Fluor", new Vector3(x, h - 0.3f, z), LightType.Point, new Color(0.88f, 0.95f, 0.9f), 7f, 13f);
                 l.shadows = LightShadows.None;
             }
         // 7번의 테이프(서남쪽 구석): 상자 위 테이프 · 작은 전등
-        Vector3 stash = new(-25f, 0f, 4f);
+        Vector3 stash = new(-14f, 0f, 4f);
         TryProp("CrateStack", g, stash + new Vector3(-1.5f, 0f, 0f), 0f);
         TryProp("CassetteShelf", g, stash + new Vector3(-2.8f, 0f, 2f), 90f);
         P.AddLight(g, "StashLamp", stash + new Vector3(0f, 2.4f, 0.5f), LightType.Point, new Color(1f, 0.8f, 0.55f), 3f, 7f);
@@ -196,16 +197,16 @@ public static partial class Chapter1Builder
         b.shop = shop;
         b.shopApproach = Trigger(triggers, "StashApproach", stash + new Vector3(2.5f, 1f, 1.5f), new Vector3(4f, 2f, 5f));
         b.shopSave = P.Marker(triggers, "StashSave", stash + new Vector3(2.2f, 0.05f, 1.2f), -90f);
-        TapeSpot(g, triggers, "GarageTape", new Vector3(26.8f, 0f, 56f), 2, 1, box: true);
+        TapeSpot(g, triggers, "GarageTape", new Vector3(16.2f, 0f, 37f), 2, 1, box: true);
 
         // 정리반 · 특수경비
-        var e1 = Cleaner(people, "Garage_A", new Vector3(-8f, 0.02f, 30f), 180f, false);
-        var e2 = Cleaner(people, "Garage_B", new Vector3(8f, 0.02f, 26f), 180f, false);
-        var e3 = Cleaner(people, "Garage_C", new Vector3(0f, 0.02f, 40f), 180f, false);
-        var e4 = Cleaner(people, "Garage_Gun", new Vector3(-14f, 0.02f, 46f), 160f, true);
-        var s1 = ShieldCop(people, "Garage_Shield", new Vector3(14f, 0.02f, 44f), 180f);
+        var e1 = Cleaner(people, "Garage_A", new Vector3(-6f, 0.02f, 21f), 180f, false);
+        var e2 = Cleaner(people, "Garage_B", new Vector3(5f, 0.02f, 18f), 180f, false);
+        var e3 = Cleaner(people, "Garage_C", new Vector3(0f, 0.02f, 28f), 180f, false);
+        var e4 = Cleaner(people, "Garage_Gun", new Vector3(-11f, 0.02f, 32f), 160f, true);
+        var s1 = ShieldCop(people, "Garage_Shield", new Vector3(11f, 0.02f, 30f), 180f);
         s1.displayName = "특수경비";
-        b.zoneGarage = Zone(triggers, "Zone_Garage", new Vector3(0f, 1.5f, 34f), new Vector3(56f, 3f, 36f), e1, e2, e3, e4, s1);
+        b.zoneGarage = Zone(triggers, "Zone_Garage", new Vector3(0f, 1.5f, 23f), new Vector3(32f, 3f, 26f), e1, e2, e3, e4, s1);
         // 화물 엘리베이터
         P.Box(g, "LiftDoor", new Vector3(0f, 1.3f, z1 - 0.25f), new Vector3(3f, 2.6f, 0.1f), H["Steel"], Vector2.one, collider: false);
         P.AddLight(g, "LiftLight", new Vector3(0f, 3f, z1 - 1f), LightType.Point, new Color(1f, 0.85f, 0.6f), 3f, 7f);
