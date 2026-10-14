@@ -59,6 +59,8 @@ public class BossCleaner : MonoBehaviour, IRewindable
 
     void Update()
     {
+        // 테이프 소각(3단계) 전에는 큰 한 방으로 쓰러지지 않는다: 25%에서 멈춰 소각 장면으로 넘어간다
+        health.floor = Phase < 3 ? Mathf.FloorToInt(health.Max * phase3At) : 0;
         if (health.IsDead || Phase >= 3 || Transitioning || !ai.IsActive) return;
         float ratio = health.Current / (float)health.Max;
         if (Phase == 1 && ratio <= phase2At) { Phase = 2; phase2Started = Time.time; Apply(true); PhaseChanged?.Invoke(this, 2); }

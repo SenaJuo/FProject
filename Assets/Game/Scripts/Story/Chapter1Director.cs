@@ -196,10 +196,10 @@ public class Chapter1Director : MonoBehaviour
         {
             // 단계를 옮기기 전에 먼저 맞춘다: 가게 앞에 서자마자 가게 저장이 다시 일어나는데, 단계가 처음(Opening)이면 '1장 처음'으로 덮어썼다
             case CpShop1: at = shopSave; behindZ = 70f; CurrentPhase = Phase.Avenue; next = FromAvenue(); break;
-            case CpZone2: at = zone2Start; behindZ = 128f; CurrentPhase = Phase.Avenue; next = FromCheckpointScene(); break;
-            case CpShop2: at = shop2Save; behindZ = 275f; CurrentPhase = Phase.Harbor; next = HarborFromGate(); break;
+            case CpZone2: at = zone2Start; behindZ = 98f; CurrentPhase = Phase.Avenue; next = FromCheckpointScene(); break;
+            case CpShop2: at = shop2Save; behindZ = 225f; CurrentPhase = Phase.Harbor; next = HarborFromGate(); break;
             default: // CpZone3
-                at = zone3Start; behindZ = 300f; CurrentPhase = Phase.Docks; next = FromDocks();
+                at = zone3Start; behindZ = 250f; CurrentPhase = Phase.Docks; next = FromDocks();
                 if (gateLeaf) gateLeaf.position = gateOpenPos; // 철조망 문은 이미 열었다
                 if (gateUse) gateUse.gameObject.SetActive(false);
                 break;
@@ -387,7 +387,7 @@ public class Chapter1Director : MonoBehaviour
         yield return StoryState.Sleep(2f);
         // 2장으로: 테이프·회복약을 그대로 들고 간다
         SaveGame.CarryOver("Chapter2", "c2_start", walkman);
-        UnityEngine.SceneManagement.SceneManager.LoadScene("Chapter2");
+        SceneLoader.Load("Chapter2");
     }
 
     // ---------- 구역 2 ----------

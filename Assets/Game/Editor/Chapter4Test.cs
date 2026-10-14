@@ -49,11 +49,11 @@ public static class Chapter4Test
                 if (Waited(1.5f)) { Note($"매복: {Line}, 적 {Alive(d.zoneAmbush)}명"); Shot("ambush"); KillAll(d.zoneAmbush); Next(); }
                 break;
             case 2:
-                if (d.zoneAmbush.IsCleared && Waited(1f)) { Note($"매복 정리: {Line}"); Tp(new Vector3(0f, 20.1f, 48f), 0f); Next(); }
+                if (d.zoneAmbush.IsCleared && Waited(1f)) { Note($"매복 정리: {Line}"); Tp(new Vector3(0f, 20.1f, 23f), 0f); Next(); }
                 else if (Waited(6f)) End("매복이 정리되지 않음");
                 break;
             case 3:
-                if (d.CurrentPhase == Chapter4Director.Phase.Gate && Waited(0.5f)) { Tp(new Vector3(0f, 20.1f, 66f), 0f); Next(); }
+                if (d.CurrentPhase == Chapter4Director.Phase.Gate && Waited(0.5f)) { Tp(new Vector3(0f, 20.1f, 38f), 0f); Next(); }
                 else if (Waited(8f)) End("정문에 닿지 않음");
                 break;
             case 4:
@@ -76,7 +76,7 @@ public static class Chapter4Test
                 {
                     Note($"1분 되감기 뒤: 위치 ({p.transform.position.x:0},{p.transform.position.y:0},{p.transform.position.z:0}), 앎 {d.KnowsSniper}, 목표 '{StoryState.Objective}', 파트너 {d.partner.Health.Current}/{d.partner.Health.Max}");
                     Shot("after_rewind");
-                    Tp(new Vector3(22f, 20.1f, 79f), 0f); // 계단 아래(저격수 구역)
+                    Tp(new Vector3(16f, 20.1f, 38.5f), 0f); // 계단 아래(저격수 구역)
                     Next();
                 }
                 else if (Waited(40f)) End($"1분 되감기 뒤 저격수 단계로 넘어가지 않음({d.CurrentPhase})");

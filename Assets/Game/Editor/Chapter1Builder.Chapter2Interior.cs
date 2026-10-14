@@ -11,6 +11,7 @@ using P = PrologueBuilder;
 ///   · 계단실 x 334~340(계단 z 8→16, 2층 4.2m) · 북쪽 z 18~30은 유치장(막힘).
 /// 2층(바닥 4.2): 복도 z 16~20(x 300~340) · 북: 강력반 x 300~326(문 x 304·314) · 증거물 보관실 x 326~340(비밀번호 문 x 333)
 ///   · 남: 기록실 x 300~318(잠긴 문 x 309) · 휴게실 x 318~334(문 x 326, 증거물 담당이 기다린다) · 계단 구멍 x 334~340, z 8~16.
+///     기록실·휴게실은 z 6~16(그 남쪽 z 0~6은 벽 너머 창고): 2026-10-14 "빈 바닥이 많다"로 깊이 16m를 10m로 줄였다.
 /// </summary>
 public static partial class Chapter1Builder
 {
@@ -95,6 +96,7 @@ public static partial class Chapter1Builder
         WallZ(g, S, 326f, 20f, IZ1, y);                                           // 강력반 | 보관실
         WallZ(g, S, 318f, IZ0, 16f, y);                                           // 기록실 | 휴게실
         WallZ(g, S, 334f, IZ0, 8f, y);                                            // 휴게실 | 계단 위
+        WallX(g, S, 6f, IX0, 334f, y);                                            // 기록실·휴게실 뒤 창고(막힘)
 
         // ---------- 계단(1층 z 8 → 2층 z 16, 동쪽 x 334~340) ----------
         Stairs(g, S, new Vector3(337f, 0f, 8f), 6f, 8f, F2);
@@ -161,15 +163,15 @@ public static partial class Chapter1Builder
         b.dannyBox = P.Interactable(g, "DannyCaseBox", new Vector3(337.6f, F2 + 1f, 22f), new Vector3(1.4f, 2f, 1.4f), "대니 사건 상자를 연다");
         b.evidenceInside = P.Marker(triggers, "EvidenceInside", new Vector3(333f, F2 + 0.05f, 21.6f), 0f);
         // 휴게실: 소파 · 자판기 · 탁자(증거물 담당이 있다)
-        TryProp("Sofa", g, new Vector3(322f, F2, 8f), 0f);
-        TryProp("VendingMachine", g, new Vector3(332.6f, F2, 4f), -90f);
+        TryProp("Sofa", g, new Vector3(322f, F2, 7.4f), 0f);
+        TryProp("VendingMachine", g, new Vector3(333.2f, F2, 7.4f), -90f);
         // 기록실: 캐비닛 줄 · 조회 단말
-        for (int i = 0; i < 5; i++) TryProp("FilingCabinet", g, new Vector3(301.3f, F2, 3f + i * 1.4f), 90f);
-        for (int i = 0; i < 5; i++) TryProp("FilingCabinet", g, new Vector3(316.7f, F2, 3f + i * 1.4f), -90f);
-        TryProp("OfficeDesk", g, new Vector3(309f, F2, 4f), 0f);
-        TryProp("DeskComputer", g, new Vector3(309f, F2 + 0.76f, 3.9f), 0f);
-        TryProp("OfficeChair", g, new Vector3(309f, F2, 5.4f), 180f);
-        b.terminalUse = P.Interactable(g, "RecordsTerminal", new Vector3(309f, F2 + 1f, 5.6f), new Vector3(1.6f, 2f, 1.4f), "차량 임대 기록을 찾는다");
+        for (int i = 0; i < 5; i++) TryProp("FilingCabinet", g, new Vector3(301.3f, F2, 7.2f + i * 1.4f), 90f);
+        for (int i = 0; i < 5; i++) TryProp("FilingCabinet", g, new Vector3(316.7f, F2, 7.2f + i * 1.4f), -90f);
+        TryProp("OfficeDesk", g, new Vector3(309f, F2, 7.4f), 0f);
+        TryProp("DeskComputer", g, new Vector3(309f, F2 + 0.76f, 7.3f), 0f);
+        TryProp("OfficeChair", g, new Vector3(309f, F2, 8.8f), 180f);
+        b.terminalUse = P.Interactable(g, "RecordsTerminal", new Vector3(309f, F2 + 1f, 9f), new Vector3(1.6f, 2f, 1.4f), "차량 임대 기록을 찾는다");
         b.recordsInside = P.Marker(triggers, "RecordsInside", new Vector3(309f, F2 + 0.05f, 14.5f), 180f);
         b.recordsDoorUse = P.Interactable(g, "RecordsDoorUse", new Vector3(309f, F2 + 1f, 17.2f), new Vector3(1.8f, 2f, 1.2f), "기록실 문을 연다");
         b.keypadUse = P.Interactable(g, "KeypadUse", new Vector3(333f, F2 + 1f, 18.9f), new Vector3(2f, 2f, 1.4f), "비밀번호를 누른다");

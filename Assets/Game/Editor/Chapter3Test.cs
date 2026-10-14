@@ -52,7 +52,7 @@ public static class Chapter3Test
                     Note($"시작: 목표 '{StoryState.Objective}', 길잡이 {(StoryState.Waypoint ? StoryState.Waypoint.name : "-")}");
                     Shot("street");
                     if (w.Inserted != null) w.Inserted.charges = 3;
-                    Tp(new Vector3(50f, 0.05f, -34f), 0f);
+                    Tp(new Vector3(46f, 0.05f, -34f), 0f);
                     Next();
                 }
                 else if (Waited(15f)) End("거리 단계로 넘어가지 않음");
@@ -80,7 +80,7 @@ public static class Chapter3Test
                 if (!d.Caught && !w.Rewinding && Waited(1f))
                 {
                     Note($"되감은 뒤: 경계 {Find("Guard_West").Alerted}(기대 False)");
-                    Tp(new Vector3(31.8f, 0.05f, 44f), -90f);
+                    Tp(new Vector3(31.8f, 0.05f, 34f), -90f);
                     Fire(d.serviceDoor);
                     Next();
                 }
@@ -159,7 +159,7 @@ public static class Chapter3Test
                 if (Waited(1.5f)) { Note($"옥상 싸움: {Line}, 적 {Alive(d.zoneRoof)}명"); Shot("roof"); KillAll(d.zoneRoof); Next(); }
                 break;
             case 14:
-                if (d.zoneRoof.IsCleared && Waited(1f)) { Tp(new Vector3(336f, 0.05f, 136f), 0f); Next(); }
+                if (d.zoneRoof.IsCleared && Waited(1f)) { Tp(new Vector3(332f, 0.05f, 130f), 0f); Next(); }
                 else if (Waited(6f)) End("옥상이 정리되지 않음");
                 break;
             case 15:

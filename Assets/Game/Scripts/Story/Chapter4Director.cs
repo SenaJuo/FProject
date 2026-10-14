@@ -205,12 +205,19 @@ public class Chapter4Director : MonoBehaviour
         inYardFight = true;
         CurrentPhase = afterHunt ? Phase.Duel2 : Phase.Duel1;
         StoryState.Objective = "옛 파트너를 쓰러뜨린다";
-        if (partner) { partner.GetComponent<Health>().Invulnerable = false; partner.Activate(); }
+        if (partner)
+        {
+            var ph = partner.GetComponent<Health>();
+            ph.Invulnerable = false;
+            ph.floor = Mathf.FloorToInt(ph.Max * (CurrentPhase == Phase.Duel1 ? 0.6f : 0.4f)); // 저격(60%)·자백(40%) 장면을 한 방이 건너뛰지 않게
+            partner.Activate();
+        }
         if (CurrentPhase == Phase.Duel1)
         {
             yield return new WaitUntil(() => partnerAt60);
             if (sniper && !sniper.Health.IsDead) { yield return SniperShot(); yield break; }
             CurrentPhase = Phase.Duel2; // 저격수를 미리 없앴다(되감기 없이): 그대로 이어서 싸운다
+            if (partner) { var ph = partner.GetComponent<Health>(); ph.floor = Mathf.FloorToInt(ph.Max * 0.4f); }
         }
         yield return new WaitUntil(() => partnerAt40);
         yield return Confess();
@@ -221,7 +228,7 @@ public class Chapter4Director : MonoBehaviour
         if (!partner) return;
         var h = partner.GetComponent<Health>();
         if (CurrentPhase == Phase.Duel1 && !partnerAt60 && h.Current <= h.Max * 0.6f) partnerAt60 = true;
-        if (CurrentPhase == Phase.Duel2 && !partnerAt40 && h.Current <= h.Max * 0.4f) { partnerAt40 = true; h.Invulnerable = true; partner.Deactivate(); }
+        if (CurrentPhase == Phase.Duel2 && !partnerAt40 && h.Current <= h.Max * 0.4f) { partnerAt40 = true; h.floor = 0; h.Invulnerable = true; partner.Deactivate(); } // 자백 뒤 입막음으로 쓰러질 수 있게 바닥을 푼다
     }
 
     /// <summary>송신탑 발판의 저격수 — 레이가 쓰러진다. 분노가 테이프를 1분 가까이 감는다</summary>
@@ -371,7 +378,7 @@ public class Chapter4Director : MonoBehaviour
         hp.Invulnerable = false;
         // 5장으로: 테이프·회복약을 그대로 들고 간다
         SaveGame.CarryOver("Chapter5", "c5_start", walkman);
-        UnityEngine.SceneManagement.SceneManager.LoadScene("Chapter5");
+        SceneLoader.Load("Chapter5");
     }
 
     /// <summary>송신소에서 쓰러져 저장 지점(정문)부터 다시: 결투도 처음부터(레이가 아는 것은 그대로)</summary>

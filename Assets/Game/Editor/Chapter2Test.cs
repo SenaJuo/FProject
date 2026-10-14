@@ -99,7 +99,7 @@ public static class Chapter2Test
                 {
                     Note($"붙잡힘 → 다시: 위치 ({p.transform.position.x:0},{p.transform.position.z:0}), 순찰 경계 {Find("Cop_Cross").Alerted}(기대 False)");
                     // ⑤ 승합차
-                    Tp(new Vector3(115f, 0.05f, 88f), 90f);
+                    Tp(new Vector3(79f, 0.05f, 88f), 90f);
                     Fire(d.vanUse);
                     Next();
                 }
@@ -144,37 +144,47 @@ public static class Chapter2Test
                 else if (Waited(8f)) End("2층 단계로 넘어가지 않음");
                 break;
             case 10:
+                // 비밀번호 패널(2026-10-13): 담당이 누르는 번호를 보고(자막), 패널에 직접 넣는다. 먼저 틀린 번호
                 if (d.CodeKnown && d.clerk.Current == EvidenceClerk.State.Inside && Waited(0.3f))
                 {
                     Note($"엿봄: 비밀번호 앎 {d.CodeKnown}, 담당 {d.clerk.Current}, 목표 '{StoryState.Objective}'");
                     Shot("clerk_inside");
-                    Use(d.keypadUse); Fire(d.keypadUse);
-                    Note($"   담당이 안에 있을 때 단말: 자막 [{StoryState.Speaker}] {StoryState.Line}(기대: 되감아야 해)");
-                    Note($"   되감기 {w.RewindSteps(3)}");
+                    Fire(d.keypadUse);
+                    Note($"   패널 열림 {KeypadPanel.IsOpen}(기대 True)");
+                    KeypadPanel.Type("1111");
                     Next();
                 }
                 else if (Waited(30f)) End($"담당이 번호를 누르고 들어가지 않음(상태 {d.clerk.Current}, 앎 {d.CodeKnown})");
                 break;
             case 11:
-                if (!w.Rewinding && Waited(1.5f))
+                if (Waited(0.6f))
                 {
-                    Note($"되감은 뒤: 담당 {d.clerk.Current}(기대 Waiting/ToKeypad), 비밀번호 앎 {d.CodeKnown}(기대 True — 레이만 기억)");
-                    Fire(d.keypadUse);
+                    Note($"   틀린 번호 1111: 패널 열림 {KeypadPanel.IsOpen}(기대 True), 단계 {d.CurrentPhase}(기대 Floor2)");
+                    KeypadPanel.Type("0417");
+                    Note($"   맞는 번호 0417: 패널 닫힘 {!KeypadPanel.IsOpen}(기대 True)");
                     Next();
                 }
                 break;
             case 12:
-                if (d.CurrentPhase == Chapter2Director.Phase.EvidenceRoom && Waited(1f)) { Note($"보관실 안: 위치 z {p.transform.position.z:0.0}, 목표 '{StoryState.Objective}'"); Shot("evidence"); Next(); }
-                else if (Waited(6f)) End("보관실에 들어가지 못함");
+                // 안에 담당이 있다: 3초 안에 제압하지 않으면 돌아서서 덤빈다
+                if (d.CurrentPhase == Chapter2Director.Phase.EvidenceRoom && Waited(4.5f)) // 페이드 0.5초 + 담당이 돌아서기까지 3초
+                {
+                    var ai = d.clerk.GetComponent<EnemyAI>();
+                    Note($"보관실 안: 목표 '{StoryState.Objective}'(기대 증거물 담당을 쓰러뜨린다), 담당 덤빔 {ai.IsActive}(기대 True), 자막 [{StoryState.Speaker}] {StoryState.Line}");
+                    Shot("evidence");
+                    ai.Health.TakeDamage(999, ai.transform.position + ai.transform.forward);
+                    Next();
+                }
+                else if (Waited(10f)) End($"보관실에 들어가지 못함(단계 {d.CurrentPhase})");
                 break;
             case 13:
-                if (d.clerk.Current is EvidenceClerk.State.Leaving or EvidenceClerk.State.Gone && Waited(0.5f))
+                if (StoryState.Objective == "대니 사건 기록을 찾는다" && Waited(0.5f))
                 {
-                    Note($"담당이 못 열고 돌아감: {d.clerk.Current}, 자막 [{StoryState.Speaker}] {StoryState.Line}");
+                    Note($"담당을 쓰러뜨림: 목표 '{StoryState.Objective}'");
                     Fire(d.dannyBox);
                     Next();
                 }
-                else if (Waited(25f)) End($"담당이 돌아가지 않음({d.clerk.Current})");
+                else if (Waited(10f)) End($"담당을 쓰러뜨린 뒤 목표가 바뀌지 않음('{StoryState.Objective}')");
                 break;
             case 14:
                 if (d.CurrentPhase == Chapter2Director.Phase.Records && Waited(1f))
@@ -221,7 +231,7 @@ public static class Chapter2Test
             case 19:
                 if (Waited(1.5f))
                 {
-                    Note($"1층 복도: 단계 {d.CurrentPhase}(기대 Downstairs), 적 {Alive(d.zoneDownstairs)}명, 길잡이 {(StoryState.Waypoint ? StoryState.Waypoint.name : "-")}");
+                    Note($"1층 복도: 단계 {d.CurrentPhase}(기대 Alarm 또는 Downstairs — 경보 장면 뒤 바뀐다), 적 {Alive(d.zoneDownstairs)}명, 길잡이 {(StoryState.Waypoint ? StoryState.Waypoint.name : "-")}");
                     Fire(d.backDoorOut);
                     Note($"   싸우는 중 뒷문: 자막 [{StoryState.Speaker}] {StoryState.Line}");
                     KillAll(d.zoneDownstairs);
@@ -235,7 +245,7 @@ public static class Chapter2Test
             case 21:
                 if (d.CurrentPhase == Chapter2Director.Phase.Outside && !StoryState.ControlLocked && Waited(1.5f))
                 {
-                    Note($"밖: 위치 ({p.transform.position.x:0},{p.transform.position.z:0}), 비 {RainOn()}(기대 True), 목표 '{StoryState.Objective}', 저장 {SaveGame.Read()?.checkpoint ?? "-"}");
+                    Note($"밖: 위치 ({p.transform.position.x:0},{p.transform.position.z:0}), 비 {RainOn()}(기대 False — 10-13 비 없앰), 목표 '{StoryState.Objective}', 저장 {SaveGame.Read()?.checkpoint ?? "-"}");
                     Shot("outside");
                     // ③ 사람 문을 지나 보관소 북쪽으로
                     Tp(new Vector3(70f, 0.05f, 97.5f), 180f);

@@ -118,7 +118,7 @@ public class PatrolSight : MonoBehaviour, IRewindable
         Suspicion = s.suspicion;
         Alerted = s.alerted;
         if (!Alerted) BeginPatrol();
-        else if (flashlight) flashlight.enabled = true; // 쓰러진 뒤에서 살아 있던 때로 감기면 다시 켠다(아직 쓰러져 있으면 Update가 끈다)
+        else SetLight(true); // 쓰러진 뒤에서 살아 있던 때로 감기면 다시 켠다(아직 쓰러져 있으면 Update가 끈다)
     }
 
     void ResetPatrol()
@@ -138,9 +138,19 @@ public class PatrolSight : MonoBehaviour, IRewindable
         SetBeam(true);
     }
 
+    /// <summary>손전등 빛과 빛줄기 모양을 함께 켜고 끈다(2026-10-14: 쓰러진 뒤에도 빛줄기 모양이 남아 아직 비추는 것처럼 보였다)</summary>
+    void SetLight(bool on)
+    {
+        if (!flashlight) return;
+        flashlight.enabled = on;
+        if (!beamCone && flashlight.transform.parent) { var c = flashlight.transform.parent.Find("BeamCone"); if (c) beamCone = c.GetComponent<Renderer>(); }
+        if (beamCone) beamCone.enabled = on;
+    }
+    Renderer beamCone;
+
     void SetBeam(bool patrolling)
     {
-        if (flashlight) flashlight.enabled = !Enemy.Health.IsDead;
+        SetLight(!Enemy.Health.IsDead);
         if (ik && beamTarget)
         {
             // 순찰 중에는 손전등을 앞으로 들고 비춘다. 싸울 때는 팔을 내리고 주먹을 쓴다
@@ -152,7 +162,7 @@ public class PatrolSight : MonoBehaviour, IRewindable
 
     void Update()
     {
-        if (Enemy.Health.IsDead) { if (flashlight && flashlight.enabled) flashlight.enabled = false; return; }
+        if (Enemy.Health.IsDead) { if (flashlight && flashlight.enabled) SetLight(false); return; }
         if (Alerted || Enemy.IsActive)
         {
             if (!Alerted) Alert(false); // 전투 구역 등 다른 이유로 깨어났다
@@ -162,7 +172,8 @@ public class PatrolSight : MonoBehaviour, IRewindable
         if (Holding) { if (!agent.isStopped) { agent.isStopped = true; agent.ResetPath(); } return; }
 
         float distance = 0f;
-        bool seen = CanDetect && SeesPlayer(out distance);
+        // 조작이 잠긴 동안(문을 여는 장면 · 컷신)은 알아채지 않는다: 레이가 피할 수 없는 순간에 들키는 일이 없게(2026-10-14 경찰서 뒷문)
+        bool seen = CanDetect && !StoryState.ControlLocked && SeesPlayer(out distance);
         if (seen)
         {
             // 가까울수록 빨리 알아챈다: 1.6m 0.45초, 11m 1.6초

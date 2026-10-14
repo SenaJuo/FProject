@@ -10,6 +10,12 @@ public class Ragdoll : MonoBehaviour
 {
     public bool IsActive { get; private set; }
 
+    // 가라앉기(2026-10-14 "죽으면 목이나 몸이 계속 달랑달랑 움직인다"): 쓰러진 몸이 멈춘 뒤에도 물리가 계속 돌며
+    // 관절이 떨리고, 손에 쥔 물건 · 지나가는 레이가 몸을 건드렸다 → 거의 멈추면(또는 늦어도 5초 뒤) 그 자세로 굳히고 충돌도 끈다
+    const float SettleMinTime = 1.2f, SettleMaxTime = 5f, SettleSpeed = 0.3f, SettleHold = 0.4f;
+    float activatedAt, calmSince = -1f;
+    bool settled;
+
     readonly List<Object> created = new();
     readonly List<Rigidbody> bodies = new();
     Animator animator;
@@ -56,8 +62,11 @@ public class Ragdoll : MonoBehaviour
             if (!t || t.GetComponent<Rigidbody>()) continue;
             var rb = t.gameObject.AddComponent<Rigidbody>();
             rb.mass = part.mass;
-            rb.linearDamping = 0.05f;
-            rb.angularDamping = 0.8f;
+            rb.linearDamping = 0.2f;
+            rb.angularDamping = 2.5f;      // 목·팔이 흔들거리지 않게(전에는 0.8)
+            rb.solverIterations = 12;      // 관절이 덜 떨리게
+            rb.solverVelocityIterations = 4;
+            rb.sleepThreshold = 0.1f;
             rb.interpolation = RigidbodyInterpolation.Interpolate;
             rb.collisionDetectionMode = CollisionDetectionMode.ContinuousSpeculative;
             created.Add(rb);
@@ -74,6 +83,7 @@ public class Ragdoll : MonoBehaviour
                 var joint = t.gameObject.AddComponent<CharacterJoint>();
                 joint.connectedBody = parentBody;
                 joint.enablePreprocessing = false;
+                joint.enableProjection = true; // 관절이 벌어지며 튀는 것을 막는다
                 bool knee = part.bone is HumanBodyBones.LeftLowerLeg or HumanBodyBones.RightLowerLeg;
                 bool elbow = part.bone is HumanBodyBones.LeftLowerArm or HumanBodyBones.RightLowerArm;
                 joint.lowTwistLimit = new SoftJointLimit { limit = knee ? -90f : elbow ? -100f : -25f };
@@ -84,6 +94,9 @@ public class Ragdoll : MonoBehaviour
             }
         }
 
+        activatedAt = Time.time;
+        calmSince = -1f;
+        settled = false;
         if (byBone.TryGetValue(hitBone, out var hit)) hit.AddForce(impulse, ForceMode.Impulse);
         else if (bodies.Count > 0) bodies[0].AddForce(impulse, ForceMode.Impulse);
     }
@@ -91,7 +104,19 @@ public class Ragdoll : MonoBehaviour
     /// <summary>물리가 멈춘 뒤 고정해 둔다(바닥에 쓰러진 친구처럼 계속 놓여 있을 때 계산을 아낀다).</summary>
     public void Freeze()
     {
+        settled = true;
         foreach (var rb in bodies) if (rb) rb.isKinematic = true;
+        foreach (var o in created) if (o is Collider c) c.enabled = false; // 굳은 몸은 밟거나 지나가도 흔들리지 않는다
+    }
+
+    void Update()
+    {
+        if (!IsActive || settled) return;
+        float age = Time.time - activatedAt;
+        if (age < SettleMinTime) return;
+        if (MaxSpeed() < SettleSpeed) { if (calmSince < 0f) calmSince = Time.time; }
+        else calmSince = -1f;
+        if ((calmSince >= 0f && Time.time - calmSince >= SettleHold) || age >= SettleMaxTime) Freeze();
     }
 
     /// <summary>물리 몸을 모두 떼고 애니메이션을 다시 켠다.</summary>
@@ -107,6 +132,7 @@ public class Ragdoll : MonoBehaviour
         bodies.Clear();
         if (animator) animator.enabled = true;
         IsActive = false;
+        settled = false;
     }
 
     public float MaxSpeed()

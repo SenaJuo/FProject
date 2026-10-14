@@ -190,11 +190,11 @@ public static class PrologueBuilder
 
     internal static (float x, HouseBuilder.Spec spec)[] NorthHouses() => new[]
     {
-        (-4f, Bungalow("Beige", "Green", "White", 1)),                 // 레이의 집
+        (-4f, Bungalow("Sage", "Red", "White", 6, doorOffset: -1.5f)), // (막힌 서쪽 — 철망 너머)
         (10f, Suburban("White", "Red", "Black", 2, chimney: true)),
         (21f, Townhouse("Brick", "Black", 3)), (27.6f, Townhouse("Butter", "Navy", 4)),
         (38f, Suburban("Brick", "White", null, 5, doorOffset: 1.6f)),
-        (50f, Bungalow("Sage", "Red", "White", 6, doorOffset: -1.5f)),
+        (RayHouseX, Bungalow("Beige", "Green", "White", 1)),          // 레이의 집(2026-10-14: x -4에서 옮겼다 — 대니 집까지 107m → 53m)
         (63f, Suburban("BlueGrey", "White", "Navy", 7, chimney: true)),
         (75f, Townhouse("Brick", "Green", 8)), (81.6f, Townhouse("White", "Black", 9)),
         (91f, Suburban("Beige", "Navy", "Green", 10, doorOffset: -1.6f)),
@@ -217,7 +217,9 @@ public static class PrologueBuilder
         (128f, Suburban("Beige", "Green", "Green", 33, chimney: true)),
         (139f, Townhouse("White", "Navy", 34)),
     };
-    public const float RayHouseX = -4f, DannyHouseX = 103f;
+    public const float RayHouseX = 50f, DannyHouseX = 103f;
+    /// <summary>거리 서쪽 공사 철망(레이 집 바로 서쪽): 그 너머는 걸어서 못 간다</summary>
+    public const float StreetWestX = 44f;
     /// <summary>1장: 대니 집 뒷담장 쪽문의 x, 공원의 서쪽 끝 x</summary>
     public const float ParkGateX = 106.2f, ParkWestX = 55f;
 
@@ -274,6 +276,14 @@ public static class PrologueBuilder
         WoodFence(street, new Vector3(-32f, Ground, -BackFence), new Vector3(-32f, Ground, BackFence), 2f, M); // 서쪽 끝을 닫는다
         WoodFence(street, new Vector3(-16f, Ground, 6.5f), new Vector3(-16f, Ground, BackFence), 2f, M);
         WoodFence(street, new Vector3(-16f, Ground, -6.5f), new Vector3(-16f, Ground, -BackFence), 2f, M);
+
+        // 레이 집 서쪽: 공사 철망으로 길을 막는다(레이 집을 대니 집 가까이 옮기면서 남은 서쪽 길은 갈 곳이 아니다).
+        // 앞마당까지 막는다: 북쪽은 x 38 집(~43)과 레이 집(44~) 사이, 남쪽은 x 38.5 집(~44)과 x 50 집(45~) 사이
+        Fence(street, new Vector3(StreetWestX, 0f, -6.5f), new Vector3(StreetWestX, 0f, 6.5f), 2.6f, M);
+        Fence(street, new Vector3(StreetWestX - 0.5f, Ground, 6.5f), new Vector3(StreetWestX - 0.5f, Ground, HouseLine + 0.3f), 2.6f, M);
+        Fence(street, new Vector3(StreetWestX + 0.5f, Ground, -6.5f), new Vector3(StreetWestX + 0.5f, Ground, -HouseLine - 0.3f), 2.6f, M);
+        foreach (float z in new[] { -5.2f, -2f, 1.5f, 5f }) Prop("ConstructionBarrier", street, new Vector3(StreetWestX + 1.5f, Mathf.Abs(z) > 4f ? Ground : 0f, z), -90f);
+        AddLight(street, "WorkLight_W", new Vector3(StreetWestX + 1f, 2.4f, 0f), LightType.Point, new Color(1f, 0.6f, 0.25f), 3f, 8f);
 
         // 가로등(주택가라 간격을 넓게, 양쪽 번갈아)
         foreach (float x in new[] { 4f, 30f, 56f, 82f, 108f, 134f }) Lamp(street, x, true, M["LampGlow"]);
@@ -773,6 +783,54 @@ public static class PrologueBuilder
             AssetDatabase.SaveAssetIfDirty(mat);
         }
         TrimSmallShadows(); // 모든 장면 빌더가 저장 직전에 여기를 지난다
+        SeparateCoplanarTops();
+    }
+
+    /// <summary>얇은 판 바로 밑(2cm 안)에 다른 물체가 있는가: 판 위에서 아래로 쏴 판 자신은 빼고 본다(바닥면 안에서 쏘면 못 맞힌다)</summary>
+    static bool OnFloor(Renderer r)
+    {
+        var b = r.bounds;
+        foreach (var hit in Physics.RaycastAll(new Vector3(b.center.x, b.max.y + 0.05f, b.center.z), Vector3.down, b.size.y + 0.15f, ~0, QueryTriggerInteraction.Ignore))
+            if (!hit.collider.transform.IsChildOf(r.transform) && hit.point.y <= b.min.y + 0.02f) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// 같은 높이로 겹친 윗면 떼기(2026-10-14 "바닥 흰색 부분이 번쩍번쩍"): 두 상자의 윗면이 같은 높이에서 겹치면
+    /// 카메라가 움직일 때마다 어느 쪽이 앞에 그려질지 바뀌어 톱니·삼각형으로 깜빡인다(z-fighting).
+    /// 예: 2장 1층 벽 윗면 = 2층 바닥면이라 2층 바닥에 흰 벽 윗면이 줄로 비쳤다. 1장 컨테이너 모서리 기둥 = 몸통 윗면.
+    /// 바닥 면적이 작은 쪽(벽·상인방·기둥)의 윗면을 1.2cm 낮춰 큰 쪽 아래로 숨긴다(눈에 보이는 높이 차는 없다).
+    /// </summary>
+    internal static int SeparateCoplanarTops()
+    {
+        const float Drop = 0.012f;
+        var boxes = Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+            .Where(r =>
+            {
+                var mf = r.GetComponent<MeshFilter>();
+                if (!mf || !mf.sharedMesh || !mf.sharedMesh.name.StartsWith("Box_")) return false;
+                var e = r.transform.eulerAngles; // y축으로만 돈 상자(윗면이 수평)
+                return Mathf.Abs(Mathf.DeltaAngle(e.x, 0f)) < 0.5f && Mathf.Abs(Mathf.DeltaAngle(e.z, 0f)) < 0.5f;
+            }).ToList();
+        var lowered = new HashSet<MeshRenderer>();
+        for (int i = 0; i < boxes.Count; i++)
+        for (int j = i + 1; j < boxes.Count; j++)
+        {
+            var a = boxes[i].bounds; var b = boxes[j].bounds;
+            if (Mathf.Abs(a.max.y - b.max.y) > 0.003f || boxes[i].sharedMaterial == boxes[j].sharedMaterial) continue;
+            float ox = Mathf.Min(a.max.x, b.max.x) - Mathf.Max(a.min.x, b.min.x), oz = Mathf.Min(a.max.z, b.max.z) - Mathf.Max(a.min.z, b.min.z);
+            if (ox < 0.02f || oz < 0.02f) continue;
+            var small = a.size.x * a.size.z <= b.size.x * b.size.z ? boxes[i] : boxes[j];
+            if (lowered.Contains(small) || small.bounds.size.y < 0.05f) continue; // 얇은 판(선·띠)은 그대로
+            var t = small.transform;
+            if (t.parent && (t.parent.lossyScale - Vector3.one).sqrMagnitude > 1e-4f) continue; // 부모가 늘어나 있으면 건드리지 않는다
+            float h = small.bounds.size.y;
+            var sc = t.localScale; sc.y *= (h - Drop) / h; t.localScale = sc;
+            t.position -= new Vector3(0f, Drop / 2f, 0f);
+            lowered.Add(small);
+            EditorUtility.SetDirty(t);
+        }
+        return lowered.Count;
     }
 
     /// <summary>
@@ -784,7 +842,10 @@ public static class PrologueBuilder
         int n = 0;
         foreach (var r in Object.FindObjectsByType<MeshRenderer>(FindObjectsInactive.Include, FindObjectsSortMode.None))
         {
-            if (r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.On || r.bounds.size.magnitude >= 0.8f) continue;
+            // 작은 물체, 또는 바닥에 깔린 얇은 판(주차선·차선·보도 띠: 높이 6cm 미만) — 얇은 판의 그림자는 가장자리가 톱니처럼 깨져 번쩍인다
+            // 천장판처럼 아래가 빈 얇은 판은 그대로 둔다(그림자를 끄면 실내로 달빛이 샌다): 바로 아래(10cm 안)에 바닥이 있어야 깔린 판이다
+            bool thin = r.bounds.size.y < 0.06f && OnFloor(r);
+            if (r.shadowCastingMode != UnityEngine.Rendering.ShadowCastingMode.On || (r.bounds.size.magnitude >= 0.8f && !thin)) continue;
             if (r.GetComponentInParent<Animator>()) continue; // 사람이 든 물건·사람 몸에 붙은 것은 그대로
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             EditorUtility.SetDirty(r);

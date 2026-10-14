@@ -207,6 +207,7 @@ public class Chapter2Director : MonoBehaviour
         Arm(backDoorTrigger, true);
         yield return new WaitUntil(() => Reached(backDoorTrigger));
         StoryState.ControlLocked = true;
+        entering = true; // 출입증을 대고 문이 열리는 동안(조작이 잠긴 2초)은 들키지 않는다 — 전에는 문 옆 경찰이 그사이에 잡았다
         StoryState.Objective = null;
         StoryState.Waypoint = null;
         StoryState.Say(Ray, "(삑 — 출입증이 통한다. 문이 열린다)", 2.4f);
@@ -219,6 +220,7 @@ public class Chapter2Director : MonoBehaviour
         yield return Wait(0.3f);
         yield return FadeTo(0f, 1.0f);
         StoryState.ControlLocked = false;
+        entering = false;
         StoryState.Say(Ray, "…7년 만이군. 냄새도 그대로야.", 2.6f);
         yield return FromStation();
     }
@@ -566,7 +568,7 @@ public class Chapter2Director : MonoBehaviour
         hp.Invulnerable = false;
         // 3장으로: 테이프·회복약을 그대로 들고 간다
         SaveGame.CarryOver("Chapter3", "c3_start", walkman);
-        UnityEngine.SceneManagement.SceneManager.LoadScene("Chapter3");
+        SceneLoader.Load("Chapter3");
     }
 
     /// <summary>이어하기: 경보 뒤(기록실) 또는 밖(뒷문 앞)</summary>
@@ -696,7 +698,8 @@ public class Chapter2Director : MonoBehaviour
     void OnSpotted(PatrolSight s) { if (CanBeCaught()) StartCoroutine(CaughtRoutine(s.transform)); }
     void OnSearchlight(Searchlight s) { if (CanBeCaught()) StartCoroutine(CaughtRoutine(null)); }
 
-    bool CanBeCaught() => !Caught && !StoryState.CutsceneActive && CurrentPhase is Phase.Lot or Phase.ToDoor or Phase.Station or Phase.Floor2 or Phase.EvidenceRoom or Phase.Records;
+    bool entering;
+    bool CanBeCaught() => !Caught && !entering && !StoryState.CutsceneActive && CurrentPhase is Phase.Lot or Phase.ToDoor or Phase.Station or Phase.Floor2 or Phase.EvidenceRoom or Phase.Records;
 
     IEnumerator CaughtRoutine(Transform by)
     {

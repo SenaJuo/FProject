@@ -26,6 +26,9 @@ public class CombatZone : MonoBehaviour, IRewindable
 
     bool started;
 
+    /// <summary>싸움이 시작되었다(레이가 들어왔다)</summary>
+    public bool Started => started;
+
     /// <summary>싸움이 시작되었고 레이가 구역 안에 있다</summary>
     public bool HoldsPlayer
     {
@@ -50,11 +53,20 @@ public class CombatZone : MonoBehaviour, IRewindable
 
     /// <summary>
     /// 끝내지 못한 싸움에서 쓰러져 저장 지점으로 돌아가면 이 구역도 처음 상태로: 살아 있는 적은 제자리에 서서 기다리고,
-    /// 다시 들어오면 싸움이 시작된다(멀리 떨어진 저장 지점까지 적이 쫓아오지 않게). 이미 쓰러뜨린 적은 그대로다.
+    /// 다시 들어오면 싸움이 시작된다(멀리 떨어진 저장 지점까지 적이 쫓아오지 않게). 저장 전에 쓰러뜨린 적은 그대로이고,
+    /// 저장 뒤에 쓰러뜨린 적은 GameManager가 먼저 되살려 둔다(그때 이 구역도 저장 때의 진행으로 돌아간다).
     /// </summary>
     void OnPlayerRespawned()
     {
-        if (IsCleared || !started) return;
+        if (IsCleared) return;
+        if (!started)
+        {
+            // 레이가 이 구역 안에서 다시 시작하면 트리거에 새로 들어오는 일이 없으니 바로 싸움을 연다
+            var gm = GameManager.Instance;
+            var col = GetComponent<Collider>();
+            if (gm && gm.player && isActiveAndEnabled && col.enabled && col.bounds.Contains(gm.player.transform.position)) Begin();
+            return;
+        }
         // 구역 안에서 다시 시작하면(구역 입구가 저장 지점인 경우) 트리거에 다시 들어오는 일이 없으니 싸움을 그대로 이어 간다
         if (HoldsPlayer) return;
         started = false;
@@ -89,6 +101,12 @@ public class CombatZone : MonoBehaviour, IRewindable
     void OnTriggerEnter(Collider other)
     {
         if (started || !other.TryGetComponent(out PlayerController _)) return; // 태그 대신 실제 플레이어 몸통인지 확인
+        Begin();
+    }
+
+    void Begin()
+    {
+        if (started) return;
         started = true;
 
         foreach (var gate in closeOnEnter) gate.Close();

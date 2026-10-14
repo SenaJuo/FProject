@@ -233,7 +233,7 @@ public class TitleScreen : MonoBehaviour
         yield return new WaitForSecondsRealtime(2.4f);
         if (cont && SaveGame.Continue()) yield break;
         SaveGame.Enabled = true; // 타이틀에서 시작한 게임만 진행을 저장한다
-        SceneManager.LoadScene(firstScene);
+        SceneLoader.Load(firstScene);
     }
 
     // ---------- 카세트 데크 ----------

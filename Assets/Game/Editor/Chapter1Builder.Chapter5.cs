@@ -13,9 +13,11 @@ using P = PrologueBuilder;
 /// 배치(미터, y 0):
 ///   지하 주차장: x -18~18, z 0~40, 천장 3.6. 남쪽 입구에서 시작. 서남쪽 구석에 7번(가게). 북쪽 벽 가운데 화물 엘리베이터.
 ///     (2026-10-14 "주차장이 쓸데없이 넓다" → 60×60에서 36×40으로 줄였다. 싸움 한 판 + 가게 + 엘리베이터만 있는 곳이다)
-///   연구소(따로, x 300~360, z 0~40): 복도 z 16~24 · 북쪽 실험실 넷(문이 열려 있다) · 남쪽 장비실. 동쪽 끝 격벽.
-///   마스터 테이프 홀(따로, x 400~440, z 0~40, 높이 8): 가운데 받침대의 거대한 릴 녹음기와 마스터 테이프 · 서북쪽 방송 콘솔
-///     · 북쪽 벽 높이 4m의 유리 관람석(윗선 셋이 서 있다).
+///   연구소(따로, x 300~328, z 12~28): 복도 z 17~21 · 북쪽 실험실 넷(5.5m 폭, 문이 열려 있다) · 남쪽 장비실 둘(14×5m). 동쪽 끝 격벽.
+///     (2026-10-14 "쓸데없이 넓다" → 44×20m · 복도 폭 6m에서 줄였다)
+///   마스터 테이프 홀(따로, x 406~434, z 0~30, 높이 8): 가운데 받침대의 거대한 릴 녹음기와 마스터 테이프 · 서북쪽 방송 콘솔
+///     · 북쪽 벽 높이 4m의 유리 관람석(z 26~30, 윗선 셋이 서 있다).
+///     (2026-10-14 "마지막 보스 구역이 너무 크다" → 40×36m에서 28×26m로 줄였다. 0번 하나 + 특수경비 둘이 싸우는 곳)
 /// </summary>
 public static partial class Chapter1Builder
 {
@@ -225,33 +227,37 @@ public static partial class Chapter1Builder
         S["Floor"] = P.Lit("LabFloor", null, new Color(0.62f, 0.64f, 0.66f), 0.55f);
         var g = new GameObject("Lab").transform;
         g.SetParent(parent);
-        // 좁고 답답하게(2026-10-13, "방이 쓸데없이 넓다"): 실험실은 8×6m 독방, 복도 폭 6m, 전체 44×20m
-        const float x0 = 300f, x1 = 344f, z0 = 10f, z1 = 30f;
+        // 좁고 답답하게(2026-10-13·14, "방이 쓸데없이 넓다"): 실험실 5.5×7m 독방 넷, 복도 폭 4m, 장비실 14×5m 둘, 전체 28×16m
+        const float x0 = 300f, x1 = 328f, z0 = 12f, z1 = 28f, cz0 = 17f, cz1 = 21f, cz = (cz0 + cz1) / 2f;
+        float[] labs = { 303f, 308.5f, 314f, 319.5f, 325f }; // 실험실 벽(그 사이 넷이 방)
         P.Box(g, "Floor", new Vector3((x0 + x1) / 2f, -0.15f, (z0 + z1) / 2f), new Vector3(x1 - x0, 0.3f, z1 - z0), S["Floor"], new Vector2(2f, 2f));
         P.Box(g, "Ceiling", new Vector3((x0 + x1) / 2f, WallH + 0.15f, (z0 + z1) / 2f), new Vector3(x1 - x0, 0.3f, z1 - z0), S["Ceiling"], new Vector2(2f, 2f));
         WallX(g, S, z0, x0, x1, 0f);
         WallX(g, S, z1, x0, x1, 0f);
         WallZ(g, S, x0, z0, z1, 0f);
         WallZ(g, S, x1, z0, z1, 0f);
-        // 복도(z 16~22) 북쪽: 실험실 넷(8m 폭, 문 열림) · 남쪽: 장비실 둘
-        WallX(g, S, 22f, x0, x1, 0f, (310f, 1.6f), (318f, 1.6f), (326f, 1.6f), (334f, 1.6f));
-        foreach (float x in new[] { 306f, 314f, 322f, 330f, 338f }) WallZ(g, S, x, 22f, z1, 0f);
-        WallX(g, S, 16f, x0, x1, 0f, (312f, 1.6f), (332f, 1.6f));
-        WallZ(g, S, 322f, z0, 16f, 0f);
+        // 복도(z 17~21) 북쪽: 실험실 넷(문 열림, 양 끝은 막힌 창고) · 남쪽: 장비실 둘
+        var doors = new List<(float, float)>();
+        for (int i = 0; i + 1 < labs.Length; i++) doors.Add(((labs[i] + labs[i + 1]) / 2f, 1.6f));
+        WallX(g, S, cz1, x0, x1, 0f, doors.ToArray());
+        foreach (float x in labs) WallZ(g, S, x, cz1, z1, 0f);
+        WallX(g, S, cz0, x0, x1, 0f, (307f, 1.6f), (321f, 1.6f));
+        WallZ(g, S, 314f, z0, cz0, 0f);
         // 실험실 안: 끈 달린 의자 하나 — 사람은 실험체로 나온다
-        foreach (float x in new[] { 310f, 318f, 326f, 334f })
+        for (int i = 0; i + 1 < labs.Length; i++)
         {
-            TryProp("OfficeChair", g, new Vector3(x + 1.6f, 0f, 27.6f), 180f);
-            P.Box(g, "Restraint", new Vector3(x + 1.6f, 0.6f, 28f), new Vector3(0.7f, 0.05f, 0.05f), S["Steel"], Vector2.one, collider: false);
+            float x = (labs[i] + labs[i + 1]) / 2f;
+            TryProp("OfficeChair", g, new Vector3(x + 1.2f, 0f, z1 - 1.4f), 180f);
+            P.Box(g, "Restraint", new Vector3(x + 1.2f, 0.6f, z1 - 1f), new Vector3(0.7f, 0.05f, 0.05f), S["Steel"], Vector2.one, collider: false);
         }
-        // 장비실: 릴 녹음기 · 테이프 선반 · 콘솔
-        foreach (float x in new[] { 303f, 306f, 309f }) TryProp("ReelToReel", g, new Vector3(x, 0f, 10.6f), 0f);
-        foreach (float x in new[] { 327f, 331f, 335f }) TryProp("CassetteShelf", g, new Vector3(x, 0f, 10.4f), 0f);
-        TryProp("MixingConsole", g, new Vector3(316f, 0f, 12.6f), 0f);
-        TapeSpot(g, triggers, "LabTape", new Vector3(341.6f, 0f, 11.2f), 2, 1, box: true);
+        // 장비실: 릴 녹음기 · 콘솔(서쪽 방) · 테이프 선반(동쪽 방)
+        foreach (float x in new[] { 302.2f, 305.2f, 308.2f }) TryProp("ReelToReel", g, new Vector3(x, 0f, z0 + 0.6f), 0f);
+        TryProp("MixingConsole", g, new Vector3(311.6f, 0f, z0 + 2.4f), 0f);
+        foreach (float x in new[] { 317f, 320.5f, 324f }) TryProp("CassetteShelf", g, new Vector3(x, 0f, z0 + 0.4f), 0f);
+        TapeSpot(g, triggers, "LabTape", new Vector3(326.6f, 0f, z0 + 1.2f), 2, 1, box: true);
         // 형광등
-        foreach (float x in new[] { 306f, 318f, 330f, 342f })
-            foreach (float z in new[] { 19f, 25.5f, 13f })
+        foreach (float x in new[] { 305f, 314f, 323f })
+            foreach (float z in new[] { cz, 24.5f, 14.5f })
             {
                 P.Box(g, "FluorPanel", new Vector3(x, WallH - 0.03f, z), new Vector3(1.2f, 0.04f, 0.3f), S["Fluor"], Vector2.one, collider: false);
                 var l = P.AddLight(g, "Fluor", new Vector3(x, WallH - 0.3f, z), LightType.Point, new Color(0.9f, 0.95f, 1f), 4.5f, 9f);
@@ -259,9 +265,10 @@ public static partial class Chapter1Builder
             }
         // 실험체 넷(방마다 하나)
         var subs = new List<EnemyAI>();
-        foreach (var (x, i) in new[] { (310f, 0), (318f, 1), (326f, 2), (334f, 3) })
+        for (int i = 0; i + 1 < labs.Length; i++)
         {
-            var e = P.CreateThug(people, $"Lab_Subject_{i}", new Vector3(x, 0.02f, 25.5f), 180f, SubjectCharacter);
+            float x = (labs[i] + labs[i + 1]) / 2f;
+            var e = P.CreateThug(people, $"Lab_Subject_{i}", new Vector3(x, 0.02f, 24f), 180f, SubjectCharacter);
             SetCombat(e, false);
             e.displayName = "실험체";
             e.damage = 10;
@@ -273,12 +280,12 @@ public static partial class Chapter1Builder
             e.GetComponent<UnityEngine.AI.NavMeshAgent>().speed = 7.4f;
             subs.Add(e);
         }
-        b.zoneLab = Zone(triggers, "Zone_Lab", new Vector3(322f, 1.5f, 19f), new Vector3(44f, 3f, 6f), subs.ToArray());
-        b.labEntry = P.Marker(triggers, "LabEntry", new Vector3(301.6f, 0.05f, 19f), 90f);
+        b.zoneLab = Zone(triggers, "Zone_Lab", new Vector3((x0 + 4f + x1) / 2f, 1.5f, cz), new Vector3(x1 - x0 - 4f, 3f, cz1 - cz0), subs.ToArray()); // 입구 4m는 비운다(들어서자마자 깨지 않게)
+        b.labEntry = P.Marker(triggers, "LabEntry", new Vector3(301.6f, 0.05f, cz), 90f);
         // 동쪽 끝 격벽
-        P.Box(g, "BlastDoor", new Vector3(x1 - 0.15f, 1.8f, 19f), new Vector3(0.12f, 3.6f, 3.6f), P.Lit("BlastDoorPaint", null, new Color(0.55f, 0.48f, 0.15f), 0.4f, metallic: 0.5f), Vector2.one, collider: false);
-        P.AddLight(g, "BlastLamp", new Vector3(x1 - 1.2f, 3.6f, 19f), LightType.Point, new Color(1f, 0.3f, 0.15f), 3f, 7f);
-        b.hallDoor = P.Interactable(g, "BlastDoorUse", new Vector3(x1 - 1.4f, 1f, 19f), new Vector3(1.8f, 2f, 3.6f), "격벽을 연다");
+        P.Box(g, "BlastDoor", new Vector3(x1 - 0.15f, 1.8f, cz), new Vector3(0.12f, 3.6f, 3.6f), P.Lit("BlastDoorPaint", null, new Color(0.55f, 0.48f, 0.15f), 0.4f, metallic: 0.5f), Vector2.one, collider: false);
+        P.AddLight(g, "BlastLamp", new Vector3(x1 - 1.2f, 3.6f, cz), LightType.Point, new Color(1f, 0.3f, 0.15f), 3f, 7f);
+        b.hallDoor = P.Interactable(g, "BlastDoorUse", new Vector3(x1 - 1.4f, 1f, cz), new Vector3(1.8f, 2f, 3.6f), "격벽을 연다");
     }
 
     // =====================================================================
@@ -289,62 +296,62 @@ public static partial class Chapter1Builder
     {
         var g = new GameObject("MasterHall").transform;
         g.SetParent(parent);
-        const float x0 = 400f, x1 = 440f, z0 = 0f, z1 = 40f, h = 8f;
+        const float x0 = 406f, x1 = 434f, z0 = 0f, z1 = 30f, h = 8f, zn = z1 - 4f; // zn: 관람석 아래 벽(걸어 다니는 홀의 북쪽 끝)
         var wall = P.Lit("HallWall", null, new Color(0.14f, 0.15f, 0.18f), 0.4f, metallic: 0.2f);
         var floor = P.Lit("HallFloor", null, new Color(0.22f, 0.23f, 0.26f), 0.7f);
-        P.Box(g, "Floor", new Vector3(420f, -0.15f, 20f), new Vector3(x1 - x0, 0.3f, z1 - z0), floor, new Vector2(2f, 2f));
-        P.Box(g, "Ceiling", new Vector3(420f, h + 0.15f, 20f), new Vector3(x1 - x0, 0.3f, z1 - z0), wall, new Vector2(4f, 4f));
-        P.Box(g, "Wall_W", new Vector3(x0, h / 2f, 20f), new Vector3(0.4f, h, z1 - z0), wall, new Vector2(4f, 4f));
-        P.Box(g, "Wall_E", new Vector3(x1, h / 2f, 20f), new Vector3(0.4f, h, z1 - z0), wall, new Vector2(4f, 4f));
+        P.Box(g, "Floor", new Vector3(420f, -0.15f, (z0 + z1) / 2f), new Vector3(x1 - x0, 0.3f, z1 - z0), floor, new Vector2(2f, 2f));
+        P.Box(g, "Ceiling", new Vector3(420f, h + 0.15f, (z0 + z1) / 2f), new Vector3(x1 - x0, 0.3f, z1 - z0), wall, new Vector2(4f, 4f));
+        P.Box(g, "Wall_W", new Vector3(x0, h / 2f, (z0 + z1) / 2f), new Vector3(0.4f, h, z1 - z0), wall, new Vector2(4f, 4f));
+        P.Box(g, "Wall_E", new Vector3(x1, h / 2f, (z0 + z1) / 2f), new Vector3(0.4f, h, z1 - z0), wall, new Vector2(4f, 4f));
         P.Box(g, "Wall_S", new Vector3(420f, h / 2f, z0), new Vector3(x1 - x0, h, 0.4f), wall, new Vector2(4f, 4f));
         // 북쪽: 아래는 벽, 높이 4m부터 유리 관람석(뒤로 4m 깊이)
-        P.Box(g, "Wall_N_Low", new Vector3(420f, 2.25f, 36f), new Vector3(x1 - x0, 4.5f, 0.4f), wall, new Vector2(4f, 4f));
-        P.Box(g, "GalleryFloor", new Vector3(420f, 4.4f, 38f), new Vector3(x1 - x0, 0.2f, 4f), wall, Vector2.one);
-        P.Box(g, "GalleryBack", new Vector3(420f, 6.25f, 40f), new Vector3(x1 - x0, 3.5f, 0.4f), P.Lit("GalleryPanel", null, new Color(0.45f, 0.36f, 0.26f), 0.5f), Vector2.one);
-        P.Box(g, "GallerySill", new Vector3(420f, 4.68f, 36f), new Vector3(x1 - x0, 0.36f, 0.3f), wall, Vector2.one); // 낮은 턱: 아래에서 올려다봐도 윗선이 보이게
-        InvisibleWall(g, "GalleryGlass", new Vector3(420f, 6.4f, 36f), new Vector3(x1 - x0, 3.2f, 0.2f));
-        foreach (float x in new[] { 404f, 410f, 430f, 436f }) // 가운데(윗선이 서는 자리)는 비운다
-            P.Box(g, "GalleryMullion", new Vector3(x, 6.4f, 36f), new Vector3(0.1f, 3.2f, 0.12f), H["Steel"], Vector2.one, collider: false);
-        P.AddLight(g, "GalleryLight", new Vector3(420f, 6.9f, 35.6f), LightType.Point, new Color(1f, 0.85f, 0.65f), 3f, 8f); // 유리 앞 위: 얼굴을 비춘다(뒤에 두면 실루엣만)
-        P.AddLight(g, "GalleryBack", new Vector3(420f, 7.4f, 39.4f), LightType.Point, new Color(1f, 0.8f, 0.6f), 0.6f, 6f);
+        P.Box(g, "Wall_N_Low", new Vector3(420f, 2.25f, zn), new Vector3(x1 - x0, 4.5f, 0.4f), wall, new Vector2(4f, 4f));
+        P.Box(g, "GalleryFloor", new Vector3(420f, 4.4f, zn + 2f), new Vector3(x1 - x0, 0.2f, 4f), wall, Vector2.one);
+        P.Box(g, "GalleryBack", new Vector3(420f, 6.25f, z1), new Vector3(x1 - x0, 3.5f, 0.4f), P.Lit("GalleryPanel", null, new Color(0.45f, 0.36f, 0.26f), 0.5f), Vector2.one);
+        P.Box(g, "GallerySill", new Vector3(420f, 4.68f, zn), new Vector3(x1 - x0, 0.36f, 0.3f), wall, Vector2.one); // 낮은 턱: 아래에서 올려다봐도 윗선이 보이게
+        InvisibleWall(g, "GalleryGlass", new Vector3(420f, 6.4f, zn), new Vector3(x1 - x0, 3.2f, 0.2f));
+        foreach (float x in new[] { 409f, 414f, 426f, 431f }) // 가운데(윗선이 서는 자리)는 비운다
+            P.Box(g, "GalleryMullion", new Vector3(x, 6.4f, zn), new Vector3(0.1f, 3.2f, 0.12f), H["Steel"], Vector2.one, collider: false);
+        P.AddLight(g, "GalleryLight", new Vector3(420f, 6.9f, zn - 0.4f), LightType.Point, new Color(1f, 0.85f, 0.65f), 3f, 8f); // 유리 앞 위: 얼굴을 비춘다(뒤에 두면 실루엣만)
+        P.AddLight(g, "GalleryBack", new Vector3(420f, 7.4f, z1 - 0.6f), LightType.Point, new Color(1f, 0.8f, 0.6f), 0.6f, 6f);
         // 윗선 셋(유리 너머, 홀을 내려다본다)
-        StandingCharacter(g, "Chairman", "Chairman", new Vector3(420f, 4.5f, 37.6f), 180f);
-        StandingCharacter(g, "PoliceChief", "Officer", new Vector3(416.5f, 4.5f, 38f), 170f);
-        StandingCharacter(g, "Lawmaker", "Lawmaker", new Vector3(423.6f, 4.5f, 37.9f), 190f);
-        var gs = P.Marker(triggers, "GalleryShot", new Vector3(420f, 3.4f, 25f), 0f);
-        gs.rotation = Quaternion.LookRotation(new Vector3(420f, 5.7f, 38f) - gs.position);
+        StandingCharacter(g, "Chairman", "Chairman", new Vector3(420f, 4.5f, zn + 1.6f), 180f);
+        StandingCharacter(g, "PoliceChief", "Officer", new Vector3(416.5f, 4.5f, zn + 2f), 170f);
+        StandingCharacter(g, "Lawmaker", "Lawmaker", new Vector3(423.6f, 4.5f, zn + 1.9f), 190f);
+        var gs = P.Marker(triggers, "GalleryShot", new Vector3(420f, 3.4f, zn - 6.5f), 0f); // 받침대 릴 녹음기 뒤(북쪽): 앞에 두면 릴이 화면 아래를 가린다
+        gs.rotation = Quaternion.LookRotation(new Vector3(420f, 5.7f, zn + 2f) - gs.position);
         b.galleryShot = gs;
 
         // 가운데 받침대: 거대한 릴 녹음기 + 마스터 테이프(작은 카세트 하나, 차가운 빛)
-        P.Box(g, "Pedestal", new Vector3(420f, 0.3f, 24f), new Vector3(5f, 0.6f, 4f), H["Steel"], Vector2.one);
-        var reel = TryProp("ReelToReel", g, new Vector3(420f, 0.6f, 25f), 180f);
+        P.Box(g, "Pedestal", new Vector3(420f, 0.3f, 17f), new Vector3(5f, 0.6f, 4f), H["Steel"], Vector2.one);
+        var reel = TryProp("ReelToReel", g, new Vector3(420f, 0.6f, 18f), 180f);
         if (reel) reel.transform.localScale = Vector3.one * 1.8f;
-        P.Box(g, "TapeStand", new Vector3(420f, 1.0f, 22.6f), new Vector3(0.6f, 0.8f, 0.4f), H["Steel"], Vector2.one);
-        var tape = TryProp("CassetteTape", g, new Vector3(420f, 1.42f, 22.6f), 180f);
+        P.Box(g, "TapeStand", new Vector3(420f, 1.0f, 15.6f), new Vector3(0.6f, 0.8f, 0.4f), H["Steel"], Vector2.one);
+        var tape = TryProp("CassetteTape", g, new Vector3(420f, 1.42f, 15.6f), 180f);
         if (tape) { tape.transform.localScale = Vector3.one * 1.6f; b.masterTape = tape.transform; }
-        else b.masterTape = P.Marker(g, "MasterTape", new Vector3(420f, 1.42f, 22.6f), 0f);
-        P.AddLight(g, "MasterSpot", new Vector3(420f, h - 0.4f, 23f), LightType.Spot, new Color(0.75f, 0.85f, 1f), 60f, 14f, 40f, Quaternion.Euler(90f, 0f, 0f));
-        b.masterUse = P.Interactable(g, "MasterUse", new Vector3(420f, 1f, 21.6f), new Vector3(2.4f, 2f, 1.6f), "마스터 테이프를 꺼낸다");
-        var ms = P.Marker(triggers, "MasterShot", new Vector3(418.2f, 1.9f, 20.6f), 0f);
-        ms.rotation = Quaternion.LookRotation(new Vector3(420f, 1.4f, 22.6f) - ms.position);
+        else b.masterTape = P.Marker(g, "MasterTape", new Vector3(420f, 1.42f, 15.6f), 0f);
+        P.AddLight(g, "MasterSpot", new Vector3(420f, h - 0.4f, 16f), LightType.Spot, new Color(0.75f, 0.85f, 1f), 60f, 14f, 40f, Quaternion.Euler(90f, 0f, 0f));
+        b.masterUse = P.Interactable(g, "MasterUse", new Vector3(420f, 1f, 14.6f), new Vector3(2.4f, 2f, 1.6f), "마스터 테이프를 꺼낸다");
+        var ms = P.Marker(triggers, "MasterShot", new Vector3(418.2f, 1.9f, 13.6f), 0f);
+        ms.rotation = Quaternion.LookRotation(new Vector3(420f, 1.4f, 15.6f) - ms.position);
         b.masterShot = ms;
         // 방송 콘솔(서북쪽, 앉는 쪽이 남쪽)
-        TryProp("MixingConsole", g, new Vector3(406f, 0f, 32f), 180f);
-        P.AddLight(g, "ConsoleLamp", new Vector3(406f, 3f, 30.5f), LightType.Point, new Color(0.6f, 0.9f, 1f), 3f, 6f);
-        b.consoleUse = P.Interactable(g, "ConsoleUse", new Vector3(406f, 1f, 30.4f), new Vector3(2.6f, 2f, 1.8f), "대니의 녹음을 생방송에 건다");
+        TryProp("MixingConsole", g, new Vector3(410f, 0f, 22.5f), 180f);
+        P.AddLight(g, "ConsoleLamp", new Vector3(410f, 3f, 21f), LightType.Point, new Color(0.6f, 0.9f, 1f), 3f, 6f);
+        b.consoleUse = P.Interactable(g, "ConsoleUse", new Vector3(410f, 1f, 20.9f), new Vector3(2.6f, 2f, 1.8f), "대니의 녹음을 생방송에 건다");
         // 홀 조명(가장자리 기둥등) · 바닥 띠
-        foreach (float x in new[] { 404f, 436f })
-            foreach (float z in new[] { 8f, 20f, 32f })
+        foreach (float x in new[] { 408f, 432f })
+            foreach (float z in new[] { 6f, 14f, 22f })
                 P.AddLight(g, "HallSide", new Vector3(x, 5f, z), LightType.Point, new Color(0.55f, 0.65f, 0.9f), 9f, 16f);
-        P.AddLight(g, "HallFill", new Vector3(420f, 6f, 10f), LightType.Point, new Color(0.8f, 0.85f, 1f), 12f, 20f);
-        P.AddLight(g, "HallFill2", new Vector3(412f, 6f, 26f), LightType.Point, new Color(0.8f, 0.85f, 1f), 8f, 16f);
-        P.AddLight(g, "HallFill3", new Vector3(428f, 6f, 26f), LightType.Point, new Color(0.8f, 0.85f, 1f), 8f, 16f);
+        P.AddLight(g, "HallFill", new Vector3(420f, 6f, 8f), LightType.Point, new Color(0.8f, 0.85f, 1f), 12f, 20f);
+        P.AddLight(g, "HallFill2", new Vector3(413f, 6f, 19f), LightType.Point, new Color(0.8f, 0.85f, 1f), 8f, 16f);
+        P.AddLight(g, "HallFill3", new Vector3(427f, 6f, 19f), LightType.Point, new Color(0.8f, 0.85f, 1f), 8f, 16f);
 
         b.hallEntry = P.Marker(triggers, "HallEntry", new Vector3(420f, 0.05f, 3f), 0f);
-        b.hallTrigger = Trigger(triggers, "HallCentre", new Vector3(420f, 1.5f, 11f), new Vector3(36f, 3f, 6f));
+        b.hallTrigger = Trigger(triggers, "HallCentre", new Vector3(420f, 1.5f, 7f), new Vector3(x1 - x0 - 2f, 3f, 5f));
 
         // 실험체 0번(보스): 다른 실험체보다 한 뼘 크고 빠르다
-        var zero = P.CreateThug(people, "Subject_Zero", new Vector3(420f, 0.02f, 17f), 180f, SubjectCharacter);
+        var zero = P.CreateThug(people, "Subject_Zero", new Vector3(420f, 0.02f, 12.5f), 180f, SubjectCharacter);
         SetCombat(zero, false);
         zero.displayName = "실험체 0번";
         zero.isBoss = true;
@@ -362,8 +369,8 @@ public static partial class Chapter1Builder
         zero.executeDamage = 50;
         zero.GetComponent<UnityEngine.AI.NavMeshAgent>().speed = 7.6f;
         b.zero = zero;
-        var g1 = ShieldCop(people, "Hall_Shield_W", new Vector3(404f, 0.02f, 16f), 90f);
-        var g2 = ShieldCop(people, "Hall_Shield_E", new Vector3(436f, 0.02f, 16f), -90f);
+        var g1 = ShieldCop(people, "Hall_Shield_W", new Vector3(409f, 0.02f, 12f), 90f);
+        var g2 = ShieldCop(people, "Hall_Shield_E", new Vector3(431f, 0.02f, 12f), -90f);
         g1.displayName = g2.displayName = "특수경비";
         b.guards = new[] { g1.gameObject, g2.gameObject };
     }

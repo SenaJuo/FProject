@@ -202,7 +202,7 @@ public class PrologueDirector : MonoBehaviour
         var lines = new (string speaker, string text, float seconds)[]
         {
             (Ray, "……시간을 되감는다고?", 2.4f),
-            (Ray, "형사 배지 반납한 지 반년. 이런 수상한 일은 이제 내 몫이 아닌데.", 3.6f),
+            (Ray, "형사 배지 반납한 지 7년. 이런 수상한 일은 이제 내 몫이 아닌데.", 3.6f), // 2~4장의 "7년"과 맞춘다(2026-10-14)
             ("", "(반신반의하며, 서랍에 굴러다니던 아무 테이프나 끼워 본다. 아무 일도 일어나지 않는다)", 3.6f),
             (Ray, $"{Danny} 녀석, 직접 물어봐야겠어.", 2.4f),
         };
@@ -678,7 +678,7 @@ public class PrologueDirector : MonoBehaviour
         if (Application.CanStreamedLevelBeLoaded(Chapter1Scene))
         {
             yield return StoryState.Sleep(0.8f);
-            SceneManager.LoadScene(Chapter1Scene);
+            SceneLoader.Load(Chapter1Scene);
         }
         else StoryState.Say("", "(이어서 계속)", 30f);
     }

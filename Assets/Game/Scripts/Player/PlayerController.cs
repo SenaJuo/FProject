@@ -566,6 +566,7 @@ public class PlayerController : MonoBehaviour, IRewindable
 
     void OnDamaged(int amount, Vector3 source)
     {
+        lastHitFrom = source; // 쓰러질 때 넘어갈 방향(마지막 한 방은 이 뒤 IsDead로 돌아가므로 먼저 적는다)
         if (health.IsDead) return;
         Vector3 away = transform.position - source;
         away.y = 0f;
@@ -600,11 +601,33 @@ public class PlayerController : MonoBehaviour, IRewindable
         return hurtPush * (1f - stateTimer / hurtDuration);
     }
 
+    // 쓰러짐(2026-10-14): 예전에는 몸을 통째로 -80° 눕히기만 해서, 누운 채 숨쉬기·팔 흔들림 애니메이션이 계속 돌아 몸이 달랑거렸다.
+    // 이제 적처럼 물리로 쓰러지고(가라앉으면 Ragdoll이 굳힌다), 다시 일어서거나 되감으면 물리 몸을 뗀다
+    Ragdoll bodyRagdoll;
+    bool ownRagdoll;      // 이 스크립트가 쓰러뜨렸다(장면 감독이 연출로 쓰러뜨린 것은 감독이 직접 되돌린다)
+    Vector3 lastHitFrom;
+
     void OnDied()
     {
         state = State.Dead;
         ResetWeapon();
-        if (model) model.localRotation = Quaternion.Euler(-80f, 0f, 0f);
+        if (!bodyRagdoll) bodyRagdoll = GetComponentInChildren<Ragdoll>(true);
+        if (bodyRagdoll && !bodyRagdoll.IsActive)
+        {
+            Vector3 away = transform.position - lastHitFrom; away.y = 0f;
+            Vector3 dir = away.sqrMagnitude > 0.01f && lastHitFrom != Vector3.zero ? away.normalized : -transform.forward;
+            controller.enabled = false; // 켜 두면 몸이 선 채로 붙잡힌다
+            bodyRagdoll.Activate(dir * 45f + Vector3.up * 5f, HumanBodyBones.Chest);
+            ownRagdoll = true;
+        }
+        else if (model) model.localRotation = Quaternion.Euler(-80f, 0f, 0f);
+    }
+
+    void StandUp()
+    {
+        if (!ownRagdoll) return;
+        ownRagdoll = false;
+        if (bodyRagdoll && bodyRagdoll.IsActive) bodyRagdoll.Restore();
     }
 
     public void Respawn(Vector3 position, Quaternion rotation)
@@ -616,6 +639,7 @@ public class PlayerController : MonoBehaviour, IRewindable
     /// <summary>체력은 건드리지 않고 플레이어를 이동시킨 뒤, 아무 동작도 하지 않고 서 있는 상태로 되돌린다. 컷신 장면 전환에도 쓴다.</summary>
     public void Teleport(Vector3 position, Quaternion rotation)
     {
+        StandUp();
         controller.enabled = false;
         transform.SetPositionAndRotation(position, rotation);
         controller.enabled = true;
@@ -658,6 +682,7 @@ public class PlayerController : MonoBehaviour, IRewindable
     public void RestoreState(object state, bool preview)
     {
         var s = (Snapshot)state;
+        StandUp(); // 쓰러지기 전으로 감기면 다시 선다
         if (preview)
         {
             // 역재생 중: 포즈만 적용해서 휘두르기, 낙하, 발걸음이 눈에 보이게 거꾸로 흐른다.

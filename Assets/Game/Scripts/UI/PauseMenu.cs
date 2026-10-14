@@ -179,6 +179,7 @@ public class PauseMenu : MonoBehaviour
     bool CanOpen()
     {
         if (Suppressed) return false;                                    // 타이틀 화면
+        if (SceneLoader.Busy) return false;                              // 장면을 불러오는 중(검은 화면)
         if (StoryState.MenuClosedFrame == Time.frameCount) return false; // 같은 Esc로 다른 창을 방금 닫았다
         if (StoryState.Paused) return false;                             // 인벤토리·가게·설명 팝업이 열려 있다(Esc는 그 창을 닫는다)
         if (TimeRewind.PlayingBack) return false;
@@ -313,7 +314,7 @@ public class PauseMenu : MonoBehaviour
         Close();
         Time.timeScale = 1f;
         AudioListener.pause = false;
-        SceneManager.LoadScene(TitleScene);
+        SceneLoader.Load(TitleScene);
     }
 
     static void Quit()

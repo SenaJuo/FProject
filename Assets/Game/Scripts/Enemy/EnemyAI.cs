@@ -613,6 +613,19 @@ public class EnemyAI : MonoBehaviour, IRewindable
         gameObject.SetActive(false);
     }
 
+    /// <summary>
+    /// 저장 지점에서 다시 시작(2026-10-14): 저장할 때 살아 있었는데 그 뒤에 쓰러졌으면 되살린다(저장 때 숨어 있었으면 숨긴 채로).
+    /// 되살렸으면 true. 자리·체력은 이어서 오는 ResetToSpawn이 처음 자리로 맞춘다
+    /// </summary>
+    public bool ReviveTo(object saved)
+    {
+        var s = (Snapshot)saved;
+        if (s.dead || state != State.Dead) return false;
+        RestoreState(saved, false);
+        if (!s.visible) gameObject.SetActive(false);
+        return true;
+    }
+
     void ResetToSpawn()
     {
         if (state == State.Dead) return;

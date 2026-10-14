@@ -56,18 +56,18 @@ public static class Chapter5Test
                 else if (Waited(6f)) End("주차장이 정리되지 않음");
                 break;
             case 3:
-                if (d.CurrentPhase == Chapter5Director.Phase.Lab && !StoryState.ControlLocked && Waited(1f)) { Note($"연구소: 목표 '{StoryState.Objective}'"); Tp(new Vector3(316f, 0.05f, 19f), 90f); Next(); }
+                if (d.CurrentPhase == Chapter5Director.Phase.Lab && !StoryState.ControlLocked && Waited(1f)) { Note($"연구소: 목표 '{StoryState.Objective}'"); Tp(new Vector3(310f, 0.05f, 19f), 90f); Next(); }
                 else if (Waited(10f)) End("연구소로 내려가지 못함");
                 break;
             case 4:
                 if (Waited(1.5f)) { Note($"연구소 싸움: {Line}, 적 {Alive(d.zoneLab)}명"); Shot("lab"); KillAll(d.zoneLab); Next(); }
                 break;
             case 5:
-                if (d.zoneLab.IsCleared && Waited(1f)) { Tp(new Vector3(341.5f, 0.05f, 19f), 90f); Fire(d.hallDoor); Next(); }
+                if (d.zoneLab.IsCleared && Waited(1f)) { Tp(new Vector3(325.5f, 0.05f, 19f), 90f); Fire(d.hallDoor); Next(); }
                 else if (Waited(6f)) End("연구소가 정리되지 않음");
                 break;
             case 6:
-                if (d.CurrentPhase == Chapter5Director.Phase.Hall && !StoryState.ControlLocked && Waited(1f)) { Note("홀 도착"); Tp(new Vector3(420f, 0.05f, 10f), 0f); Next(); }
+                if (d.CurrentPhase == Chapter5Director.Phase.Hall && !StoryState.ControlLocked && Waited(1f)) { Note("홀 도착"); Tp(new Vector3(420f, 0.05f, 7f), 0f); Next(); }
                 else if (Waited(10f)) End("홀로 가지 못함");
                 break;
             case 7:
@@ -95,11 +95,11 @@ public static class Chapter5Test
                 }
                 break;
             case 10:
-                if (d.CurrentPhase == Chapter5Director.Phase.Master && Waited(0.5f)) { Tp(new Vector3(420f, 0.05f, 20.6f), 0f); Fire(d.masterUse); Next(); }
+                if (d.CurrentPhase == Chapter5Director.Phase.Master && Waited(0.5f)) { Tp(new Vector3(420f, 0.05f, 13.6f), 0f); Fire(d.masterUse); Next(); }
                 else if (Waited(12f)) End($"0번 뒤 마스터 테이프 단계로 넘어가지 않음({d.CurrentPhase})");
                 break;
             case 11:
-                if (d.CurrentPhase == Chapter5Director.Phase.Broadcast && !StoryState.CutsceneActive && Waited(0.5f)) { Note($"마스터 테이프: 목표 '{StoryState.Objective}'"); Tp(new Vector3(406f, 0.05f, 29.6f), 0f); Fire(d.consoleUse); Next(); }
+                if (d.CurrentPhase == Chapter5Director.Phase.Broadcast && !StoryState.CutsceneActive && Waited(0.5f)) { Note($"마스터 테이프: 목표 '{StoryState.Objective}'"); Tp(new Vector3(410f, 0.05f, 20.1f), 0f); Fire(d.consoleUse); Next(); }
                 else if (Waited(30f)) End("방송 단계로 넘어가지 않음");
                 break;
             case 12:

@@ -11,18 +11,19 @@ using P = PrologueBuilder;
 ///   항구 길: 찻길 x 158~170, z 238~318. 양옆 건물(서 x 140~155, 동 x 173~188)이 z 316까지.
 ///   가게 2 「등대 수리점」: 서쪽 건물 1층(앞면 x 155, z 280~291), 거리(+x)를 본다. 저장 지점.
 ///   철조망 문: z 317.5에서 찻길·인도를 가로막는 미닫이 문 두 짝. F로 밀어 연다 → 구역 3 시작(자동 저장).
-///   부두 마당: x 96~244, z 318~424(넓은 콘크리트 마당). 북쪽 안벽(z 424) 너머 바다.
-///     서쪽: 컨테이너 야적장(x 100~152, z 326~412) — 잠입 길(골목이 바둑판처럼).
-///     가운데: 창고 A(x 160~190, z 338~370). 동쪽: 부두 큰길(x 190~208) — 싸움 길. 창고 B(x 214~242, z 326~362).
-///     북쪽: 안벽 위 갠트리 크레인(x 160~186), 3번 부두(x 196~208, z 424~468)와 정박한 화물선.
+///   부두 마당: x 120~222, z 318~390(콘크리트 마당). 북쪽 안벽(z 390) 너머 바다.
+///     (2026-10-14 "항구가 쓸데없이 크다" → 148×106m에서 102×72m로 줄였다. 내용은 그대로: 잠입 길 · 싸움 길 · 보스)
+///     서쪽: 컨테이너 야적장(x 122~150, z 324~368) — 잠입 길(골목이 바둑판처럼, 블록 3×3).
+///     가운데: 창고 A(x 160~184, z 336~362). 동쪽: 부두 큰길(x 188~206) — 싸움 길. 창고 B(x 208~220, z 326~354).
+///     북쪽: 안벽 위 갠트리 크레인(x 165~181), 3번 부두(x 192~204, z 390~434)와 정박한 화물선.
 ///   경계: 바다(북), 창고 줄(동·서), 항구 길 건물(남). 벽으로 막은 복도는 없다.
 /// </summary>
 public static partial class Chapter1Builder
 {
-    const float HbX0 = 96f, HbX1 = 244f, HbZ0 = 318f, HbZ1 = 424f; // 부두 마당
+    const float HbX0 = 120f, HbX1 = 222f, HbZ0 = 318f, HbZ1 = 390f; // 부두 마당
     const float Shop2Z0 = 280f, Shop2Z1 = 291f, Shop2DoorZ = 288.6f;
     const float GateZ = 317.5f;
-    const float PierX0 = 196f, PierX1 = 208f, PierZ1 = 468f;
+    const float PierX0 = 192f, PierX1 = 204f, PierZ1 = HbZ1 + 44f;
     const float WaterY = -1.6f;
 
     static void BuildHarbor(Dictionary<string, Material> M, Dictionary<string, Material> X, Transform triggers, Transform people, Transform routes, Built b)
@@ -44,7 +45,7 @@ public static partial class Chapter1Builder
         b.zone3Start = P.Marker(triggers, "Zone3Start", new Vector3(AveX, 0.02f, GateZ + 3.5f), 0f);
         b.pier = P.Marker(triggers, "Pier3", new Vector3((PierX0 + PierX1) / 2f, 1.4f, HbZ1 + 6f), 0f);
         // 반장과 마주치는 곳: 부두 큰길·컨테이너 쪽 어느 길로 와도 안벽 앞 마당(z 400)을 지난다
-        b.pierTrigger = Trigger(triggers, "PierTrigger", new Vector3(180f, 1.5f, 401f), new Vector3(120f, 3f, 4f));
+        b.pierTrigger = Trigger(triggers, "PierTrigger", new Vector3((HbX0 + HbX1) / 2f, 1.5f, HbZ1 - 21f), new Vector3(HbX1 - HbX0, 3f, 4f));
         b.dawnSeat = P.Marker(triggers, "DawnSeat", new Vector3(PierX0 + 1.6f, 0.02f, PierZ1 - 3f), 0f); // 부두 끝 서쪽 가장자리(배에서 떨어져 바다가 트인다)
     }
 
@@ -124,10 +125,12 @@ public static partial class Chapter1Builder
         g.SetParent(parent);
         var F = new[] { M["FacadeA"], M["FacadeB"], M["FacadeC"] };
         Material back = M["BuildingBack"];
-        // 서쪽: 가게 2를 사이에 둔 두 채, 동쪽: 긴 한 채(z 252~316)
-        P.Building(g, "Harbor_W0", new Vector3((140f + AveW) / 2f, 6.5f, (252f + Shop2Z0) / 2f), new Vector3(AveW - 140f, 13f, Shop2Z0 - 252f), F[2], back, Vector3.right);
+        // 서쪽: 가게 2를 사이에 둔 두 채, 동쪽: 긴 한 채(z 252 + Cut2 ~ 316). 이 구역은 다 지은 뒤 Cut1 + Cut2만큼 남쪽으로 당겨져
+        // 광장 북쪽 건물(구역 2, z 238~252 → Cut1만큼 당겨짐)에 맞닿는다
+        const float w0 = 252f + Cut2;
+        P.Building(g, "Harbor_W0", new Vector3((140f + AveW) / 2f, 6.5f, (w0 + Shop2Z0) / 2f), new Vector3(AveW - 140f, 13f, Shop2Z0 - w0), F[2], back, Vector3.right);
         P.Building(g, "Harbor_W1", new Vector3((140f + AveW) / 2f, 7.5f, (Shop2Z1 + 316f) / 2f), new Vector3(AveW - 140f, 15f, 316f - Shop2Z1), F[1], back, Vector3.right);
-        P.Building(g, "Harbor_E", new Vector3((AveE + 188f) / 2f, 7.5f, 284f), new Vector3(188f - AveE, 15f, 64f), F[0], back, Vector3.left);
+        P.Building(g, "Harbor_E", new Vector3((AveE + 188f) / 2f, 7.5f, (w0 + 316f) / 2f), new Vector3(188f - AveE, 15f, 316f - w0), F[0], back, Vector3.left);
         BuildShop2(g, M, X, H, triggers, b);
         HarborGate(g, M, H, b);
     }
@@ -288,8 +291,8 @@ public static partial class Chapter1Builder
         // 노란 차선(부두 큰길) · 보행 금지선
         for (float z = HbZ0 + 4f; z < HbZ1 - 6f; z += 6f)
         {
-            P.Box(g, "DockLine_W", new Vector3(190.5f, 0.004f, z), new Vector3(0.15f, 0.01f, 3.2f), H["EdgePaint"], Vector2.one, collider: false);
-            P.Box(g, "DockLine_E", new Vector3(207.5f, 0.004f, z), new Vector3(0.15f, 0.01f, 3.2f), H["EdgePaint"], Vector2.one, collider: false);
+            P.Box(g, "DockLine_W", new Vector3(188.5f, 0.004f, z), new Vector3(0.15f, 0.01f, 3.2f), H["EdgePaint"], Vector2.one, collider: false);
+            P.Box(g, "DockLine_E", new Vector3(205.5f, 0.004f, z), new Vector3(0.15f, 0.01f, 3.2f), H["EdgePaint"], Vector2.one, collider: false);
         }
     }
 
@@ -300,7 +303,7 @@ public static partial class Chapter1Builder
         Material back = M["BuildingBack"];
         // 남쪽: 항구 길 양옆 건물 너머로 낮은 창고 줄(마당 쪽을 본다)
         Shed(g, H, "Shed_S_W", new Vector3((HbX0 - 12f + 140f) / 2f, 0f, 309f), new Vector3(140f - HbX0 + 12f, 9f, 18f), Vector3.forward);
-        Shed(g, H, "Shed_S_E", new Vector3((188f + HbX1 + 12f) / 2f, 0f, 309f), new Vector3(HbX1 + 12f - 188f, 10f, 18f), Vector3.forward);
+        Shed(g, H, "Shed_S_E", new Vector3((188f + HbX1 + 14f) / 2f, 0f, 309f), new Vector3(HbX1 + 14f - 188f, 10f, 18f), Vector3.forward);
         // 서·동: 바다까지 이어지는 긴 창고 줄
         Shed(g, H, "Shed_W", new Vector3(HbX0 - 7f, 0f, (300f + HbZ1 + 8f) / 2f), new Vector3(14f, 11f, HbZ1 + 8f - 300f), Vector3.right);
         Shed(g, H, "Shed_E", new Vector3(HbX1 + 7f, 0f, (300f + HbZ1 + 8f) / 2f), new Vector3(14f, 12f, HbZ1 + 8f - 300f), Vector3.left);
@@ -338,13 +341,13 @@ public static partial class Chapter1Builder
         string[] colors = { "ContRed", "ContBlue", "ContGreen", "ContGrey", "ContOrange", "ContBlue", "ContRed" };
         const float cw = 2.44f, ch = 2.59f, cl = 12.19f;
         // 블록: 컨테이너 3개 폭(7.32m) × 1개 길이(12.19m, 남북 방향), 블록 사이 골목 3.2m(가로) · 3.8m(세로)
-        float[] bx = { 101f, 111.5f, 122f, 132.5f, 143f };
-        float[] bz = { 328f, 344f, 360f, 376f, 392f };
+        float[] bx = { 122f, 132.5f, 143f };
+        float[] bz = { 324f, 340f, 356f };
         for (int i = 0; i < bx.Length; i++)
         for (int j = 0; j < bz.Length; j++)
         {
             // 몇 칸은 비워 작은 마당을 만든다(순찰이 돌고, 숨을 곳 사이의 쉼표)
-            if ((i == 2 && j == 2) || (i == 4 && j == 0) || (i == 0 && j == 4)) continue;
+            if ((i == 1 && j == 1) || (i == 2 && j == 0)) continue;
             for (int k = 0; k < 3; k++)
             {
                 if (rnd.NextDouble() < 0.12) continue; // 군데군데 빠진 자리(숨을 틈)
@@ -358,8 +361,8 @@ public static partial class Chapter1Builder
             }
         }
         // 빈 마당 하나에 가로로 놓인 컨테이너 둘(골목 모양을 깬다)
-        Container(g, H, new Vector3(128f, 0f, 366f), true, H["ContOrange"]);
-        Container(g, H, new Vector3(128f, 0f, 370.5f), true, H["ContGrey"]);
+        Container(g, H, new Vector3(138.6f, 0f, 345.2f), true, H["ContOrange"]);
+        Container(g, H, new Vector3(138.6f, 0f, 349.7f), true, H["ContGrey"]);
     }
 
     /// <summary>컨테이너 한 개(40ft): 골판 상자 + 네 모서리 기둥(어두운 쇠) — 밤에도 윤곽이 읽힌다. alongX면 길이가 x 방향</summary>
@@ -384,9 +387,9 @@ public static partial class Chapter1Builder
         var g = new GameObject("Warehouses").transform;
         g.SetParent(parent);
         // 창고 A: 들어서면 정면을 막아 길을 둘로 나눈다(왼쪽 컨테이너 / 오른쪽 부두 큰길)
-        Shed(g, H, "Warehouse_A", new Vector3(175f, 0f, 354f), new Vector3(30f, 10f, 32f), Vector3.left);
+        Shed(g, H, "Warehouse_A", new Vector3(172f, 0f, 349f), new Vector3(24f, 10f, 26f), Vector3.left);
         // 창고 B: 부두 큰길 동쪽. 큰 문이 열려 있다(안에 회사 테이프 상자) — 열린 문은 다음 단계에서 판다
-        Shed(g, H, "Warehouse_B", new Vector3(228f, 0f, 344f), new Vector3(28f, 11f, 36f), Vector3.left);
+        Shed(g, H, "Warehouse_B", new Vector3(214.5f, 0f, 340f), new Vector3(13f, 11f, 28f), Vector3.left);
     }
 
     // =====================================================================
@@ -407,7 +410,7 @@ public static partial class Chapter1Builder
         seaR.shadowCastingMode = ShadowCastingMode.Off;
         sea.AddComponent<OceanSurface>().minZ = HbZ1 + 0.2f;
         // 안벽 아래 어두운 물(바다 판이 카메라를 따라 멀어져도 안벽 밑이 비어 보이지 않게)
-        P.Box(g, "WaterUnder", new Vector3(170f, WaterY - 0.6f, 620f), new Vector3(800f, 0.1f, 400f), H["Water"], new Vector2(12f, 12f), collider: false);
+        P.Box(g, "WaterUnder", new Vector3(170f, WaterY - 0.6f, HbZ1 + 196f), new Vector3(800f, 0.1f, 400f), H["Water"], new Vector2(12f, 12f), collider: false);
         // 안벽 앞면(마당 끝에서 물까지) · 노란 모서리 줄 · 고무 방충재
         P.Box(g, "QuayFace", new Vector3((HbX0 + HbX1) / 2f, (WaterY - 0.6f) / 2f - 0.25f, HbZ1 + 0.3f), new Vector3(HbX1 - HbX0, -WaterY + 0.6f, 0.6f), H["QuayEdge"], new Vector2(4f, 4f));
         P.Box(g, "QuayStripe", new Vector3((HbX0 + HbX1) / 2f, 0.02f, HbZ1 - 0.2f), new Vector3(HbX1 - HbX0, 0.04f, 0.3f), H["EdgePaint"], Vector2.one, collider: false);
@@ -415,7 +418,11 @@ public static partial class Chapter1Builder
         {
             if (x > PierX0 - 2f && x < PierX1 + 2f) continue;
             P.Box(g, "Fender", new Vector3(x, -0.7f, HbZ1 + 0.75f), new Vector3(1.4f, 1.1f, 0.4f), H["Fender"], Vector2.one, collider: false);
-            Bollard(g, H, new Vector3(x + 6f, 0f, HbZ1 - 0.9f));
+            // 부두 들머리·크레인 다리(x 165 · 181) 자리는 비운다
+            float bx = x + 6f;
+            if (bx > PierX0 - 1.5f && bx < PierX1 + 1.5f) continue;
+            if (Mathf.Abs(bx - 165f) < 2f || Mathf.Abs(bx - 181f) < 2f) continue;
+            Bollard(g, H, new Vector3(bx, 0f, HbZ1 - 0.9f));
         }
         // 물에 빠지지 않게: 안벽 끝 보이지 않는 벽(점프로 넘지 못할 높이)
         InvisibleWall(g, "QuayStop_W", new Vector3((HbX0 + PierX0) / 2f, 1.5f, HbZ1 + 0.2f), new Vector3(PierX0 - HbX0, 3f, 0.4f));
@@ -598,38 +605,38 @@ public static partial class Chapter1Builder
         (string name, Vector3 at, float yaw)[] props =
         {
             // 들어서자마자: 창고 A 남쪽에 세워 둔 지게차
-            ("Forklift", new Vector3(166f, 0f, 331f), -20f),
-            ("PalletStack", new Vector3(170.5f, 0f, 332.5f), 10f),
+            ("Forklift", new Vector3(163f, 0f, 330f), -20f),
+            ("PalletStack", new Vector3(167.5f, 0f, 331.5f), 10f),
             // 컨테이너 골목 속 숨을 곳
-            ("SteelDrums", new Vector3(131f, 0f, 342.2f), 30f),
-            ("PalletStack", new Vector3(110f, 0f, 390f), -15f),
-            ("NetPile", new Vector3(141.6f, 0f, 358f), 60f),
-            ("SteelDrums", new Vector3(120.4f, 0f, 374f), -40f),
+            ("SteelDrums", new Vector3(145f, 0f, 334f), 30f),
+            ("PalletStack", new Vector3(136f, 0f, 373f), -15f),
+            ("NetPile", new Vector3(147.5f, 0f, 328f), 60f),
+            ("SteelDrums", new Vector3(125.5f, 0f, 372.5f), -40f),
             // 부두 큰길 싸움터(엄폐물)
-            ("Forklift", new Vector3(200f, 0f, 381f), 35f),
-            ("PalletStack", new Vector3(194.5f, 0f, 390f), 0f),
-            ("PalletStack", new Vector3(214f, 0f, 386f), 20f),
-            ("SteelDrums", new Vector3(206.5f, 0f, 396f), 10f),
-            ("SteelDrums", new Vector3(220f, 0f, 377f), -25f),
-            ("CrateStack", new Vector3(226f, 0f, 392f), 90f),
-            ("PalletBoxes", new Vector3(192.5f, 0f, 375f), 0f),
+            ("Forklift", new Vector3(196f, 0f, 352f), 35f),
+            ("PalletStack", new Vector3(190.5f, 0f, 361f), 0f),
+            ("PalletStack", new Vector3(203.5f, 0f, 357f), 20f),
+            ("SteelDrums", new Vector3(201.5f, 0f, 366f), 10f),
+            ("SteelDrums", new Vector3(210f, 0f, 358f), -25f),
+            ("CrateStack", new Vector3(214f, 0f, 366f), 90f),
+            ("PalletBoxes", new Vector3(189.5f, 0f, 347f), 0f),
             // 3번 부두 앞(반장과 싸우는 곳)
-            ("BurnBarrel", new Vector3(201f, 0f, 413.5f), 0f),
-            ("SteelDrums", new Vector3(189.5f, 0f, 409f), 15f),
-            ("PalletStack", new Vector3(224f, 0f, 408f), -10f),
-            ("NetPile", new Vector3(227f, 0f, 418f), 0f),
-            ("NetPile", new Vector3(183.5f, 0f, 412f), 90f),
-            ("RopeCoil", new Vector3(187f, 0f, 421.6f), 0f),
-            ("RopeCoil", new Vector3(216.5f, 0f, 421.4f), 140f),
-            ("RopeCoil", new Vector3(PierX0 + 1.4f, 0f, 446f), 60f),
+            ("BurnBarrel", new Vector3(198f, 0f, HbZ1 - 10.5f), 0f),
+            ("SteelDrums", new Vector3(186.5f, 0f, HbZ1 - 15f), 15f),
+            ("PalletStack", new Vector3(213f, 0f, HbZ1 - 16f), -10f),
+            ("NetPile", new Vector3(216f, 0f, HbZ1 - 6f), 0f),
+            ("NetPile", new Vector3(183.6f, 0f, HbZ1 - 12f), 90f),
+            ("RopeCoil", new Vector3(184f, 0f, HbZ1 - 2.4f), 0f),
+            ("RopeCoil", new Vector3(212.5f, 0f, HbZ1 - 2.6f), 140f),
+            ("RopeCoil", new Vector3(PierX0 + 1.4f, 0f, HbZ1 + 22f), 60f),
         };
         foreach (var (name, at, yaw) in props) TryProp(name, g, at, yaw);
         // 드럼통 불(반장이 테이프를 던지려는 곳): 불빛 + 불티
-        var fire = P.AddLight(g, "BarrelFire", new Vector3(201f, 1.3f, 413.5f), LightType.Point, new Color(1f, 0.52f, 0.2f), 7f, 11f);
+        var fire = P.AddLight(g, "BarrelFire", new Vector3(198f, 1.3f, HbZ1 - 10.5f), LightType.Point, new Color(1f, 0.52f, 0.2f), 7f, 11f);
         builtFire = fire.gameObject.AddComponent<FireFlicker>();
         builtFire.baseIntensity = 7f;
         fire.shadows = LightShadows.Soft;
-        builtBarrel = P.Marker(triggers, "BurnBarrel", new Vector3(201f, 0f, 413.5f), 0f);
+        builtBarrel = P.Marker(triggers, "BurnBarrel", new Vector3(198f, 0f, HbZ1 - 10.5f), 0f);
     }
 
     // =====================================================================
@@ -638,19 +645,19 @@ public static partial class Chapter1Builder
 
     static void HarborEnemies(Transform parent, Transform people, Transform routes, Transform triggers, Dictionary<string, Material> H, Built b)
     {
-        // 컨테이너 골목(세로 골목 x 109.9/120.4/130.9/141.4, 가로 골목 z 342.1/358.1/374.1/390.1)
-        Patrol(people, routes, "Thug_Yard_A", new Vector3(120.4f, 0.02f, 334f), 0f,
-            new Vector3(120.4f, 0.02f, 334f), new Vector3(120.4f, 0.02f, 400f));
-        Patrol(people, routes, "Thug_Yard_B", new Vector3(146f, 0.02f, 358.1f), -90f,
-            new Vector3(146f, 0.02f, 358.1f), new Vector3(104f, 0.02f, 358.1f));
-        Patrol(people, routes, "Thug_Yard_C", new Vector3(141.4f, 0.02f, 398f), 180f,
-            new Vector3(141.4f, 0.02f, 398f), new Vector3(141.4f, 0.02f, 376f), new Vector3(130.9f, 0.02f, 374.1f), new Vector3(141.4f, 0.02f, 376f));
+        // 컨테이너 골목(세로 골목 x 130.9/141.4, 가로 골목 z 338.1/354.1, 바깥 둘레 x 121 · 152.5)
+        Patrol(people, routes, "Thug_Yard_A", new Vector3(130.9f, 0.02f, 326f), 0f,
+            new Vector3(130.9f, 0.02f, 326f), new Vector3(130.9f, 0.02f, 374f));
+        Patrol(people, routes, "Thug_Yard_B", new Vector3(152f, 0.02f, 354.1f), -90f,
+            new Vector3(152f, 0.02f, 354.1f), new Vector3(122f, 0.02f, 354.1f));
+        Patrol(people, routes, "Thug_Yard_C", new Vector3(141.4f, 0.02f, 376f), 180f,
+            new Vector3(141.4f, 0.02f, 376f), new Vector3(141.4f, 0.02f, 356f), new Vector3(130.9f, 0.02f, 354.1f), new Vector3(141.4f, 0.02f, 356f));
         // 창고 A 서쪽 트인 길(곧장 가는 길)을 지키는 순찰
-        Patrol(people, routes, "Thug_WestLane", new Vector3(155.5f, 0.02f, 336f), 0f,
-            new Vector3(155.5f, 0.02f, 336f), new Vector3(155.5f, 0.02f, 396f));
+        Patrol(people, routes, "Thug_WestLane", new Vector3(155.5f, 0.02f, 326f), 0f,
+            new Vector3(155.5f, 0.02f, 326f), new Vector3(155.5f, 0.02f, 374f));
         // 부두 큰길 들머리 순찰
-        Patrol(people, routes, "Thug_Road", new Vector3(199f, 0.02f, 334f), 0f,
-            new Vector3(199f, 0.02f, 334f), new Vector3(199f, 0.02f, 366f));
+        Patrol(people, routes, "Thug_Road", new Vector3(197f, 0.02f, 324f), 0f,
+            new Vector3(197f, 0.02f, 324f), new Vector3(197f, 0.02f, 342f));
 
         // 크레인 탐조등: 컨테이너 야적장과 서쪽 트인 길을 천천히 훑는다
         var sl = new GameObject("CraneSearchlight");
@@ -669,27 +676,27 @@ public static partial class Chapter1Builder
         search.cone = cone.transform;
         search.path = new[]
         {
-            new Vector3(106f, 0f, 336f), new Vector3(150f, 0f, 336f), new Vector3(156f, 0f, 366f),
-            new Vector3(150f, 0f, 398f), new Vector3(106f, 0f, 398f), new Vector3(118f, 0f, 366f),
+            new Vector3(124f, 0f, 326f), new Vector3(152f, 0f, 326f), new Vector3(156f, 0f, 350f),
+            new Vector3(152f, 0f, 374f), new Vector3(124f, 0f, 374f), new Vector3(134f, 0f, 350f),
         };
         b.searchlight = search;
 
         // 부두 큰길 싸움터: 조직원 셋 + 팔레트 위 총잡이. 들어서거나 들키면 싸움
-        var f1 = Fighter(people, "Thug_Dock_A", new Vector3(203f, 0.02f, 386f), 180f, false);
-        var f2 = Fighter(people, "Thug_Dock_B", new Vector3(210f, 0.02f, 392f), 200f, false);
-        var f3 = Fighter(people, "Thug_Dock_C", new Vector3(196f, 0.02f, 396f), 160f, false);
-        var gun = Fighter(people, "Thug_Dock_Gunner", new Vector3(218f, 0.02f, 398f), 210f, true);
+        var f1 = Fighter(people, "Thug_Dock_A", new Vector3(199f, 0.02f, 358f), 180f, false);
+        var f2 = Fighter(people, "Thug_Dock_B", new Vector3(205f, 0.02f, 362f), 200f, false);
+        var f3 = Fighter(people, "Thug_Dock_C", new Vector3(192f, 0.02f, 364f), 160f, false);
+        var gun = Fighter(people, "Thug_Dock_Gunner", new Vector3(212f, 0.02f, 364f), 210f, true);
         gun.holdPosition = true;
-        b.dockZone = Zone(triggers, "DockZone", new Vector3(208f, 1.5f, 384f), new Vector3(34f, 3f, 26f), f1, f2, f3, gun);
+        b.dockZone = Zone(triggers, "DockZone", new Vector3(200f, 1.5f, 356f), new Vector3(30f, 3f, 22f), f1, f2, f3, gun);
 
         // 3번 부두 앞: 정리반 반장 + 곁의 부하 둘 + 2단계에 부르는 부하 둘(배 옆에 숨어 있다)
-        var p1 = Fighter(people, "Thug_Pier_A", new Vector3(195f, 0.02f, 416f), 180f, false);
-        var p2 = Fighter(people, "Thug_Pier_B", new Vector3(210f, 0.02f, 417f), 180f, false);
+        var p1 = Fighter(people, "Thug_Pier_A", new Vector3(192f, 0.02f, HbZ1 - 8f), 180f, false);
+        var p2 = Fighter(people, "Thug_Pier_B", new Vector3(207f, 0.02f, HbZ1 - 7f), 180f, false);
         var r1 = Fighter(people, "Thug_Pier_C", new Vector3(PierX0 + 2f, 0.02f, HbZ1 + 8f), 180f, false);
         var r2 = Fighter(people, "Thug_Pier_D", new Vector3(PierX1 - 2f, 0.02f, HbZ1 + 10f), 180f, false);
         r1.gameObject.SetActive(false);
         r2.gameObject.SetActive(false);
-        var boss = P.CreateThug(people, "Boss_Cleaner", new Vector3(201f, 0.02f, 417.5f), 180f, "Cleaner");
+        var boss = P.CreateThug(people, "Boss_Cleaner", new Vector3(198f, 0.02f, HbZ1 - 6.5f), 180f, "Cleaner");
         SetCombat(boss, false);
         boss.displayName = "정리반 반장";
         boss.isBoss = true;
@@ -708,7 +715,7 @@ public static partial class Chapter1Builder
         boss.shotCooldown = 2.2f;
         var brain = boss.gameObject.AddComponent<BossCleaner>();
         brain.reinforcements = new[] { r1, r2 };
-        brain.coverPoint = P.Marker(triggers, "BossCover", new Vector3(188.2f, 0.02f, 407.4f), 120f);
+        brain.coverPoint = P.Marker(triggers, "BossCover", new Vector3(185.2f, 0.02f, HbZ1 - 16.6f), 120f);
         // 왼손에 대니의 테이프
         var hand = boss.body.GetBoneTransform(HumanBodyBones.LeftHand);
         var tape = P.Prop("CassetteTape", hand, hand.position, 0f);
@@ -719,11 +726,11 @@ public static partial class Chapter1Builder
         brain.heldTape = tape.transform;
         b.boss = boss;
         b.pierThugs = new[] { p1, p2 };
-        b.pierZone = Zone(triggers, "PierZone", new Vector3(202f, 1.5f, 413f), new Vector3(44f, 3f, 18f), boss, p1, p2);
+        b.pierZone = Zone(triggers, "PierZone", new Vector3(198f, 1.5f, HbZ1 - 11f), new Vector3(40f, 3f, 18f), boss, p1, p2);
 
         // 테이프: 컨테이너 깊숙한 곳(잠입 길의 보상) · 창고 B 앞(회복약과 함께)
-        TapeSpot(parent, triggers, "YardTape", new Vector3(125.6f, 0f, 362.2f), 2, 1, box: true);
-        TapeSpot(parent, triggers, "WarehouseTape", new Vector3(212.6f, 0f, 340f), 1, 1, box: true);
+        TapeSpot(parent, triggers, "YardTape", new Vector3(136.2f, 0f, 341.6f), 2, 1, box: true);
+        TapeSpot(parent, triggers, "WarehouseTape", new Vector3(206.2f, 0f, 330f), 1, 1, box: true);
     }
 
     static CombatZone Zone(Transform triggers, string name, Vector3 centre, Vector3 size, params EnemyAI[] enemies)
@@ -751,13 +758,13 @@ public static partial class Chapter1Builder
         // 높은 투광등 기둥(나트륨 주황): 넓은 마당을 군데군데 웅덩이처럼 밝힌다 — 사이사이는 어둡게(숨을 곳)
         var poles = new[]
         {
-            new Vector3(158f, 0f, 334f), new Vector3(200f, 0f, 330f), new Vector3(156.5f, 0f, 392f),
-            new Vector3(199f, 0f, 380f), new Vector3(232f, 0f, 400f), new Vector3(120f, 0f, 418f), new Vector3(214f, 0f, 418f),
+            new Vector3(158f, 0f, 332f), new Vector3(200.5f, 0f, 328f), new Vector3(156.5f, 0f, 372f),
+            new Vector3(192.5f, 0f, 353.5f), new Vector3(218f, 0f, 376f), new Vector3(128f, 0f, HbZ1 - 6f), new Vector3(208f, 0f, HbZ1 - 4f),
         };
         // 그림자는 넷만(가운데 길목): 다 켜면 그림자 지도가 모자라 해상도가 떨어진다
         for (int i = 0; i < poles.Length; i++) FloodPole(g, H, poles[i], i < 4);
         // 컨테이너 골목 안쪽은 작은 작업등 몇 개만
-        foreach (var p in new[] { new Vector3(118.5f, 2.9f, 342f), new Vector3(140f, 2.9f, 374f), new Vector3(108f, 2.9f, 390f) })
+        foreach (var p in new[] { new Vector3(130.9f, 2.9f, 338f), new Vector3(141.4f, 2.9f, 358f), new Vector3(124f, 2.9f, 370f) })
             P.AddLight(g, "AisleLamp", p, LightType.Point, new Color(1f, 0.66f, 0.32f), 6f, 12f);
     }
 

@@ -29,6 +29,7 @@ public static partial class Chapter1Builder
     const float G = P.Ground;
 
     const float ParkX0 = P.ParkWestX, ParkX1 = 150f, ParkZ0 = P.BackFence, ParkZ1 = 84f;
+    const float ParkWalkX0 = 72f;        // 걸어 다니는 공원의 서쪽 끝(그 서쪽은 담장 너머 숲)
     const float GateX = P.ParkGateX;
     const float PathX = 106.2f;          // 쪽문에서 북쪽으로 곧게 뻗은 산책길
     const float LaneZ = 60f;             // 공원 관리 도로 가운데(동서)
@@ -36,6 +37,10 @@ public static partial class Chapter1Builder
     const float AveW = 155f, AveRoad0 = 158f, AveRoad1 = 170f, AveE = 173f;
     const float AveX = (AveRoad0 + AveRoad1) / 2f;
     const float ShopZ0 = 59.5f, ShopZ1 = 68.5f, ShopDoorZ = 66.4f;
+    const float AveSouthZ = 44f;         // 큰길 남쪽 공사 철망(공원 출구 바로 남쪽)
+    // 길 줄이기(2026-10-14 "쓸데없이 넓다"): 큰길을 Cut1, 광장~항구 문 길을 Cut2만큼 줄인다.
+    // 구역 2·3 빌더는 옛 좌표 그대로 짓고, 다 지은 뒤 통째로 남쪽으로 당긴다(구역 2는 Cut1, 구역 3은 Cut1 + Cut2) — ShiftNew
+    const float Cut1 = 30f, Cut2 = 20f;
 
     [MenuItem("Game/Build Chapter 1")]
     static void BuildMenu()
@@ -101,8 +106,13 @@ public static partial class Chapter1Builder
         var player = P.CreatePlayer(b.zoneStart, out _, out _, out var pocketWalkman, out _);
 
         BuildThugs(people, routes, triggers, b);
+        var before2 = AllTransforms();
         BuildMarketSquare(M, X, triggers, people, routes, b);
+        var before3 = AllTransforms();
         BuildHarbor(M, X, triggers, people, routes, b);
+        ShiftNew(before3, -(Cut1 + Cut2));                       // 구역 3(항구 길 · 부두)
+        ShiftNew(before2, -Cut1, except: before3);               // 구역 2(시장 광장)
+        b.gateOpenPos += Vector3.back * (Cut1 + Cut2);
 
         // ---------- 카메라 ----------
         var mainCam = Object.FindAnyObjectByType<Camera>();
@@ -492,8 +502,11 @@ public static partial class Chapter1Builder
 
         // ---------- 경계 ----------
         // 서쪽: 판자 담장 너머 나무들(걸어서 못 가는 곳에만 나무를 둔다: 나무 수관 속으로 카메라가 들어가 화면이 새카매지는 일을 막는다)
-        P.WoodFence(g, new Vector3(ParkX0, G, ParkZ0), new Vector3(ParkX0, G, ParkZ1 + 0.5f), 2.4f, M);
-        for (float z = 30f; z < ParkZ1; z += 8f) P.Prop("StreetTree", g, new Vector3(ParkX0 - 3f, G, z), z * 41f % 360f);
+        // (2026-10-14 "쓸데없이 넓다": 서쪽 x 55~72는 아무것도 없는 잔디였다 → 담장을 x 72로 당기고, 담장 너머는 나무 숲으로)
+        P.WoodFence(g, new Vector3(ParkWalkX0, G, ParkZ0), new Vector3(ParkWalkX0, G, ParkZ1 + 0.5f), 2.4f, M);
+        for (float z = 30f; z < ParkZ1; z += 8f)
+            foreach (float x in new[] { ParkX0 - 3f, ParkX0 + 6f, ParkWalkX0 - 4f })
+                P.Prop("StreetTree", g, new Vector3(x, G, z + (x > ParkX0 ? 3f : 0f)), (z + x) * 41f % 360f);
         // 북쪽: 공원을 바라보는 아파트 동들, 사이는 판자 담장
         float[][] blocks = { new[] { 56f, 76f, 15f }, new[] { 78f, 100f, 18f }, new[] { 102f, 122f, 14f }, new[] { 124f, 140f, 16f } };
         var facades = new[] { M["FacadeA"], M["FacadeB"], M["FacadeC"] };
@@ -698,7 +711,7 @@ public static partial class Chapter1Builder
     static void BuildAvenue(Dictionary<string, Material> M, Dictionary<string, Material> X, Transform triggers, Built b)
     {
         var g = P.Group("Avenue");
-        const float z0 = -40f, z1 = 160f, zc = (z0 + z1) / 2f, len = z1 - z0;
+        const float z0 = -40f, z1 = 160f - Cut1, zc = (z0 + z1) / 2f, len = z1 - z0;
         P.Box(g, "AveRoad", new Vector3(AveX, -0.25f, zc), new Vector3(AveRoad1 - AveRoad0, 0.5f, len), M["Asphalt"], new Vector2(4f, 4f));
         P.Box(g, "AveSidewalk_W", new Vector3((AveW + AveRoad0) / 2f, 0.075f, zc), new Vector3(AveRoad0 - AveW, 0.15f, len), M["Sidewalk"], new Vector2(2f, 2f));
         P.Box(g, "AveSidewalk_E", new Vector3((AveRoad1 + AveE) / 2f, 0.075f, zc), new Vector3(AveE - AveRoad1, 0.15f, len), M["Sidewalk"], new Vector2(2f, 2f));
@@ -711,7 +724,7 @@ public static partial class Chapter1Builder
             P.Box(g, "Crosswalk", new Vector3(x, 0.005f, LaneZ), new Vector3(0.55f, 0.01f, 3.4f), M["Paint"], Vector2.one, collider: false);
 
         // 가로등: 서쪽 인도는 머리가 +x, 동쪽은 -x로 차도를 본다(기둥이 연석 쪽)
-        for (float z = -30f; z < 156f; z += 24f)
+        for (float z = -30f; z < 156f - Cut1; z += 24f)
         {
             AveLamp(g, new Vector3(AveRoad0 - 0.4f + 0.95f, 0.15f, z), 0f, M);
             AveLamp(g, new Vector3(AveRoad1 + 0.4f - 0.95f, 0.15f, z + 12f), 180f, M);
@@ -730,7 +743,7 @@ public static partial class Chapter1Builder
 
         // 동쪽 상가(가게 1은 BuildShop). 1층은 셔터를 내린 가게들
         var facades = new[] { M["FacadeA"], M["FacadeB"], M["FacadeC"] };
-        float[][] east = { new[] { -40f, -12f, 14f }, new[] { -10f, 20f, 18f }, new[] { 22f, 44f, 12f }, new[] { 46f, ShopZ0, 15f }, new[] { ShopZ1, 96f, 20f }, new[] { 98f, 126f, 13f }, new[] { 128f, 160f, 17f } };
+        float[][] east = { new[] { -40f, -12f, 14f }, new[] { -10f, 20f, 18f }, new[] { 22f, 44f, 12f }, new[] { 46f, ShopZ0, 15f }, new[] { ShopZ1, 96f, 20f }, new[] { 98f, 160f - Cut1, 15f } };
         for (int i = 0; i < east.Length; i++)
         {
             float a = east[i][0], c = east[i][1], h = east[i][2];
@@ -739,19 +752,44 @@ public static partial class Chapter1Builder
         }
         // 서쪽: 공원 북쪽 너머와 대니네 거리 남쪽 너머
         P.Building(g, "Block_W0", new Vector3(147.5f, 8f, 98f), new Vector3(15f, 16f, 24f), M["FacadeB"], M["BuildingBack"], Vector3.right);
-        P.Building(g, "Block_W1", new Vector3(147.5f, 10f, 136f), new Vector3(15f, 20f, 48f), M["FacadeC"], M["BuildingBack"], Vector3.right);
+        P.Building(g, "Block_W1", new Vector3(147.5f, 10f, (112f + 160f - Cut1) / 2f), new Vector3(15f, 20f, 48f - Cut1), M["FacadeC"], M["BuildingBack"], Vector3.right);
         P.Building(g, "Block_W2", new Vector3(147.5f, 7f, -34f), new Vector3(15f, 14f, 12f), M["FacadeA"], M["BuildingBack"], Vector3.right);
         // 북쪽 끝은 시장 광장(구역 2)으로 이어진다(BuildMarketSquare)
         // 남쪽: 도로 공사로 막혀 있다
-        P.Fence(g, new Vector3(AveW, 0f, -8f), new Vector3(AveE, 0f, -8f), 2.6f, M);
-        foreach (float x in new[] { 159.5f, 162.6f, 165.7f, 168.8f }) P.Prop("ConstructionBarrier", g, new Vector3(x, 0f, -6.6f), 0f);
-        P.AddLight(g, "WorkLight_Ave", new Vector3(AveX, 2.4f, -7f), LightType.Point, new Color(1f, 0.6f, 0.25f), 3f, 9f);
+        // (2026-10-14: 예전에는 z -8에 있어 공원 출구 남쪽으로 64m짜리 빈 막다른 길이 있었다 → z 44로 당겼다)
+        P.Fence(g, new Vector3(AveW, 0f, AveSouthZ), new Vector3(AveE, 0f, AveSouthZ), 2.6f, M);
+        foreach (float x in new[] { 159.5f, 162.6f, 165.7f, 168.8f }) P.Prop("ConstructionBarrier", g, new Vector3(x, 0f, AveSouthZ + 1.4f), 0f);
+        P.AddLight(g, "WorkLight_Ave", new Vector3(AveX, 2.4f, AveSouthZ + 1f), LightType.Point, new Color(1f, 0.6f, 0.25f), 3f, 9f);
 
-        b.northEnd = P.Marker(triggers, "NorthEnd", new Vector3(AveX, 1.4f, 128f), 0f);
-        b.endTrigger = Trigger(triggers, "EndTrigger", new Vector3(AveX - 1.5f, 1.5f, 128f), new Vector3(AveE - AveW + 2f, 3f, 4f)); // 검문소가 보이는 자리(구역 2 시작)
+        b.northEnd = P.Marker(triggers, "NorthEnd", new Vector3(AveX, 1.4f, 128f - Cut1), 0f);
+        b.endTrigger = Trigger(triggers, "EndTrigger", new Vector3(AveX - 1.5f, 1.5f, 128f - Cut1), new Vector3(AveE - AveW + 2f, 3f, 4f)); // 검문소가 보이는 자리(구역 2 시작)
     }
 
     static void AveLamp(Transform parent, Vector3 pos, float yaw, Dictionary<string, Material> M) => ParkLamp(parent, pos, yaw, M);
+
+    static HashSet<Transform> AllTransforms()
+    {
+        var set = new HashSet<Transform>();
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None)) set.Add(t);
+        return set;
+    }
+
+    /// <summary>
+    /// before 이후에 새로 생긴 물체(가장 위의 새 물체만 — 자식은 따라온다)를 남북으로 dz만큼 옮긴다. except에 든 물체(그 뒤에 생긴 것)는
+    /// 따로 옮기므로 건너뛴다. 위치를 숫자로 들고 있는 것(탐조등 경로)도 함께 옮긴다
+    /// </summary>
+    static void ShiftNew(HashSet<Transform> before, float dz, HashSet<Transform> except = null)
+    {
+        var offset = new Vector3(0f, 0f, dz);
+        foreach (var t in Object.FindObjectsByType<Transform>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (before.Contains(t) || (except != null && !except.Contains(t))) continue;
+            if (t.parent && !before.Contains(t.parent) && (except == null || except.Contains(t.parent))) continue; // 부모가 같이 옮겨진다
+            t.position += offset;
+            foreach (var s in t.GetComponentsInChildren<Searchlight>(true))
+                for (int i = 0; i < s.path.Length; i++) s.path[i] += offset;
+        }
+    }
 
     /// <summary>상가 1층: 셔터 내린 가게 앞면(가게 폭마다 셔터 하나, 사이는 돌기둥)</summary>
     static void Shutters(Transform parent, float z0, float z1, Dictionary<string, Material> X)

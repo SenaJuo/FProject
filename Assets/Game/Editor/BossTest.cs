@@ -64,13 +64,13 @@ public static class BossTest
                 // 철조망 문은 연 것으로(F를 누른 것처럼)
                 var used = (System.Action)typeof(StoryInteractable).GetField("Used", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).GetValue(d.gateUse);
                 used?.Invoke();
-                Tp(new Vector3(164f, 0.02f, 322f), new Vector3(164f, 0f, 400f));
+                Tp(new Vector3(164f, 0.02f, 272f), new Vector3(164f, 0f, 320f));
                 Note("항구 마당(문 안)부터 시작");
                 Next();
                 break;
             }
             case 1:
-                if (Waited(1f)) { Tp(new Vector3(182f, 0.02f, 401f), new Vector3(201f, 0f, 417f)); Note("부두 앞 마당으로(컨테이너 쪽에서)"); Next(); }
+                if (Waited(1f)) { Tp(new Vector3(180f, 0.02f, 319f), new Vector3(198f, 0f, 333.5f)); Note("부두 앞 마당으로(컨테이너 쪽에서)"); Next(); }
                 break;
             case 2:
                 if (d.CurrentPhase == Chapter1Director.Phase.BossIntro && Waited(4f)) { Shot("boss_intro"); Next(); }
@@ -104,8 +104,10 @@ public static class BossTest
                     Note($"2단계: 단계 {d.bossBrain.Phase}(기대 2), 권총 {d.boss.ranged}, 부하 등장 {helpers}(기대 2), 체력 {d.boss.Health.Current}, 엄폐물까지 {atCover:0.0}m, 무적 {d.boss.Health.Invulnerable}(기대 False), 활성 {d.boss.IsActive}");
                     Shot("boss_phase2");
                     foreach (var r in d.bossBrain.reinforcements) if (r && r.gameObject.activeInHierarchy) r.GetComponent<Health>().TakeDamage(999, p.transform.position);
-                    d.boss.Health.TakeDamage(d.boss.Health.Current - d.boss.Health.Max / 5, p.transform.position);
-                    Tp(new Vector3(222f, 0.02f, 404f), new Vector3(201f, 0f, 413f)); // 멀리 떨어져서 반장이 불에 닿게 둔다
+                    // 큰 한 방(되감기 기억 3배 · 능력 등)으로 25% 아래까지 한꺼번에 깎여도 쓰러지지 않고 소각 장면으로 가야 한다(10-14 버그: 바로 2장으로 넘어감)
+                    d.boss.Health.TakeDamage(9999, p.transform.position);
+                    Note($"큰 한 방 뒤: 체력 {d.boss.Health.Current}/{d.boss.Health.Max}(기대 {Mathf.FloorToInt(d.boss.Health.Max * 0.25f)}), 쓰러짐 {d.boss.Health.IsDead}(기대 False)");
+                    Tp(new Vector3(219f, 0.02f, 320.5f), new Vector3(198f, 0f, 329.5f)); // 멀리 떨어져서 반장이 불에 닿게 둔다
                     Next();
                 }
                 else if (Waited(6f)) End("엄폐물에 도착하지 못함(넘어가는 장면이 끝나지 않음)");

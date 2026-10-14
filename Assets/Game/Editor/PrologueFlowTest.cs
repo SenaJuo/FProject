@@ -25,8 +25,13 @@ public static class PrologueFlowTest
 
     static bool parcelUsed;
 
+    static string keptSeen;
+
     public static void Begin(string logPath, string shotDir)
     {
+        // 설명 알림은 "처음 한 번만" 뜬다(PlayerPrefs에 남는다): 시험 동안만 본 기록을 비우고, 끝나면 되돌린다
+        keptSeen = PlayerPrefs.GetString("tutorial_seen", "");
+        Tutorial.ForgetSeen();
         parcelUsed = false;
         // 편집 모드에서 부르면 시험용 변경(감독 끄기 등)이 장면에 그대로 남는다 → 플레이 중에만
         if (!EditorApplication.isPlaying || !Object.FindAnyObjectByType<PrologueDirector>()) throw new System.InvalidOperationException("플레이 중인 프롤로그 장면에서만 시작할 수 있다");
@@ -49,6 +54,7 @@ public static class PrologueFlowTest
     {
         Note("시험 끝: " + why);
         EditorApplication.update -= Tick;
+        if (keptSeen != null) { PlayerPrefs.SetString("tutorial_seen", keptSeen); PlayerPrefs.Save(); keptSeen = null; }
     }
 
     static void Note(string text)

@@ -75,6 +75,7 @@ public class GameManager : MonoBehaviour, IRewindable
     void Start()
     {
         player.GetComponent<Health>().Died += OnPlayerDied;
+        if (savedEnemies.Count == 0) RememberEnemies(); // 첫 저장 전에 쓰러져도 처음 상태로
         ShowMessage(stageTitle, 3f);
     }
 
@@ -139,6 +140,50 @@ public class GameManager : MonoBehaviour, IRewindable
         if (point == null) return;
         checkpointPosition = point.position;
         checkpointRotation = point.rotation;
+        RememberEnemies();
+    }
+
+    // ---------- 저장 시점의 적(2026-10-14) ----------
+    // 예전에는 쓰러져 저장 지점에서 다시 시작해도 그사이 쓰러뜨린 적이 그대로 죽어 있었다(되살아나는 건 살아 있던 적뿐).
+    // 이제 저장할 때 적·교전 구역의 상태를 적어 두고, 다시 시작하면 저장 뒤에 쓰러뜨린 적을 되살린다(저장 전에 쓰러뜨린 적은 그대로).
+    readonly System.Collections.Generic.Dictionary<IRewindable, object> savedStates = new();
+    readonly System.Collections.Generic.List<EnemyAI> savedEnemies = new();
+    readonly System.Collections.Generic.List<CombatZone> savedZones = new();
+
+    void RememberEnemies()
+    {
+        savedStates.Clear(); savedEnemies.Clear(); savedZones.Clear();
+        foreach (var e in FindObjectsByType<EnemyAI>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            savedEnemies.Add(e);
+            foreach (var r in e.GetComponents<IRewindable>()) savedStates[r] = r.CaptureState();
+        }
+        foreach (var z in FindObjectsByType<CombatZone>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            savedZones.Add(z);
+            savedStates[z] = ((IRewindable)z).CaptureState();
+        }
+    }
+
+    void ReviveEnemiesSinceSave()
+    {
+        var revived = new System.Collections.Generic.HashSet<EnemyAI>();
+        foreach (var e in savedEnemies)
+        {
+            if (!e || !savedStates.TryGetValue(e, out var s) || !e.ReviveTo(s)) continue;
+            revived.Add(e);
+            // 체력·방패·손전등·순찰도 저장 때로
+            foreach (var r in e.GetComponents<IRewindable>())
+                if (!ReferenceEquals(r, e) && savedStates.TryGetValue(r, out var rs)) r.RestoreState(rs, false);
+        }
+        if (revived.Count == 0) return;
+        // 되살아난 적이 있는 구역은 저장 때의 진행(시작 · 정리 · 남은 수)으로
+        foreach (var z in savedZones)
+        {
+            if (!z || !Array.Exists(z.enemies, e => e && revived.Contains(e))) continue;
+            ((IRewindable)z).RestoreState(savedStates[z], false);
+            if (!z.Started) foreach (var gate in z.closeOnEnter) if (gate) gate.Open();
+        }
     }
 
     void OnZoneEntered(CombatZone zone)
@@ -189,6 +234,7 @@ public class GameManager : MonoBehaviour, IRewindable
         if (pendingRespawn != null) { StopCoroutine(pendingRespawn); pendingRespawn = null; }
         if (player.TryGetComponent(out Walkman walkman)) walkman.ResetForRespawn();
         player.Respawn(checkpointPosition, checkpointRotation);
+        ReviveEnemiesSinceSave(); // 먼저 되살리고, 이어서 모든 적이 처음 자리로 돌아간다(PlayerRespawned)
         PlayerRespawned?.Invoke();
         TimeRewind.Clear(); // 이번 죽음 이전의 기록으로는 되감을 수 없다
     }

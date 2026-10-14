@@ -76,7 +76,7 @@ public static class SaveGame
         if (d == null || string.IsNullOrEmpty(d.scene)) return false;
         pending = d;
         Enabled = true;
-        SceneManager.LoadScene(d.scene);
+        SceneLoader.Load(d.scene);
         return true;
     }
 

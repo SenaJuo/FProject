@@ -47,13 +47,20 @@ public class Health : MonoBehaviour, IRewindable
     /// <summary>받는 피해 배율(앰비언트 테이프 능력 「고요」가 잠시 낮춘다)</summary>
     [System.NonSerialized] public float damageTakenScale = 1f;
 
+    /// <summary>
+    /// 체력 바닥: 0보다 크면 체력이 이 아래로 떨어지지 않는다(2026-10-14). 보스의 이야기 장면(1장 반장 25% 테이프 소각,
+    /// 3장 파트너 40% 도주, 4장 파트너 60%·40%)을 큰 한 방(기억의 일격 ×3 + 능력 ×1.5)이 건너뛰어
+    /// 1장 보스전이 갑자기 2장으로 넘어가던 버그. 감독이 그 장면에 들어서면 0으로 푼다
+    /// </summary>
+    [System.NonSerialized] public int floor;
+
     public bool TakeDamage(int amount, Vector3 source)
     {
         if (IsDead || Invulnerable || Time.time < invulnerableUntil || amount <= 0) return false;
         if (Blocks != null && Blocks(amount, source)) { Blocked?.Invoke(amount, source); return false; }
 
         if (!Mathf.Approximately(damageTakenScale, 1f)) amount = Mathf.Max(1, Mathf.RoundToInt(amount * damageTakenScale)); // 테이프 능력(고요)
-        Current = Mathf.Max(0, Current - amount);
+        Current = Mathf.Max(floor > 0 ? Mathf.Min(floor, Current) : 0, Current - amount);
         invulnerableUntil = Time.time + invulnerableAfterHit;
         Damaged?.Invoke(amount, source);
         if (Current == 0) Died?.Invoke();

@@ -12,11 +12,13 @@ using P = PrologueBuilder;
 /// 3장 「한결 레코드」 장면 — 그 회사(한결 레코드 · 한결 FM)의 본사 한결 타워. 메뉴: Game/Build Chapter 3.
 ///
 /// 배치(미터, x 동쪽 · z 북쪽):
-///   항만로(동서 차도 z -56~-44): 서쪽 끝에서 시작. 길 북쪽 인도에 테이프 노점(저장·교환).
+///   항만로(동서 차도 z -56~-44, x -36~76): 서쪽 끝에서 시작. 길 북쪽 인도에 테이프 노점(저장·교환).
+///     (2026-10-14 "쓸데없이 넓다" → 길을 x -82~118에서 줄였다: 시작에서 하역장 입구까지 120m → 80m, 하역장 동쪽의 막다른 길도 없앴다)
 ///   한결 타워: x -20~30, z 0~50(높이 60). 남쪽 앞마당 z -40~0(정문 경비 — 갈 곳이 아니다).
-///   동쪽 하역장: x 30~70, z -40~60(동쪽은 창고 벽). 화물 트럭 둘·컨테이너·지게차, 경비 순찰 셋, CCTV 둘. 직원 통로 x 30, z 44.
+///   동쪽 하역장: x 30~62, z -40~40(동쪽은 창고 벽, 2026-10-14 40×100m에서 줄였다). 화물 트럭 둘·컨테이너·지게차, 경비 순찰 셋, CCTV 둘. 직원 통로 x 30, z 34.
 ///   녹음실 층(따로, x 300~340, z 0~30): 복도 z 12~18 · 북쪽 테이프 보관실/조정실/실험 부스 · 남쪽 독방 셋 · 동쪽 끝 엘리베이터.
-///   옥상(따로, x 290~350, z 100~150): 엘리베이터 탑 · 헬기장 · 실외기들 · 북동쪽 펜트하우스(금고실 · 전용 엘리베이터).
+///   옥상(따로, x 296~342, z 102~140): 엘리베이터 탑 · 헬기장 · 실외기들 · 북동쪽 펜트하우스(금고실 · 전용 엘리베이터).
+///     (2026-10-14 "쓸데없이 넓다" → 60×50m에서 46×38m로, 펜트하우스 20×16m를 16×12m로 줄였다)
 /// </summary>
 public static partial class Chapter1Builder
 {
@@ -64,7 +66,7 @@ public static partial class Chapter1Builder
         Ch3Studio(g, M, triggers, people, b);
         Ch3Roof(g, M, H, triggers, people, b);
 
-        b.zoneStart = P.Marker(triggers, "Ch3Start", new Vector3(-70f, 0.05f, -50f), 90f);
+        b.zoneStart = P.Marker(triggers, "Ch3Start", new Vector3(-31f, 0.05f, -50f), 90f);
         var player = P.CreatePlayer(b.zoneStart, out _, out _, out _, out _);
 
         // ---------- 카메라 ----------
@@ -155,16 +157,16 @@ public static partial class Chapter1Builder
         P.Box(g, "Ground", new Vector3(20f, -0.25f, 0f), new Vector3(240f, 0.5f, 200f), M["Asphalt"], new Vector2(4f, 4f));
         P.Box(g, "Sidewalk_N", new Vector3(20f, 0.08f, -42f), new Vector3(200f, 0.16f, 4f), M["Sidewalk"], new Vector2(2f, 2f));
         P.Box(g, "Sidewalk_S", new Vector3(20f, 0.08f, -58f), new Vector3(200f, 0.16f, 4f), M["Sidewalk"], new Vector2(2f, 2f));
-        for (float x = -76f; x < 116f; x += 6f)
+        for (float x = -32f; x < 74f; x += 6f)
             P.Box(g, "LaneDash", new Vector3(x, 0.01f, -50f), new Vector3(3f, 0.01f, 0.15f), M["Paint"], Vector2.one, collider: false);
 
         // 길 남쪽: 건물 줄(길을 본다) · 길 양 끝 막힘
-        P.Building(g, "Row_S_W", new Vector3(-45f, 9f, -72f), new Vector3(60f, 18f, 24f), M["FacadeA"], M["BuildingBack"], Vector3.forward);
+        P.Building(g, "Row_S_W", new Vector3(-22.5f, 9f, -72f), new Vector3(35f, 18f, 24f), M["FacadeA"], M["BuildingBack"], Vector3.forward);
         P.Building(g, "Row_S_E", new Vector3(50f, 11f, -72f), new Vector3(110f, 22f, 24f), M["FacadeC"], M["BuildingBack"], Vector3.forward);
-        P.Box(g, "Road_W_Wall", new Vector3(-82f, 8f, -50f), new Vector3(4f, 16f, 20f), M["BuildingBack"], new Vector2(4f, 4f));
-        P.Box(g, "Road_E_Wall", new Vector3(118f, 8f, -50f), new Vector3(4f, 16f, 20f), M["BuildingBack"], new Vector2(4f, 4f));
+        P.Box(g, "Road_W_Wall", new Vector3(-36f, 8f, -50f), new Vector3(4f, 16f, 20f), M["BuildingBack"], new Vector2(4f, 4f));
+        P.Box(g, "Road_E_Wall", new Vector3(76f, 8f, -50f), new Vector3(4f, 16f, 20f), M["BuildingBack"], new Vector2(4f, 4f));
         // 길 북쪽 서편: 사무 빌딩(타워 서쪽)
-        P.Building(g, "Row_N_W", new Vector3(-52f, 12f, 10f), new Vector3(56f, 24f, 100f), M["FacadeB"], M["BuildingBack"], Vector3.back);
+        P.Building(g, "Row_N_W", new Vector3(-30f, 12f, 10f), new Vector3(20f, 24f, 100f), M["FacadeB"], M["BuildingBack"], Vector3.back);
 
         // 한결 타워: 높이 60m, 앞(남)면에 창. 옥상 네온 HG FM 98.1 · 1층 위 HANGYEOL RECORDS
         P.Building(g, "HangyeolTower", new Vector3(5f, 30f, 25f), new Vector3(50f, 60f, 50f), M["FacadeB"], M["BuildingBack"], Vector3.back);
@@ -179,7 +181,7 @@ public static partial class Chapter1Builder
         P.AddLight(g, "EntranceLight", new Vector3(5f, 3.2f, -3f), LightType.Point, new Color(1f, 0.9f, 0.75f), 6f, 12f);
         foreach (float x in new[] { -14f, 24f })
             P.Box(g, "Planter", new Vector3(x, 0.45f, -14f), new Vector3(6f, 0.9f, 6f), M["FacadeBase"], new Vector2(2f, 2f));
-        foreach (float x in new[] { -40f, -10f, 20f, 50f, 80f })
+        foreach (float x in new[] { -19f, 2f, 24f, 48f, 70f })
             TryProp("StreetLampLed", g, new Vector3(x, 0.16f, -43f), 180f);
         // 정문 경비 둘(제자리, 길을 본다) — 정문 쪽으로 가면 들킨다
         TapeSpot(g, triggers, "PlanterTape", new Vector3(-14f, 0.9f, -10.5f), 1, 1, box: false);
@@ -187,7 +189,7 @@ public static partial class Chapter1Builder
         // ---------- 테이프 노점(길 북쪽 인도, 서편) ----------
         var k = new GameObject("TapeStall").transform;
         k.SetParent(g);
-        Vector3 stall = new(-50f, 0.16f, -40.6f);
+        Vector3 stall = new(-27.5f, 0.16f, -40.6f);
         P.Box(k, "StallCounter", stall + new Vector3(0f, 0.55f, 0f), new Vector3(3.2f, 1.1f, 1.0f), M["DarkWood"], Vector2.one);
         P.Box(k, "StallBack", stall + new Vector3(0f, 1.3f, 0.9f), new Vector3(3.4f, 2.6f, 0.1f), X["ShopWall"], Vector2.one);
         P.Box(k, "StallRoof", stall + new Vector3(0f, 2.65f, 0.2f), new Vector3(3.8f, 0.1f, 2.0f), X["Awning"], Vector2.one, collider: false);
@@ -223,51 +225,52 @@ public static partial class Chapter1Builder
         var g = new GameObject("LoadingDock").transform;
         g.SetParent(parent);
         // 동쪽 창고(하역장 동쪽 벽) · 북쪽 끝 벽
-        Shed(g, H, "Dock_Warehouse", new Vector3(90f, 0f, 10f), new Vector3(40f, 12f, 100f), Vector3.left);
-        P.Box(g, "Dock_N_Wall", new Vector3(50f, 5f, 61f), new Vector3(42f, 10f, 2f), M["BuildingBack"], new Vector2(4f, 4f));
+        Shed(g, H, "Dock_Warehouse", new Vector3(82f, 0f, 10f), new Vector3(40f, 12f, 100f), Vector3.left);
+        P.Box(g, "Dock_N_Wall2", new Vector3(46f, 5f, 41f), new Vector3(34f, 10f, 2f), M["BuildingBack"], new Vector2(4f, 4f)); // 하역장 북쪽 끝
+        P.Box(g, "Dock_N_Wall", new Vector3(15.5f, 5f, 61f), new Vector3(111f, 10f, 2f), M["BuildingBack"], new Vector2(4f, 4f));
         // 입구 차단기(길에서 들어오는 곳)
         P.Box(g, "GateBooth", new Vector3(34f, 1.3f, -37f), new Vector3(2.4f, 2.6f, 2.4f), M["FacadeBase"], new Vector2(2f, 2f));
-        P.Box(g, "BoomArm", new Vector3(44f, 1.05f, -37.5f), new Vector3(16f, 0.12f, 0.12f), H["NoEntry"], Vector2.one, collider: false);
+        P.Box(g, "BoomArm", new Vector3(42f, 1.05f, -37.5f), new Vector3(12f, 0.12f, 0.12f), H["NoEntry"], Vector2.one, collider: false);
         // 하역 문(셔터 둘) · 문 위 작업등 · 직원 통로
-        foreach (float z in new[] { 24f, 34f })
+        foreach (float z in new[] { 14f, 24f })
         {
             P.Box(g, "DockShutter", new Vector3(30.06f, 2.2f, z), new Vector3(0.1f, 4.4f, 4.4f), H["ShedDark"], Vector2.one, collider: false);
             P.AddLight(g, "DockLamp", new Vector3(31.2f, 5f, z), LightType.Spot, new Color(1f, 0.8f, 0.55f), 40f, 12f, 100f, Quaternion.Euler(70f, 90f, 0f));
         }
-        P.Box(g, "ServiceDoor", new Vector3(30.06f, 1.15f, 44f), new Vector3(0.1f, 2.3f, 1.2f), H["Steel"], Vector2.one, collider: false);
-        P.AddLight(g, "ServiceDoorLight", new Vector3(31f, 2.7f, 44f), LightType.Point, new Color(0.85f, 0.92f, 1f), 5f, 9f);
-        b.serviceDoor = P.Interactable(g, "ServiceDoorUse", new Vector3(31.2f, 1f, 44f), new Vector3(1.6f, 2f, 2f), "직원 통로로 들어간다");
+        P.Box(g, "ServiceDoor", new Vector3(30.06f, 1.15f, 34f), new Vector3(0.1f, 2.3f, 1.2f), H["Steel"], Vector2.one, collider: false);
+        P.AddLight(g, "ServiceDoorLight", new Vector3(31f, 2.7f, 34f), LightType.Point, new Color(0.85f, 0.92f, 1f), 5f, 9f);
+        b.serviceDoor = P.Interactable(g, "ServiceDoorUse", new Vector3(31.2f, 1f, 34f), new Vector3(1.6f, 2f, 2f), "직원 통로로 들어간다");
         // 화물 트럭(하역 문에 뒤를 대고) · 컨테이너 · 지게차 · 팔레트(숨을 곳)
-        TryProp("BoxTruck", g, new Vector3(36f, 0f, 24f), 90f);
-        TryProp("BoxTruck", g, new Vector3(36.5f, 0f, 34.5f), 90f);
+        TryProp("BoxTruck", g, new Vector3(36f, 0f, 14f), 90f);
+        TryProp("BoxTruck", g, new Vector3(36.5f, 0f, 24.5f), 90f);
         Container(g, H, new Vector3(50f, 0f, -6f), false, H["ContBlue"]);
-        Container(g, H, new Vector3(58f, 0f, 16f), false, H["ContRed"]);
-        Container(g, H, new Vector3(48f, 0f, 47f), true, H["ContGreen"]);
+        Container(g, H, new Vector3(53f, 0f, 6f), false, H["ContRed"]);
+        Container(g, H, new Vector3(47f, 0f, 36.5f), true, H["ContGreen"]);
         (string name, Vector3 at, float yaw)[] props =
         {
-            ("Forklift", new Vector3(44f, 0f, 12f), 200f), ("PalletStack", new Vector3(40f, 0f, -18f), 10f),
-            ("CrateStack", new Vector3(62f, 0f, -24f), 80f), ("PalletBoxes", new Vector3(66f, 0f, 36f), 0f),
-            ("SteelDrums", new Vector3(41f, 0f, 2f), 30f), ("Dumpster", new Vector3(67f, 0f, -4f), -90f),
-            ("PalletStack", new Vector3(54f, 0f, 30f), -15f), ("GasCylinders", new Vector3(32.2f, 0f, 52f), 90f),
+            ("Forklift", new Vector3(46f, 0f, 2f), 200f), ("PalletStack", new Vector3(40f, 0f, -18f), 10f),
+            ("CrateStack", new Vector3(57.5f, 0f, -31f), 80f), ("PalletBoxes", new Vector3(52f, 0f, 30f), 0f),
+            ("SteelDrums", new Vector3(42.5f, 0f, -6f), 30f), ("Dumpster", new Vector3(59.6f, 0f, -4f), -90f),
+            ("PalletStack", new Vector3(49f, 0f, 21f), -15f), ("GasCylinders", new Vector3(32.2f, 0f, 38f), 90f),
         };
         foreach (var (name, at, yaw) in props) TryProp(name, g, at, yaw);
-        foreach (var at in new[] { new Vector3(66f, 0f, -30f), new Vector3(66f, 0f, 52f), new Vector3(44f, 0f, -12f), new Vector3(60f, 0f, 27f) }) FloodPole(g, H, at, false);
+        foreach (var at in new[] { new Vector3(60f, 0f, -36f), new Vector3(60f, 0f, 38f), new Vector3(44f, 0f, -14f), new Vector3(54f, 0f, 16f) }) FloodPole(g, H, at, false);
 
-        b.dockTrigger = Trigger(triggers, "DockEntry", new Vector3(50f, 1f, -34f), new Vector3(30f, 2f, 6f));
-        b.dockSave = P.Marker(triggers, "DockSave", new Vector3(50f, 0.05f, -38f), 0f);
+        b.dockTrigger = Trigger(triggers, "DockEntry", new Vector3(46f, 1f, -34f), new Vector3(30f, 2f, 6f));
+        b.dockSave = P.Marker(triggers, "DockSave", new Vector3(46f, 0.05f, -38f), 0f);
 
         // 경비(손전등 순찰): 서쪽 통로 · 동쪽 통로 · 트럭 옆 제자리(마당을 본다)
-        Guard(people, routes, "Guard_West", new Vector3(40f, 0.02f, -22f), 0f, new Vector3(40f, 0.02f, -22f), new Vector3(40f, 0.02f, 52f));
-        Guard(people, routes, "Guard_East", new Vector3(63f, 0.02f, 54f), 180f, new Vector3(63f, 0.02f, 54f), new Vector3(63f, 0.02f, -26f));
-        Guard(people, routes, "Guard_Truck", new Vector3(37f, 0.02f, 29.2f), 90f, new Vector3(37f, 0.02f, 29.2f));
+        Guard(people, routes, "Guard_West", new Vector3(40f, 0.02f, -22f), 0f, new Vector3(40f, 0.02f, -22f), new Vector3(40f, 0.02f, 34f));
+        Guard(people, routes, "Guard_East", new Vector3(57.5f, 0.02f, 34f), 180f, new Vector3(57.5f, 0.02f, 34f), new Vector3(57.5f, 0.02f, -26f));
+        Guard(people, routes, "Guard_Truck", new Vector3(37f, 0.02f, 19.2f), 90f, new Vector3(37f, 0.02f, 19.2f));
         // 정문 경비 둘(앞마당, 제자리)
         Guard(people, routes, "Guard_Front_W", new Vector3(0f, 0.02f, -3f), 180f, new Vector3(0f, 0.02f, -3f));
         Guard(people, routes, "Guard_Front_E", new Vector3(10f, 0.02f, -3f), 180f, new Vector3(10f, 0.02f, -3f));
 
         // CCTV 둘: 하역장 남쪽(타워 모서리) · 북쪽(창고 벽)
-        Cctv(g, "Cctv_South", new Vector3(31f, 7f, -2f), new[] { new Vector3(38f, 0f, -26f), new Vector3(64f, 0f, -26f), new Vector3(64f, 0f, 4f), new Vector3(38f, 0f, 4f) });
-        Cctv(g, "Cctv_North", new Vector3(69f, 7f, 30f), new[] { new Vector3(42f, 0f, 14f), new Vector3(64f, 0f, 14f), new Vector3(64f, 0f, 46f), new Vector3(42f, 0f, 46f) });
-        TapeSpot(g, triggers, "DockTape", new Vector3(67.6f, 0f, 42f), 2, 1, box: true);
+        Cctv(g, "Cctv_South", new Vector3(31f, 7f, -2f), new[] { new Vector3(38f, 0f, -26f), new Vector3(58f, 0f, -26f), new Vector3(58f, 0f, 2f), new Vector3(38f, 0f, 2f) });
+        Cctv(g, "Cctv_North", new Vector3(61f, 7f, 22f), new[] { new Vector3(42f, 0f, 8f), new Vector3(58f, 0f, 8f), new Vector3(58f, 0f, 34f), new Vector3(42f, 0f, 34f) });
+        TapeSpot(g, triggers, "DockTape", new Vector3(60.6f, 0f, 30f), 2, 1, box: true);
     }
 
     /// <summary>회사 경비(손전등 순찰, 조직원 모델). 들키면 시간이 멈춘다(Chapter3Director)</summary>
@@ -482,7 +485,7 @@ public static partial class Chapter1Builder
     {
         var g = new GameObject("Rooftop").transform;
         g.SetParent(parent);
-        const float x0 = 290f, x1 = 350f, z0 = 100f, z1 = 150f;
+        const float x0 = 296f, x1 = 342f, z0 = 102f, z1 = 140f;
         var roofMat = P.Lit("RoofDeck", P.Tex("Concrete", 256, P.ConcretePixel), new Color(0.75f, 0.76f, 0.78f), 0.3f);
         P.Box(g, "RoofDeck", new Vector3((x0 + x1) / 2f, -0.15f, (z0 + z1) / 2f), new Vector3(x1 - x0, 0.3f, z1 - z0), roofMat, new Vector2(4f, 4f));
         // 난간(허리 높이 벽) — 떨어지지 않게
@@ -508,65 +511,65 @@ public static partial class Chapter1Builder
         }
 
         // 엘리베이터 탑(도착) · 헬기장 · 실외기·물탱크(엄폐물)
-        P.Box(g, "LiftTower", new Vector3(300f, 2f, 102.5f), new Vector3(6f, 4f, 4.5f), M["FacadeBase"], new Vector2(2f, 2f));
-        P.AddLight(g, "LiftTowerLight", new Vector3(300f, 3.2f, 105.3f), LightType.Point, new Color(0.85f, 0.92f, 1f), 3f, 9f);
-        b.roofEntry = P.Marker(triggers, "RoofEntry", new Vector3(300f, 0.05f, 106f), 0f);
+        P.Box(g, "LiftTower", new Vector3(300f, 2f, 104.4f), new Vector3(6f, 4f, 4.5f), M["FacadeBase"], new Vector2(2f, 2f));
+        P.AddLight(g, "LiftTowerLight", new Vector3(300f, 3.2f, 107.2f), LightType.Point, new Color(0.85f, 0.92f, 1f), 3f, 9f);
+        b.roofEntry = P.Marker(triggers, "RoofEntry", new Vector3(300f, 0.05f, 108f), 0f);
         var pad = P.Lit("HelipadPaint", null, new Color(0.9f, 0.85f, 0.3f), 0.3f);
         for (int i = 0; i < 24; i++)
         {
             float a = i / 24f * Mathf.PI * 2f;
-            var seg = P.Box(g, "PadRing", new Vector3(318f + Mathf.Cos(a) * 8f, 0.01f, 120f + Mathf.Sin(a) * 8f), new Vector3(2.2f, 0.01f, 0.35f), pad, Vector2.one, collider: false);
+            var seg = P.Box(g, "PadRing", new Vector3(318f + Mathf.Cos(a) * 8f, 0.01f, 118f + Mathf.Sin(a) * 8f), new Vector3(2.2f, 0.01f, 0.35f), pad, Vector2.one, collider: false);
             seg.transform.rotation = Quaternion.Euler(0f, -a * Mathf.Rad2Deg + 90f, 0f);
         }
-        P.Box(g, "PadH_L", new Vector3(316.2f, 0.01f, 120f), new Vector3(0.6f, 0.01f, 5f), pad, Vector2.one, collider: false);
-        P.Box(g, "PadH_R", new Vector3(319.8f, 0.01f, 120f), new Vector3(0.6f, 0.01f, 5f), pad, Vector2.one, collider: false);
-        P.Box(g, "PadH_M", new Vector3(318f, 0.01f, 120f), new Vector3(3f, 0.01f, 0.6f), pad, Vector2.one, collider: false);
-        foreach (var at in new[] { new Vector3(306f, 0f, 114f), new Vector3(306f, 0f, 126f), new Vector3(330f, 0f, 112f), new Vector3(334f, 0f, 124f), new Vector3(300f, 0f, 136f) })
+        P.Box(g, "PadH_L", new Vector3(316.2f, 0.01f, 118f), new Vector3(0.6f, 0.01f, 5f), pad, Vector2.one, collider: false);
+        P.Box(g, "PadH_R", new Vector3(319.8f, 0.01f, 118f), new Vector3(0.6f, 0.01f, 5f), pad, Vector2.one, collider: false);
+        P.Box(g, "PadH_M", new Vector3(318f, 0.01f, 118f), new Vector3(3f, 0.01f, 0.6f), pad, Vector2.one, collider: false);
+        foreach (var at in new[] { new Vector3(306f, 0f, 113f), new Vector3(306f, 0f, 125f), new Vector3(330f, 0f, 111f), new Vector3(337f, 0f, 118f), new Vector3(300f, 0f, 133f) })
             TryProp("AcUnit", g, at, 90f);
-        P.Box(g, "WaterTank", new Vector3(296f, 2f, 128f), new Vector3(5f, 4f, 5f), H["Steel"], Vector2.one);
-        P.Box(g, "VentBox", new Vector3(326f, 0.9f, 104f), new Vector3(4f, 1.8f, 2f), H["Steel"], Vector2.one);
-        foreach (var at in new[] { new Vector3(292f, 0f, 102f), new Vector3(348f, 0f, 102f), new Vector3(292f, 0f, 148f), new Vector3(310f, 0f, 135f) })
+        P.Box(g, "WaterTank", new Vector3(300.6f, 2f, 123f), new Vector3(5f, 4f, 5f), H["Steel"], Vector2.one);
+        P.Box(g, "VentBox", new Vector3(326f, 0.9f, 105f), new Vector3(4f, 1.8f, 2f), H["Steel"], Vector2.one);
+        foreach (var at in new[] { new Vector3(305f, 0f, 103f), new Vector3(340f, 0f, 104f), new Vector3(298f, 0f, 138f), new Vector3(312f, 0f, 133f) })
         {
             P.Box(g, "LightPole", at + Vector3.up * 2.5f, new Vector3(0.18f, 5f, 0.18f), H["Steel"], Vector2.one);
             P.AddLight(g, "RoofLamp", at + Vector3.up * 5f, LightType.Spot, new Color(1f, 0.85f, 0.6f), 30f, 22f, 110f, Quaternion.Euler(80f, 0f, 0f));
         }
-        P.AddLight(g, "AviationRed", new Vector3(348f, 5.3f, 148f), LightType.Point, new Color(1f, 0.1f, 0.05f), 2f, 6f);
+        P.AddLight(g, "AviationRed", new Vector3(339.5f, 5.3f, 137.5f), LightType.Point, new Color(1f, 0.1f, 0.05f), 2f, 6f);
 
         // 펜트하우스(북동쪽): 남쪽 벽 가운데가 열린 입구 · 안에 금고 · 동쪽 끝 전용 엘리베이터
         var ph = P.Lit("PenthouseWall", null, new Color(0.18f, 0.19f, 0.22f), 0.5f, metallic: 0.2f);
-        const float px0 = 326f, px1 = 346f, pz0 = 132f, pz1 = 148f, ph_h = 4f;
-        P.Box(g, "PH_S_W", new Vector3((px0 + 334f) / 2f, ph_h / 2f, pz0), new Vector3(334f - px0, ph_h, 0.3f), ph, Vector2.one);
-        P.Box(g, "PH_S_E", new Vector3((338f + px1) / 2f, ph_h / 2f, pz0), new Vector3(px1 - 338f, ph_h, 0.3f), ph, Vector2.one);
-        P.Box(g, "PH_S_Top", new Vector3(336f, ph_h - 0.6f, pz0), new Vector3(4f, 1.2f, 0.3f), ph, Vector2.one);
+        const float px0 = 324f, px1 = 340f, pz0 = 126f, pz1 = 138f, ph_h = 4f, pc = (px0 + px1) / 2f;
+        P.Box(g, "PH_S_W", new Vector3((px0 + pc - 2f) / 2f, ph_h / 2f, pz0), new Vector3(pc - 2f - px0, ph_h, 0.3f), ph, Vector2.one);
+        P.Box(g, "PH_S_E", new Vector3((pc + 2f + px1) / 2f, ph_h / 2f, pz0), new Vector3(px1 - pc - 2f, ph_h, 0.3f), ph, Vector2.one);
+        P.Box(g, "PH_S_Top", new Vector3(pc, ph_h - 0.6f, pz0), new Vector3(4f, 1.2f, 0.3f), ph, Vector2.one);
         P.Box(g, "PH_N", new Vector3((px0 + px1) / 2f, ph_h / 2f, pz1), new Vector3(px1 - px0, ph_h, 0.3f), ph, Vector2.one);
         P.Box(g, "PH_W", new Vector3(px0, ph_h / 2f, (pz0 + pz1) / 2f), new Vector3(0.3f, ph_h, pz1 - pz0), ph, Vector2.one);
         P.Box(g, "PH_E", new Vector3(px1, ph_h / 2f, (pz0 + pz1) / 2f), new Vector3(0.3f, ph_h, pz1 - pz0), ph, Vector2.one);
         P.Box(g, "PH_Roof", new Vector3((px0 + px1) / 2f, ph_h + 0.15f, (pz0 + pz1) / 2f), new Vector3(px1 - px0 + 0.4f, 0.3f, pz1 - pz0 + 0.4f), ph, Vector2.one);
-        P.AddLight(g, "PH_Light", new Vector3(336f, ph_h - 0.4f, 141f), LightType.Point, new Color(1f, 0.85f, 0.65f), 8f, 14f);
-        P.AddLight(g, "PH_Light2", new Vector3(330f, ph_h - 0.4f, 137f), LightType.Point, new Color(1f, 0.85f, 0.65f), 5f, 11f);
-        P.AddLight(g, "VaultGlow", new Vector3(336f, 2.4f, 145.6f), LightType.Point, new Color(0.8f, 0.9f, 1f), 3f, 5f);
+        P.AddLight(g, "PH_Light", new Vector3(pc, ph_h - 0.4f, pz0 + 7f), LightType.Point, new Color(1f, 0.85f, 0.65f), 8f, 14f);
+        P.AddLight(g, "PH_Light2", new Vector3(pc - 5f, ph_h - 0.4f, pz0 + 3f), LightType.Point, new Color(1f, 0.85f, 0.65f), 5f, 11f);
+        P.AddLight(g, "VaultGlow", new Vector3(pc, 2.4f, pz1 - 2.4f), LightType.Point, new Color(0.8f, 0.9f, 1f), 3f, 5f);
         // 금고: 두꺼운 강철 틀 + 활짝 열린 문 + 텅 빈 선반
         var steel = H["Steel"];
-        P.Box(g, "VaultFrame", new Vector3(336f, 1.4f, 147.4f), new Vector3(3f, 2.8f, 0.9f), steel, Vector2.one);
-        P.Box(g, "VaultInside", new Vector3(336f, 1.4f, 146.92f), new Vector3(2.2f, 2.2f, 0.06f), P.Lit("VaultDark", null, new Color(0.05f, 0.05f, 0.06f), 0.4f), Vector2.one, collider: false);
-        var vdoor = P.Box(g, "VaultDoor", new Vector3(333.6f, 1.4f, 146.2f), new Vector3(0.25f, 2.4f, 2.2f), steel, Vector2.one);
+        P.Box(g, "VaultFrame", new Vector3(pc, 1.4f, pz1 - 0.6f), new Vector3(3f, 2.8f, 0.9f), steel, Vector2.one);
+        P.Box(g, "VaultInside", new Vector3(pc, 1.4f, pz1 - 1.08f), new Vector3(2.2f, 2.2f, 0.06f), P.Lit("VaultDark", null, new Color(0.05f, 0.05f, 0.06f), 0.4f), Vector2.one, collider: false);
+        var vdoor = P.Box(g, "VaultDoor", new Vector3(pc - 2.4f, 1.4f, pz1 - 1.8f), new Vector3(0.25f, 2.4f, 2.2f), steel, Vector2.one);
         vdoor.transform.rotation = Quaternion.Euler(0f, 20f, 0f);
-        P.Box(g, "VaultShelf", new Vector3(336f, 1.2f, 146.98f), new Vector3(1.8f, 0.05f, 0.4f), steel, Vector2.one, collider: false);
+        P.Box(g, "VaultShelf", new Vector3(pc, 1.2f, pz1 - 1.02f), new Vector3(1.8f, 0.05f, 0.4f), steel, Vector2.one, collider: false);
         // 전용 엘리베이터(펜트하우스 동쪽 벽)
-        P.Box(g, "PrivateLift", new Vector3(345.8f, 1.2f, 141f), new Vector3(0.06f, 2.4f, 1.8f), P.Lit("LiftGold", null, new Color(0.55f, 0.45f, 0.25f), 0.7f, metallic: 0.8f), Vector2.one, collider: false);
-        b.partnerLift = P.Marker(triggers, "PartnerLift", new Vector3(344.8f, 0.02f, 141f), 90f);
-        b.vaultTrigger = Trigger(triggers, "VaultRoom", new Vector3(336f, 1.5f, 138f), new Vector3(18f, 3f, 10f));
-        b.vaultShot = P.Marker(triggers, "VaultShot", new Vector3(332.5f, 1.7f, 134.5f), 0f);
+        P.Box(g, "PrivateLift", new Vector3(px1 - 0.2f, 1.2f, pz0 + 7f), new Vector3(0.06f, 2.4f, 1.8f), P.Lit("LiftGold", null, new Color(0.55f, 0.45f, 0.25f), 0.7f, metallic: 0.8f), Vector2.one, collider: false);
+        b.partnerLift = P.Marker(triggers, "PartnerLift", new Vector3(px1 - 1.2f, 0.02f, pz0 + 7f), 90f);
+        b.vaultTrigger = Trigger(triggers, "VaultRoom", new Vector3(pc, 1.5f, pz0 + 4f), new Vector3(px1 - px0 - 2f, 3f, 6f));
+        b.vaultShot = P.Marker(triggers, "VaultShot", new Vector3(pc - 3.5f, 1.7f, pz0 + 2.5f), 0f);
 
         // 정리반(옥상): 근접 둘 · 총잡이 둘
         var r1 = Cleaner(people, "Roof_Cleaner_A", new Vector3(312f, 0.02f, 118f), 180f, false);
         var r2 = Cleaner(people, "Roof_Cleaner_B", new Vector3(326f, 0.02f, 121f), 180f, false);
-        var r3 = Cleaner(people, "Roof_Cleaner_Gun1", new Vector3(318f, 0.02f, 128f), 180f, true);
-        var r4 = Cleaner(people, "Roof_Cleaner_Gun2", new Vector3(334f, 0.02f, 116f), 200f, true);
-        b.zoneRoof = Zone(triggers, "Zone_Roof", new Vector3(320f, 1.5f, 119f), new Vector3(36f, 3f, 24f), r1, r2, r3, r4);
+        var r3 = Cleaner(people, "Roof_Cleaner_Gun1", new Vector3(316f, 0.02f, 124f), 180f, true);
+        var r4 = Cleaner(people, "Roof_Cleaner_Gun2", new Vector3(331f, 0.02f, 114f), 200f, true);
+        b.zoneRoof = Zone(triggers, "Zone_Roof", new Vector3(319f, 1.5f, 117f), new Vector3(30f, 3f, 22f), r1, r2, r3, r4);
 
         // 옛 파트너: 금고 앞(감독이 꺼낸다). 맨손 격투 — 형사 출신
-        var partner = P.CreateThug(people, "Partner", new Vector3(336f, 0.02f, 144.5f), 180f, TraitorCharacter);
+        var partner = P.CreateThug(people, "Partner", new Vector3(pc, 0.02f, pz1 - 3.5f), 180f, TraitorCharacter);
         SetCombat(partner, false);
         partner.displayName = "옛 파트너";
         partner.isBoss = true;

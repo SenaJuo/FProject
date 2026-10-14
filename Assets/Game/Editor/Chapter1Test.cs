@@ -234,13 +234,13 @@ public static class Chapter1Test
                 }
                 break;
             case 30:
-                Tp(new Vector3(164f, 0.15f, 108f), 0f); Next();
+                Tp(new Vector3(164f, 0.15f, 78f), 0f); Next();
                 break;
             case 31:
-                Tp(new Vector3(164f, 0.15f, 124f), 0f); Next();
+                Tp(new Vector3(164f, 0.15f, 94f), 0f); Next();
                 break;
             case 32:
-                if (Waited(0.4f)) { Tp(new Vector3(164f, 0.15f, 128f), 0f); Note("큰길 북쪽 끝(검문소가 보이는 자리)"); Next(); }
+                if (Waited(0.4f)) { Tp(new Vector3(164f, 0.15f, 98f), 0f); Note("큰길 북쪽 끝(검문소가 보이는 자리)"); Next(); }
                 break;
             case 33:
                 if (d.CurrentPhase == Chapter1Director.Phase.CheckpointScene && Waited(3.2f)) { Note($"검문소 컷신: 레이 위치 {p.position}, 승합차 {(d.van ? d.van.activeSelf + " " + d.van.transform.position : "없음")}"); Shot("checkpoint_cut"); Next(); }
@@ -294,7 +294,7 @@ public static class Chapter1Test
                 }
                 break;
             case 39:
-                if (Waited(1.5f)) { Tp(new Vector3(164f, 0.15f, 187f), 0f); Note("광장으로"); Next(); }
+                if (Waited(1.5f)) { Tp(new Vector3(164f, 0.15f, 157f), 0f); Note("광장으로"); Next(); }
                 break;
             case 40:
                 if (d.CurrentPhase == Chapter1Director.Phase.Square && Waited(0.5f)) { Note($"저격수 등장: 활성 {d.sniper.IsActive}, 목표 '{StoryState.Objective}', 설명 {TutorialUI.ToastId}, 시간 배율 {Time.timeScale}"); Next(); }
@@ -303,7 +303,7 @@ public static class Chapter1Test
             case 41:
                 // 트인 곳(짐 마당 가운데)에 선다 → 조준선 → 맞는다
                 d.player.GetComponent<Health>().Revive();
-                laserShot = false; Tp(new Vector3(186f, 0.15f, 216f), 90f); hpBefore = d.player.GetComponent<Health>().Current; Next();
+                laserShot = false; Tp(new Vector3(176f, 0.15f, 186f), 90f); hpBefore = d.player.GetComponent<Health>().Current; Next();
                 break;
             case 42:
             {
@@ -317,7 +317,7 @@ public static class Chapter1Test
             case 43:
                 // 트럭 뒤(서쪽)에 숨으면 맞지 않는다
                 d.player.GetComponent<Health>().Revive();
-                Tp(new Vector3(172.6f, 0.15f, 197f), 90f); hpBefore = d.player.GetComponent<Health>().Current; Next();
+                Tp(new Vector3(170.9f, 0.15f, 167f), 90f); hpBefore = d.player.GetComponent<Health>().Current; Next();
                 break;
             case 44:
                 if (Waited(6f)) { Note($"트럭 뒤 6초: 체력 {hpBefore}→{d.player.GetComponent<Health>().Current} (기대: 그대로)"); Next(); }
@@ -325,7 +325,7 @@ public static class Chapter1Test
             case 45:
                 // 골목 계단으로 옥상에: 길잡이·옥상 경비
                 Note($"길잡이 {(StoryState.Waypoint ? StoryState.Waypoint.name : "없음")}");
-                Tp(new Vector3(203.6f, 9.15f, 193.6f), 0f); Next();
+                Tp(new Vector3(193.6f, 9.15f, 163.6f), 0f); Next();
                 break;
             case 46:
                 if (Waited(1.5f))
@@ -355,12 +355,12 @@ public static class Chapter1Test
                 else if (Waited(8f)) End("심문으로 넘어가지 않음");
                 break;
             case 50:
-                if (d.CurrentPhase == Chapter1Director.Phase.Harbor && Waited(0.5f)) { Note($"심문 끝: 목표 '{StoryState.Objective}', 길잡이 {StoryState.Waypoint?.name}"); Tp(new Vector3(164f, 0.15f, 256f), 0f); Next(); }
+                if (d.CurrentPhase == Chapter1Director.Phase.Harbor && Waited(0.5f)) { Note($"심문 끝: 목표 '{StoryState.Objective}', 길잡이 {StoryState.Waypoint?.name}"); Tp(new Vector3(164f, 0.15f, 226f), 0f); Next(); }
                 else if (Waited(40f)) End("심문 뒤 항구 단계로 넘어가지 않음");
                 break;
             case 51:
                 // 가게 2 앞 인도: 다가가면 저장
-                if (Waited(0.4f)) { Tp(new Vector3(156.6f, 0.15f, 285.5f), 0f); Note("항구 길 · 가게 2 앞으로"); Next(); }
+                if (Waited(0.4f)) { Tp(new Vector3(156.6f, 0.15f, 235.5f), 0f); Note("항구 길 · 가게 2 앞으로"); Next(); }
                 break;
             case 52:
                 if (Waited(0.8f))
@@ -368,7 +368,7 @@ public static class Chapter1Test
                     var gm = GameManager.Instance;
                     Note($"가게 2: 가까운 가게 '{(TapeShop.Nearby ? TapeShop.Nearby.shopName : "없음")}', 저장 시각 {gm.SavedAt:0.0} / 지금 {StoryState.Now:0.0}, 자막 '{StoryState.Line}'");
                     Shot("shop2");
-                    Tp(new Vector3(160f, 0.15f, 315.4f), 0f);
+                    Tp(new Vector3(160f, 0.15f, 265.4f), 0f);
                     Next();
                 }
                 break;
@@ -384,13 +384,13 @@ public static class Chapter1Test
                 if (d.CurrentPhase == Chapter1Director.Phase.Docks && Waited(1.6f))
                 {
                     Note($"문 열림: 왼짝 위치 x {d.gateLeaf.position.x:0.0}(기대 {d.gateOpenPos.x:0.0}), 목표 '{StoryState.Objective}', 길잡이 {StoryState.Waypoint?.name}");
-                    Tp(new Vector3(164f, 0.02f, 322f), 0f);
+                    Tp(new Vector3(164f, 0.02f, 272f), 0f);
                     Next();
                 }
                 else if (Waited(6f)) End("철조망 문이 열리지 않음");
                 break;
             case 55:
-                if (Waited(1.2f)) { Shot("docks_from_gate"); Tp(new Vector3(182f, 0.02f, 401f), 0f); Note("3번 부두 앞 마당으로"); Next(); }
+                if (Waited(1.2f)) { Shot("docks_from_gate"); Tp(new Vector3(180f, 0.02f, 319f), 0f); Note("3번 부두 앞 마당으로"); Next(); }
                 break;
             case 56:
                 // 반장 소개가 시작되면 여기까지(보스전·새벽 장면은 BossTest가 따로 확인한다)

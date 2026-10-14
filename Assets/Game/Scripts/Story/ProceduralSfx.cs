@@ -110,18 +110,51 @@ public static class ProceduralSfx
     /// <summary>3D 위치에서 한 번 재생(volume 1 = 원래 크기)</summary>
     public static void PlayAt(AudioClip clip, Vector3 position, float volume = 1f, float spatial = 0.6f, float pitch = 1f)
     {
-        var go = new GameObject("Sfx_" + clip.name);
-        go.transform.position = position;
-        var source = go.AddComponent<AudioSource>();
+        if (!clip) return;
+        var source = NextSource();
+        source.transform.position = position;
         source.clip = clip;
         source.volume = volume * GameSettings.Gain(GameSettings.Channel.Sfx); // 옵션의 효과음 크기
         source.spatialBlend = spatial;
-        source.minDistance = 4f;
-        source.maxDistance = 60f;
-        source.ignoreListenerPause = true;
         source.pitch = pitch;
         source.Play();
-        Object.Destroy(go, clip.length / Mathf.Max(0.1f, pitch) + 0.1f);
+    }
+
+    // ---------- 소리 풀(2026-10-14 최적화) ----------
+    // 예전에는 소리 하나마다 게임 오브젝트를 만들고 지웠다(발소리는 걷는 사람마다 한 걸음에 하나).
+    // 미리 만든 소리 32개를 돌려 쓴다: 쉬는 것부터, 다 바쁘면 가장 오래 전에 튼 것을 끊고 쓴다. 장면이 바뀌면 모두 멈춘다.
+    const int PoolSize = 32;
+    static AudioSource[] pool;
+    static int next;
+
+    static AudioSource NextSource()
+    {
+        if (pool == null || !pool[0])
+        {
+            var root = new GameObject("SfxPool");
+            Object.DontDestroyOnLoad(root);
+            pool = new AudioSource[PoolSize];
+            for (int i = 0; i < PoolSize; i++)
+            {
+                var go = new GameObject("Sfx");
+                go.transform.SetParent(root.transform);
+                var s = go.AddComponent<AudioSource>();
+                s.playOnAwake = false;
+                s.minDistance = 4f;
+                s.maxDistance = 60f;
+                s.ignoreListenerPause = true;
+                pool[i] = s;
+            }
+            UnityEngine.SceneManagement.SceneManager.sceneLoaded += (_, _) => { if (pool != null) foreach (var s in pool) if (s) s.Stop(); };
+        }
+        for (int k = 0; k < PoolSize; k++)
+        {
+            var s = pool[(next + k) % PoolSize];
+            if (!s.isPlaying) { next = (next + k + 1) % PoolSize; return s; }
+        }
+        var oldest = pool[next];
+        next = (next + 1) % PoolSize;
+        return oldest;
     }
 
     // ---------- 타격(HitFeel의 예비 소리: 실제 음원이 Resources/Sfx/Hit에 있으면 그쪽을 쓴다) ----------

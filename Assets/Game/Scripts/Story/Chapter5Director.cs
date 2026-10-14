@@ -423,7 +423,7 @@ public class Chapter5Director : MonoBehaviour
             yield return StoryState.Sleep(3.2f);
         }
         if (SaveGame.Enabled) SaveGame.Delete(); // 끝까지 봤다: 다음엔 처음부터(시험·에디터 실행은 실제 저장을 건드리지 않는다)
-        UnityEngine.SceneManagement.SceneManager.LoadScene(PauseMenu.TitleScene);
+        SceneLoader.Load(PauseMenu.TitleScene);
     }
 
     void OnRespawned()

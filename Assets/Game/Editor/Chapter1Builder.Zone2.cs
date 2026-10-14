@@ -7,7 +7,7 @@ using P = PrologueBuilder;
 /// 1장 구역 2 「시장 광장」. 큰길 북쪽 끝이 그대로 넓은 광장으로 열린다(벽 대신 건물로 둘러싼 뻥 뚫린 마당).
 ///
 /// 배치(미터):
-///   광장: x 126~202, z 166~238. 가운데로 큰길 찻길(x 158~170)이 그대로 지나 북쪽 항구 길(z 238~300)로 이어진다.
+///   광장: x 126~192, z 166~238(2026-10-14: 동쪽 짐 부리는 마당이 넓어 x 202에서 192로 줄였다 — 동쪽 소품은 비율대로 당기고 저격수 건물은 10m 서쪽으로). 가운데로 큰길 찻길(x 158~170)이 그대로 지나 북쪽 항구 길(z 238~300)로 이어진다.
 ///   검문소(입구, z 168~182): 순찰차 두 대·바리케이드·투광등, 방패 경찰 둘 + 손전등 경찰 하나. 조직의 검은 승합차가 그냥 통과한다(컷신).
 ///   서쪽 반: 밤 시장 노점 네 줄(줄무늬 차양, 뒤 방수포는 사람 키를 넘는 엄폐물). 줄 사이 통로와 가로 통로 둘.
 ///   동쪽 반: 짐 부리는 곳(트럭·포장마차·팔레트·드럼통). 저격수가 내려다보는 넓은 마당.
@@ -16,9 +16,9 @@ using P = PrologueBuilder;
 /// </summary>
 public static partial class Chapter1Builder
 {
-    const float SqX0 = 126f, SqX1 = 202f, SqZ0 = 166f, SqZ1 = 238f;
+    const float SqX0 = 126f, SqX1 = 192f, SqZ0 = 166f, SqZ1 = 238f;
     const float RoofY = 9f;
-    const float BldX0 = 202f, BldX1 = 216f;          // 저격수 건물(동쪽)
+    const float BldX0 = 192f, BldX1 = 206f;          // 저격수 건물(동쪽)
     const float AlleyZ0 = 188f, AlleyZ1 = 192f;       // 계단 골목
 
     static void BuildMarketSquare(Dictionary<string, Material> M, Dictionary<string, Material> X, Transform triggers, Transform people, Transform routes, Built b)
@@ -41,8 +41,8 @@ public static partial class Chapter1Builder
         b.checkpointLook = P.Marker(triggers, "CheckpointLook", new Vector3(AveX, 1.4f, 172f), 0f);
         b.squareTrigger = Trigger(triggers, "SquareTrigger", new Vector3((SqX0 + SqX1) / 2f, 1.5f, 187f), new Vector3(SqX1 - SqX0, 3f, 4f));
         b.square = new Bounds(new Vector3((SqX0 + SqX1) / 2f, 6f, 211f), new Vector3(SqX1 - SqX0 + 16f, 16f, 50f)); // 검문소 북쪽~광장 끝(옥상 포함)
-        b.harborEnd = P.Marker(triggers, "HarborEnd", new Vector3(AveX - 4.5f, 1.4f, GateZ - 1f), 0f); // 철조망 문
-        b.harborTrigger = Trigger(triggers, "HarborTrigger", new Vector3(AveX, 1.5f, 262f), new Vector3(AveE - AveW + 2f, 3f, 4f));
+        b.harborEnd = P.Marker(triggers, "HarborEnd", new Vector3(AveX - 4.5f, 1.4f, GateZ - Cut2 - 1f), 0f); // 철조망 문(구역 3은 Cut2만큼 더 당겨진다)
+        b.harborTrigger = Trigger(triggers, "HarborTrigger", new Vector3(AveX, 1.5f, 252f), new Vector3(AveE - AveW + 2f, 3f, 4f));
     }
 
     // =====================================================================
@@ -108,7 +108,7 @@ public static partial class Chapter1Builder
         P.Box(g, "PlazaW", new Vector3((SqX0 + AveRoad0) / 2f, 0.075f, (z0 + z1) / 2f), new Vector3(AveRoad0 - SqX0, 0.15f, z1 - z0), Z["Plaza"], new Vector2(2.4f, 2.4f));
         P.Box(g, "PlazaE", new Vector3((AveRoad1 + BldX1) / 2f, 0.075f, (z0 + z1) / 2f), new Vector3(BldX1 - AveRoad1, 0.15f, z1 - z0), Z["Plaza"], new Vector2(2.4f, 2.4f));
         // 큰길 찻길이 광장을 지나 항구 길로 이어진다
-        const float r0 = 160f, r1 = 318f; // 항구 철조망 문(z 317.5)까지
+        const float r0 = 160f, r1 = 318f - Cut2; // 항구 철조망 문(z 317.5 - Cut2)까지
         P.Box(g, "SquareRoad", new Vector3(AveX, -0.25f, (r0 + r1) / 2f), new Vector3(AveRoad1 - AveRoad0, 0.5f, r1 - r0), M["Asphalt"], new Vector2(4f, 4f));
         P.Box(g, "SquareCurb_W", new Vector3(AveRoad0 + 0.1f, 0.08f, (r0 + r1) / 2f), new Vector3(0.2f, 0.16f, r1 - r0), M["Curb"], Vector2.one, collider: false);
         P.Box(g, "SquareCurb_E", new Vector3(AveRoad1 - 0.1f, 0.08f, (r0 + r1) / 2f), new Vector3(0.2f, 0.16f, r1 - r0), M["Curb"], Vector2.one, collider: false);
@@ -237,7 +237,7 @@ public static partial class Chapter1Builder
             P.Marker(triggers, "Van_0", new Vector3(AveX + 0.4f, 0f, 96f), 0f),
             P.Marker(triggers, "Van_Stop", new Vector3(AveX, 0f, 165.2f), 0f),
             P.Marker(triggers, "Van_2", new Vector3(AveX, 0f, 250f), 0f),
-            P.Marker(triggers, "Van_End", new Vector3(AveX, 0f, 298f), 0f),
+            P.Marker(triggers, "Van_End", new Vector3(AveX, 0f, 298f - Cut2), 0f),
         };
     }
 
@@ -391,26 +391,26 @@ public static partial class Chapter1Builder
         var la = new GameObject("LoadingArea").transform;
         la.SetParent(g);
         // 트럭(큰 엄폐물): 찻길 옆에 북쪽을 보고 섰다
-        TryProp("BoxTruck", la, new Vector3(175.6f, G, 197f), 0f);
-        TryProp("HandCart", la, new Vector3(178.6f, G, 192.2f), -60f);
-        TryProp("CrateStack", la, new Vector3(178.8f, G, 202.6f), 90f);
-        TryProp("CrateStack", la, new Vector3(179.6f, G, 205.4f), 15f);
+        TryProp("BoxTruck", la, new Vector3(173.85f, G, 197f), 0f);
+        TryProp("HandCart", la, new Vector3(175.91f, G, 192.2f), -60f);
+        TryProp("CrateStack", la, new Vector3(176.05f, G, 202.6f), 90f);
+        TryProp("CrateStack", la, new Vector3(176.6f, G, 205.4f), 15f);
         // 포장마차 다섯 대: 광장 동쪽 벽을 따라 서쪽(광장)을 본다
         for (int i = 0; i < 5; i++)
-            TryProp("FoodCart", la, new Vector3(196.8f, G, 172.5f + i * 2.6f), -90f + (i % 2 == 0 ? 0f : 4f));
-        TryProp("GasCylinders", la, new Vector3(199.6f, G, 186.3f), -90f);
-        TryProp("StoolStack", la, new Vector3(193.4f, G, 171.2f), 30f);
-        TryProp("StoolStack", la, new Vector3(193.8f, G, 185.4f), -20f);
+            TryProp("FoodCart", la, new Vector3(188.43f, G, 172.5f + i * 2.6f), -90f + (i % 2 == 0 ? 0f : 4f));
+        TryProp("GasCylinders", la, new Vector3(190.35f, G, 186.3f), -90f);
+        TryProp("StoolStack", la, new Vector3(186.09f, G, 171.2f), 30f);
+        TryProp("StoolStack", la, new Vector3(186.36f, G, 185.4f), -20f);
         // 팔레트 더미(사람 키 엄폐물): 마당 여기저기
         foreach (var (x, z, yaw) in new[] { (183.5f, 209f, 0f), (185f, 210.6f, 90f), (190.5f, 219f, 10f), (176.5f, 221.5f, -15f), (194.5f, 202.5f, 0f), (188f, 230.5f, 90f) })
             TryProp("PalletBoxes", la, new Vector3(x, G, z), yaw);
-        TryProp("WaterDrums", la, new Vector3(195.5f, G, 227.5f), 30f);
-        TryProp("WaterDrums", la, new Vector3(174.5f, G, 230f), -40f);
-        TryProp("GasCylinders", la, new Vector3(192f, G, 208f), 0f);
-        TryProp("HandCart", la, new Vector3(181.5f, G, 224f), 120f);
-        TryProp("CrateStack", la, new Vector3(199.4f, G, 232.5f), -90f);
+        TryProp("WaterDrums", la, new Vector3(187.53f, G, 227.5f), 30f);
+        TryProp("WaterDrums", la, new Vector3(173.09f, G, 230f), -40f);
+        TryProp("GasCylinders", la, new Vector3(185.12f, G, 208f), 0f);
+        TryProp("HandCart", la, new Vector3(177.91f, G, 224f), 120f);
+        TryProp("CrateStack", la, new Vector3(190.21f, G, 232.5f), -90f);
         // 트럭 뒤에 떨어진 상자: 테이프·회복약
-        TapeSpot(la, triggers, "MarketTape", new Vector3(176.4f, G, 191.6f), 2, 1, box: true);
+        TapeSpot(la, triggers, "MarketTape", new Vector3(174.4f, G, 191.6f), 2, 1, box: true);
     }
 
     // =====================================================================
@@ -430,7 +430,7 @@ public static partial class Chapter1Builder
         P.AddLight(sb, "StairTopLight", new Vector3(BldX0 + 1.5f, RoofY + 2.4f, AlleyZ1 + 0.4f), LightType.Point, new Color(1f, 0.82f, 0.6f), 12f, 12f);
 
         // 계단 1: 골목 남쪽(z 188.2~189.8)을 따라 동쪽으로 올라간다(지면 → 4.6m)
-        const float mid = 4.6f, runX0 = 203.2f, runX1 = 214.4f;
+        const float mid = 4.6f, runX0 = BldX0 + 1.2f, runX1 = BldX0 + 12.4f;
         Flight(sb, Z, new Vector3(runX0, G, 189f), new Vector3(runX1, mid, 189f), 1.6f);
         P.Box(sb, "Landing", new Vector3((runX1 + BldX1) / 2f, mid - 0.1f, (AlleyZ0 + AlleyZ1) / 2f), new Vector3(BldX1 - runX1, 0.2f, AlleyZ1 - AlleyZ0 - 0.2f), Z["Grating"], Vector2.one);
         // 계단 2: 골목 북쪽(z 190.2~191.8)을 따라 서쪽으로 올라간다(4.6m → 옥상 9m)
@@ -447,16 +447,16 @@ public static partial class Chapter1Builder
         P.Box(sb, "Parapet_E", new Vector3(BldX1 - 0.12f, RoofY + 0.45f, (AlleyZ1 + SqZ1) / 2f), new Vector3(0.25f, 0.9f, SqZ1 - AlleyZ1), Z["Parapet"], new Vector2(2f, 2f));
         P.Box(sb, "Parapet_S", new Vector3((BldX0 + 3.4f + BldX1) / 2f, RoofY + 0.45f, AlleyZ1 + 0.12f), new Vector3(BldX1 - BldX0 - 3.4f, 0.9f, 0.25f), Z["Parapet"], new Vector2(2f, 2f));
         // 옥상 엄폐물: 계단실 오두막·물탱크(사람 키를 넘는다), 실외기들
-        P.Box(sb, "StairHut", new Vector3(210.5f, RoofY + 1.4f, 201f), new Vector3(3.2f, 2.8f, 3.4f), M["BuildingBack"], new Vector2(2f, 2f));
-        P.Box(sb, "WaterTank", new Vector3(207f, RoofY + 1.15f, 207.5f), new Vector3(2.2f, 2.3f, 2.2f), Z["Parapet"], new Vector2(2f, 2f));
+        P.Box(sb, "StairHut", new Vector3(200.5f, RoofY + 1.4f, 201f), new Vector3(3.2f, 2.8f, 3.4f), M["BuildingBack"], new Vector2(2f, 2f));
+        P.Box(sb, "WaterTank", new Vector3(197f, RoofY + 1.15f, 207.5f), new Vector3(2.2f, 2.3f, 2.2f), Z["Parapet"], new Vector2(2f, 2f));
         // 옥상 등: 계단실 문 위 전구, 저격수 뒤쪽의 희미한 작업등(실루엣이 보이게)
-        P.Box(sb, "HutBulb", new Vector3(208.85f, RoofY + 2.45f, 201f), new Vector3(0.08f, 0.12f, 0.08f), Z["Bulb"], Vector2.one, collider: false);
-        P.AddLight(sb, "HutLight", new Vector3(208.5f, RoofY + 2.3f, 201f), LightType.Point, new Color(1f, 0.8f, 0.55f), 16f, 15f);
+        P.Box(sb, "HutBulb", new Vector3(198.85f, RoofY + 2.45f, 201f), new Vector3(0.08f, 0.12f, 0.08f), Z["Bulb"], Vector2.one, collider: false);
+        P.AddLight(sb, "HutLight", new Vector3(198.5f, RoofY + 2.3f, 201f), LightType.Point, new Color(1f, 0.8f, 0.55f), 16f, 15f);
         P.AddLight(sb, "SniperBackLight", new Vector3(BldX0 + 3.2f, RoofY + 2.2f, 216f), LightType.Point, new Color(0.75f, 0.82f, 1f), 8f, 9f);
-        P.AddLight(sb, "RoofNorthLight", new Vector3(211f, RoofY + 2.2f, 228f), LightType.Point, new Color(1f, 0.8f, 0.55f), 12f, 13f);
+        P.AddLight(sb, "RoofNorthLight", new Vector3(201f, RoofY + 2.2f, 228f), LightType.Point, new Color(1f, 0.8f, 0.55f), 12f, 13f);
         foreach (var (x, z) in new[] { (212.5f, 196f), (205f, 199.5f), (213f, 222f), (209.5f, 228f) })
             TryProp("AcUnit", sb, new Vector3(x, RoofY, z), x * 11f);
-        TapeSpot(sb, triggers, "RoofTape", new Vector3(214f, RoofY, 234f), 1, 1, box: false);
+        TapeSpot(sb, triggers, "RoofTape", new Vector3(204f, RoofY, 234f), 1, 1, box: false);
 
         // 저격수(진압 경찰): 서쪽 난간 바로 뒤에서 광장을 겨눈다. 움직이지 않고, 가까이 붙어 치면 겨누기가 끊긴다
         var sniper = P.CreateThug(people, "Cop_Sniper", new Vector3(BldX0 + 0.85f, RoofY, 214f), -90f, "RiotCop");
@@ -489,7 +489,7 @@ public static partial class Chapter1Builder
         b.sniper = sniper;
 
         // 옥상 경비(근접): 옥상에 올라오면 덤빈다
-        var guard = Fighter(people, "Thug_Roof", new Vector3(211.5f, RoofY, 197.5f), 200f, false);
+        var guard = Fighter(people, "Thug_Roof", new Vector3(201.5f, RoofY, 197.5f), 200f, false);
         var zoneGo = new GameObject("RoofZone");
         zoneGo.transform.SetParent(triggers);
         zoneGo.transform.position = new Vector3((BldX0 + BldX1) / 2f, RoofY + 1.5f, (AlleyZ1 + SqZ1) / 2f);
@@ -560,18 +560,18 @@ public static partial class Chapter1Builder
             ParkLamp(lg, new Vector3(AveRoad0 - 0.45f, G, z), 0f, M);
             ParkLamp(lg, new Vector3(AveRoad1 + 0.45f, G, z + 6f), 180f, M);
         }
-        foreach (float z in new[] { 250f, 276f })
+        foreach (float z in new[] { 250f, 272f })
         {
             ParkLamp(lg, new Vector3(AveRoad0 - 0.45f, G, z), 0f, M);
             ParkLamp(lg, new Vector3(AveRoad1 + 0.45f, G, z + 12f), 180f, M);
         }
         // 포장마차 앞 전구 줄
-        BulbString(lg, new Vector3(194.5f, 2.9f, 171f), new Vector3(194.5f, 2.9f, 185f), Z, light: true);
+        BulbString(lg, new Vector3(186.84f, 2.9f, 171f), new Vector3(186.84f, 2.9f, 185f), Z, light: true);
         // 짐 마당 가운데 가로등 둘과 팔레트 더미 위 전구 줄(어두우면 엄폐물 윤곽이 안 보인다)
-        ParkLamp(lg, new Vector3(187.5f, G, 199f), 180f, M);
-        ParkLamp(lg, new Vector3(181.5f, G, 222.5f), 0f, M);
-        BulbString(lg, new Vector3(176f, 3.4f, 213f), new Vector3(196f, 3.4f, 213f), Z, light: true);
-        BulbString(lg, new Vector3(176f, 3.4f, 228f), new Vector3(196f, 3.4f, 228f), Z, light: true);
+        ParkLamp(lg, new Vector3(182.03f, G, 199f), 180f, M);
+        ParkLamp(lg, new Vector3(177.91f, G, 222.5f), 0f, M);
+        BulbString(lg, new Vector3(174.12f, 3.4f, 213f), new Vector3(187.88f, 3.4f, 213f), Z, light: true);
+        BulbString(lg, new Vector3(174.12f, 3.4f, 228f), new Vector3(187.88f, 3.4f, 228f), Z, light: true);
 
         // 시장 입구 아치 간판: 찻길 위를 가로지르는 철 기둥 둘 + 네온 "NIGHT MARKET"
         const float signZ = 184f, signY = 5.3f;

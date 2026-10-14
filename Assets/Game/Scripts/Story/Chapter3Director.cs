@@ -453,7 +453,7 @@ public class Chapter3Director : MonoBehaviour
         StoryState.SkipRequested = false;
         CurrentPhase = Phase.Duel;
         StoryState.Objective = "옛 파트너를 붙잡는다";
-        if (partner) partner.Activate();
+        if (partner) { var ph = partner.GetComponent<Health>(); ph.floor = Mathf.FloorToInt(ph.Max * 0.4f); partner.Activate(); } // 40%에서 도망친다: 한 방에 쓰러지지 않게
         yield return new WaitUntil(() => partnerBroken);
         yield return PartnerEscapes();
     }
@@ -504,7 +504,7 @@ public class Chapter3Director : MonoBehaviour
         hp.Invulnerable = false;
         // 4장으로: 테이프·회복약을 그대로 들고 간다
         SaveGame.CarryOver("Chapter4", "c4_start", walkman);
-        UnityEngine.SceneManagement.SceneManager.LoadScene("Chapter4");
+        SceneLoader.Load("Chapter4");
     }
 
     // ---------- 들켰다(하역장): 시간이 멈추고 되감는다 ----------

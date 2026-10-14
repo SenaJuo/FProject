@@ -12,7 +12,7 @@ public class FontWarmup : MonoBehaviour
 
     string chars;
     int at;
-    GUIStyle normal, bold;
+    GUIStyle normal, bold, wrap;
     static readonly GUIContent content = new();
 
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.BeforeSceneLoad)]
@@ -40,6 +40,14 @@ public class FontWarmup : MonoBehaviour
         GUI.Label(r, content, bold);
         GUI.color = keep;
         normal.CalcSize(content); bold.CalcSize(content);
+        // 자막처럼 줄바꿈·색 태그가 있는 배치도 한 번씩(2026-10-14: 프롤로그 첫 자막 — 긴 문장이 처음 여러 줄로 꺾일 때 21ms 멈췄다)
+        wrap ??= new GUIStyle(normal) { wordWrap = true, richText = true, alignment = TextAnchor.UpperCenter };
+        content.text = "<color=#E8C46A>" + chars.Substring(at, Mathf.Min(4, n)) + "</color>   " + chars.Substring(at, n);
+        var wr = new Rect(0f, 0f, 900f, 300f);
+        GUI.color = new Color(1f, 1f, 1f, 0f);
+        GUI.Label(wr, content, wrap);
+        GUI.color = keep;
+        wrap.CalcHeight(content, wr.width);
         at += n;
         if (at >= chars.Length) Destroy(gameObject);
     }
