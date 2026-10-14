@@ -156,7 +156,15 @@ public static class GameSettings
         if (QualitySettings.GetQualityLevel() != Quality && Quality < QualitySettings.names.Length) QualitySettings.SetQualityLevel(Quality, true);
         int fps = FrameRates[Frame];
         QualitySettings.vSyncCount = fps == 0 ? 1 : 0;
-        Application.targetFrameRate = fps > 0 ? fps : -1;
+        // "모니터에 맞춤"은 수직동기화인데, 유니티 편집기에서 플레이하면 수직동기화가 무시돼 제한 없이 돌았다(CPU가 뜨거워짐, 2026-10-14)
+        // → 모니터 주사율을 목표 프레임으로도 걸어 둔다. 빌드에서는 수직동기화가 켜져 있으면 이 값은 무시된다
+        Application.targetFrameRate = fps > 0 ? fps : fps == 0 ? MonitorHz() : -1;
+    }
+
+    static int MonitorHz()
+    {
+        int hz = Mathf.RoundToInt((float)Screen.currentResolution.refreshRateRatio.value);
+        return hz >= 30 ? hz : 60;
     }
 
     public static void ResetDisplay()

@@ -29,7 +29,15 @@ public static class UIText
 
     static readonly Regex Tags = new("<[^>]+>");
     /// <summary>서식 태그(&lt;color&gt; 등)를 뺀 글자</summary>
-    public static string Plain(string text) => string.IsNullOrEmpty(text) || text.IndexOf('<') < 0 ? text : Tags.Replace(text, "");
+    public static string Plain(string text)
+    {
+        if (string.IsNullOrEmpty(text) || text.IndexOf('<') < 0) return text;
+        // 자막처럼 색 태그가 든 글자는 그림자를 그릴 때마다 태그를 빼느라 매 프레임 새 글자를 만들었다 → 한 번 뺀 결과를 기억한다
+        if (plainCache.TryGetValue(text, out var plain)) return plain;
+        if (plainCache.Count > 256) plainCache.Clear();
+        return plainCache[text] = Tags.Replace(text, "");
+    }
+    static readonly Dictionary<string, string> plainCache = new();
 
     /// <summary>칸에 맞는 글자 크기(원래 크기보다 커지지는 않는다)</summary>
     public static int FitSize(Rect r, string text, GUIStyle style) { var f = Fit(r, text, style); return f.size; }
@@ -40,20 +48,43 @@ public static class UIText
     /// 칸 높이가 두 줄이 안 되면 "한 줄 칸": 줄바꿈 없이 폭에만 맞춘다(유니티 기본 라벨은 줄바꿈이 켜져 있어,
     /// 한 줄 칸에서도 글자가 두 줄로 꺾여 아래로 삐져나가거나 잘렸다). 가장 작게 해도 안 들어가면 끝을 …로 줄인다.
     /// </summary>
+    /// <summary>재 본 결과를 기억한다(2026-10-14 최적화): 유니티는 글자를 잴 때마다(CalcSize) 68바이트씩 새로 잡아,
+    /// HUD가 매 프레임 같은 글자를 다시 재며 GC가 잦았다. 같은 글자 · 같은 칸 · 같은 글자 모양이면 지난 결과를 쓴다</summary>
+    readonly struct FitKey : System.IEquatable<FitKey>
+    {
+        readonly GUIStyle style; readonly string text; readonly int size; readonly bool wrap; readonly float w, h; readonly Font font;
+        public FitKey(GUIStyle style, string text, Rect r) { this.style = style; this.text = text; size = style.fontSize; wrap = style.wordWrap; w = r.width; h = r.height; font = style.font ? style.font : GUI.skin.font; }
+        public bool Equals(FitKey o) => ReferenceEquals(style, o.style) && size == o.size && wrap == o.wrap && w == o.w && h == o.h && font == o.font && string.Equals(text, o.text);
+        public override bool Equals(object o) => o is FitKey k && Equals(k);
+        public override int GetHashCode() => System.HashCode.Combine(style, text, size, wrap, w, h);
+    }
+    static readonly Dictionary<FitKey, Fitted> fitCache = new();
+
     static Fitted Fit(Rect r, string text, GUIStyle style)
+    {
+        if (string.IsNullOrEmpty(text) || r.width <= 1f) return Measure(r, text, style);
+        var key = new FitKey(style, text, r);
+        if (fitCache.TryGetValue(key, out var hit)) return hit;
+        if (fitCache.Count > 2048) fitCache.Clear(); // 바뀌는 글자(초 · 거리 등)가 쌓이지 않게
+        var f = Measure(r, text, style);
+        fitCache[key] = f;
+        return f;
+    }
+
+    static Fitted Measure(Rect r, string text, GUIStyle style)
     {
         int original = style.fontSize > 0 ? style.fontSize : (style.font ? style.font.fontSize : 14);
         var f = new Fitted { size = original, fits = true, text = text };
         if (string.IsNullOrEmpty(text) || r.width <= 1f) return f;
         int keepSize = style.fontSize; bool keepWrap = style.wordWrap;
-        style.fontSize = original;
+        if (style.fontSize != original) style.fontSize = original;
         f.single = !style.wordWrap || (r.height < style.lineHeight * 1.8f && text.IndexOf('\n') < 0);
-        style.wordWrap = !f.single;
+        if (style.wordWrap != !f.single) style.wordWrap = !f.single;
         content.text = text;
         int size = original;
         for (int i = 0; i < 24; i++)
         {
-            style.fontSize = size;
+            if (style.fontSize != size) style.fontSize = size;
             if (f.single)
             {
                 // 한 줄: 폭이 들어가야 하고, 칸 높이보다 글자가 너무 크면(30% 넘게) 줄인다 — 조금 큰 것은 칸 밖으로 살짝 나와도 잘리지 않게 그린다
@@ -75,7 +106,8 @@ public static class UIText
                 if (style.CalcSize(content).x <= r.width + 1f) { f.text = content.text; f.fits = true; break; }
             }
         }
-        style.fontSize = keepSize; style.wordWrap = keepWrap;
+        if (style.fontSize != keepSize) style.fontSize = keepSize;
+        if (style.wordWrap != keepWrap) style.wordWrap = keepWrap;
         return f;
     }
 
@@ -122,8 +154,23 @@ public static class UIText
     /// </summary>
     static void Ink(GUIStyle style, Color c)
     {
-        style.normal.textColor = style.hover.textColor = style.active.textColor = style.focused.textColor = c;
-        style.onNormal.textColor = style.onHover.textColor = style.onActive.textColor = style.onFocused.textColor = c;
+        // 같은 색이면 건드리지 않는다: 값을 다시 넣기만 해도 유니티가 글자 캐시를 버려 매 프레임 메모리를 새로 잡았다
+        if (style.normal.textColor != c) style.normal.textColor = c;
+        if (style.hover.textColor != c) style.hover.textColor = c;
+        if (style.active.textColor != c) style.active.textColor = c;
+        if (style.focused.textColor != c) style.focused.textColor = c;
+        if (style.onNormal.textColor != c) style.onNormal.textColor = c;
+        if (style.onHover.textColor != c) style.onHover.textColor = c;
+        if (style.onActive.textColor != c) style.onActive.textColor = c;
+        if (style.onFocused.textColor != c) style.onFocused.textColor = c;
+    }
+
+    /// <summary>바뀔 때만 넣는다(같은 값을 다시 넣어도 글자 캐시가 버려졌다)</summary>
+    static void Set(GUIStyle st, int size, bool wrap, TextClipping clip)
+    {
+        if (st.fontSize != size) st.fontSize = size;
+        if (st.wordWrap != wrap) st.wordWrap = wrap;
+        if (st.clipping != clip) st.clipping = clip;
     }
 
     /// <summary>GUI.Label과 같지만 넘치면 줄여서 그린다</summary>
@@ -132,10 +179,10 @@ public static class UIText
         Ink(style, style.normal.textColor);
         var f = Fit(r, text, style);
         int keep = style.fontSize; bool wrap = style.wordWrap; var clip = style.clipping;
-        style.fontSize = f.size; style.wordWrap = !f.single; style.clipping = TextClipping.Overflow;
+        Set(style, f.size, !f.single, TextClipping.Overflow);
         GUI.Label(r, f.text, style);
         Record(r, f.text, style, f.fits, keep);
-        style.fontSize = keep; style.wordWrap = wrap; style.clipping = clip;
+        Set(style, keep, wrap, clip);
     }
 
     /// <summary>그림자를 따로 그릴 때(검사에 넣지 않는다)</summary>
@@ -144,9 +191,9 @@ public static class UIText
         Ink(style, style.normal.textColor);
         var f = Fit(r, text, style);
         int keep = style.fontSize; bool wrap = style.wordWrap; var clip = style.clipping;
-        style.fontSize = f.size; style.wordWrap = !f.single; style.clipping = TextClipping.Overflow;
+        Set(style, f.size, !f.single, TextClipping.Overflow);
         GUI.Label(r, Plain(f.text), style);
-        style.fontSize = keep; style.wordWrap = wrap; style.clipping = clip;
+        Set(style, keep, wrap, clip);
     }
 
     /// <summary>글자 크기에 맞춘 그림자 어긋남: 작은 글자에 2px 그림자는 글자가 두 겹으로 보인다</summary>
@@ -157,13 +204,13 @@ public static class UIText
     {
         var f = Fit(r, text, style);
         int keep = style.fontSize; bool wrap = style.wordWrap; var clip = style.clipping;
-        style.fontSize = f.size; style.wordWrap = !f.single; style.clipping = TextClipping.Overflow;
+        Set(style, f.size, !f.single, TextClipping.Overflow);
         float o = ShadowOffset(f.size, offset);
         Ink(style, ink);
         GUI.Label(new Rect(r.x + o, r.y + o, r.width, r.height), Plain(shadowText != null && f.text == text ? shadowText : f.text), style);
         Ink(style, paper);
         GUI.Label(r, f.text, style);
         Record(r, f.text, style, f.fits, keep);
-        style.fontSize = keep; style.wordWrap = wrap; style.clipping = clip;
+        Set(style, keep, wrap, clip);
     }
 }
