@@ -150,7 +150,7 @@ public class PrologueDirector : MonoBehaviour
     {
         // 실내에 들어가면 비와 빗소리를 줄인다
         bool indoor = player.transform.position.z > indoorZ;
-        float rainTarget = (indoor ? 0.08f : 0.45f) * GameSettings.Gain(GameSettings.Channel.Ambience); // 옵션의 환경음 크기
+        float rainTarget = (indoor ? 0.08f : 0.45f) * GameSettings.Gain(GameSettings.Channel.Sfx); // 설정의 효과음 크기(예전 환경음은 효과음에 합쳤다)
         if (rainAudio) rainAudio.volume = Mathf.MoveTowards(rainAudio.volume, rainTarget, Time.unscaledDeltaTime * 0.8f);
         if (rain)
         {
@@ -583,9 +583,9 @@ public class PrologueDirector : MonoBehaviour
 
     const string LetterBackText =
         "레이, 앞면만 보고 넘기지 마. 이게 진짜 중요한 거야.\n\n" +
-        "하나. 테이프를 넣고 그냥 들어. 노래가 한 곡 끝날 때마다 되감을 수 있는 횟수가 하나씩 쌓여. 세 번까지.\n" +
+        "하나. 테이프마다 되감을 수 있는 횟수가 정해져 있어. 세 번까지. 다시 채워지지는 않아.\n" +
         "둘. 되감기 버튼을 누르고 있으면 시간이 거꾸로 흘러. 손을 떼면 멈춰. 딱 5초씩이야.\n" +
-        "셋. 듣던 테이프로 되감으면, 그 테이프는 다시는 소리가 안 나. 아껴 써.\n" +
+        "셋. 횟수를 다 써도 노래는 계속 나와. 그래도 횟수는 아껴 써.\n" +
         "넷. 숨이 넘어가기 직전이라도, 버튼만 누를 수 있으면 돌아올 수 있어.\n" +
         "다섯. 다 쓴 테이프는 버리지 마. 바꿔 주는 가게가 있어.\n\n" +
         "그리고… 이걸 노리는 놈들한테는 절대 넘기지 마. 이런 걸 맡겨서 미안해.\n\n" +

@@ -68,9 +68,9 @@ public class ThirdPersonCamera : MonoBehaviour
         bool menuOpen = TapeShop.Current || (walkman && walkman.InventoryOpen) || StoryState.InputLocked;
         Vector2 look = menuOpen ? Vector2.zero : lookAction.ReadValue<Vector2>();
         bool pointer = lookAction.activeControl?.device is Pointer;
-        float scale = pointer ? mouseSensitivity : stickSensitivity * Time.unscaledDeltaTime;
+        float scale = (pointer ? mouseSensitivity : stickSensitivity * Time.unscaledDeltaTime) * GameSettings.MouseSensitivity; // 설정의 감도
         yaw += look.x * scale;
-        pitch = Mathf.Clamp(pitch - look.y * scale, minPitch, maxPitch);
+        pitch = Mathf.Clamp(pitch - look.y * scale * (GameSettings.InvertY ? -1f : 1f), minPitch, maxPitch); // 설정의 상하 반전
 
         Quaternion rotation = Quaternion.Euler(pitch, yaw, 0f);
         Vector3 pivot = target.position + targetOffset;

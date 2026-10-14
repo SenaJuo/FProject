@@ -68,6 +68,7 @@ public static partial class Chapter1Builder
         var d3 = Cleaner(people, "Cleaner_1F_Gun", new Vector3(303.5f, 0.02f, 1.4f), 90f, true);
         b.zoneDownstairs = Zone(triggers, "Zone_1F_Corridor", new Vector3(318f, 1.5f, 2.5f), new Vector3(36f, 3f, 5f), d1, d2, d3);
         b.backDoorOut = P.Interactable(g, "BackDoorOut", new Vector3(300.9f, 1f, 2.5f), new Vector3(1.4f, 2f, 2f), "뒷문으로 나간다");
+        b.backDoorOut.oneShot = false; // 싸우는 중이라 막혀도 다시 누를 수 있게
         b.outsideDoor = P.Marker(triggers, "OutsideDoor", new Vector3(70f, 0.05f, StationZ0 - 1.6f), 180f);
 
         // ---------- ③ 보관소 북쪽: 부반장 + 특공대 ----------

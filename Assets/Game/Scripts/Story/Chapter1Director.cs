@@ -239,7 +239,7 @@ public class Chapter1Director : MonoBehaviour
         if (rainAudio)
         {
             if (rainBase < 0f) rainBase = rainAudio.volume;
-            rainAudio.volume = rainBase * GameSettings.Gain(GameSettings.Channel.Ambience);
+            rainAudio.volume = rainBase * GameSettings.Gain(GameSettings.Channel.Sfx);
         }
         if (van && !vanAudio) vanAudio = van.GetComponent<AudioSource>();
         if (vanAudio)

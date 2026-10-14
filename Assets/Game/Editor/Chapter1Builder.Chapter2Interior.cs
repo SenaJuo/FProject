@@ -97,6 +97,10 @@ public static partial class Chapter1Builder
         WallZ(g, S, 318f, IZ0, 16f, y);                                           // 기록실 | 휴게실
         WallZ(g, S, 334f, IZ0, 8f, y);                                            // 휴게실 | 계단 위
         WallX(g, S, 6f, IX0, 334f, y);                                            // 기록실·휴게실 뒤 창고(막힘)
+        // 기록실은 가운데 10 × 6.6 m만(2026-10-14 "너무 넓다": 18 × 10 m에 캐비닛 줄과 책상 하나뿐이었다). 나머지는 막힌 창고
+        WallZ(g, S, 304f, 6f, 16f, y);
+        WallZ(g, S, 314f, 6f, 16f, y);
+        WallX(g, S, 9.4f, 304f, 314f, y);
 
         // ---------- 계단(1층 z 8 → 2층 z 16, 동쪽 x 334~340) ----------
         Stairs(g, S, new Vector3(337f, 0f, 8f), 6f, 8f, F2);
@@ -118,7 +122,7 @@ public static partial class Chapter1Builder
             (306f, 18f, F2, 0.9f), (322f, 18f, F2, 0.6f), (336f, 18f, F2, 0.8f),   // 2층 복도
             (308f, 25f, F2, 1f), (319f, 25f, F2, 0.9f),                            // 강력반
             (333f, 25f, F2, 0.7f),                                                  // 보관실
-            (305f, 10f, F2, 0.7f), (326f, 10f, F2, 0.8f),                           // 기록실 · 휴게실
+            (309f, 12.6f, F2, 0.7f), (326f, 10f, F2, 0.8f),                           // 기록실 · 휴게실
         };
         foreach (var (x, z, yy, k) in lamps)
         {
@@ -166,15 +170,19 @@ public static partial class Chapter1Builder
         TryProp("Sofa", g, new Vector3(322f, F2, 7.4f), 0f);
         TryProp("VendingMachine", g, new Vector3(333.2f, F2, 7.4f), -90f);
         // 기록실: 캐비닛 줄 · 조회 단말
-        for (int i = 0; i < 5; i++) TryProp("FilingCabinet", g, new Vector3(301.3f, F2, 7.2f + i * 1.4f), 90f);
-        for (int i = 0; i < 5; i++) TryProp("FilingCabinet", g, new Vector3(316.7f, F2, 7.2f + i * 1.4f), -90f);
-        TryProp("OfficeDesk", g, new Vector3(309f, F2, 7.4f), 0f);
-        TryProp("DeskComputer", g, new Vector3(309f, F2 + 0.76f, 7.3f), 0f);
-        TryProp("OfficeChair", g, new Vector3(309f, F2, 8.8f), 180f);
-        b.terminalUse = P.Interactable(g, "RecordsTerminal", new Vector3(309f, F2 + 1f, 9f), new Vector3(1.6f, 2f, 1.4f), "차량 임대 기록을 찾는다");
+        for (int i = 0; i < 4; i++) TryProp("FilingCabinet", g, new Vector3(305.3f, F2, 10.3f + i * 1.35f), 90f);
+        for (int i = 0; i < 4; i++) TryProp("FilingCabinet", g, new Vector3(312.7f, F2, 10.3f + i * 1.35f), -90f);
+        TryProp("OfficeDesk", g, new Vector3(309f, F2, 10.2f), 0f);
+        TryProp("DeskComputer", g, new Vector3(309f, F2 + 0.76f, 10.1f), 0f);
+        TryProp("OfficeChair", g, new Vector3(309f, F2, 11.6f), 180f);
+        b.terminalUse = P.Interactable(g, "RecordsTerminal", new Vector3(309f, F2 + 1f, 11.8f), new Vector3(1.6f, 2f, 1.4f), "차량 임대 기록을 찾는다");
         b.recordsInside = P.Marker(triggers, "RecordsInside", new Vector3(309f, F2 + 0.05f, 14.5f), 180f);
         b.recordsDoorUse = P.Interactable(g, "RecordsDoorUse", new Vector3(309f, F2 + 1f, 17.2f), new Vector3(1.8f, 2f, 1.2f), "기록실 문을 연다");
         b.keypadUse = P.Interactable(g, "KeypadUse", new Vector3(333f, F2 + 1f, 18.9f), new Vector3(2f, 2f, 1.4f), "비밀번호를 누른다");
+        b.keypadUse.oneShot = false; // 번호를 모른 채 열었다 닫아도 다시 누를 수 있게
+        // 1층 뒷문: 닫힌 문짝(전에는 벽에 구멍만 뚫려 밖이 허공 — 낭떠러지처럼 보였다). F로 나가면 바깥 뒷문 앞으로 옮겨진다
+        P.Box(g, "BackDoorLeaf", new Vector3(IX0 + 0.02f, 1.15f, 2.5f), new Vector3(0.06f, 2.28f, 1.36f), S["Door"], Vector2.one);
+        P.Box(g, "BackDoorHandle", new Vector3(IX0 + 0.09f, 1.05f, 2.0f), new Vector3(0.05f, 0.04f, 0.16f), S["Steel"], Vector2.one, collider: false);
 
         // ---------- 자리 · 트리거 ----------
         b.entry = P.Marker(triggers, "StationEntry", new Vector3(IX0 + 1.4f, 0.05f, 2.5f), 90f);

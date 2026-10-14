@@ -66,10 +66,10 @@ public class Chapter5Director : MonoBehaviour
         Tutorial.Unlock();
         walkman = player.GetComponent<Walkman>();
         if (shopApproach) shopApproach.Entered += OnShopApproach;
-        if (liftUse) liftUse.Used += () => { if (CurrentPhase == Phase.Garage && (!zoneGarage || zoneGarage.IsCleared)) liftUsed = true; else StoryState.Say(Ray, "…놈들부터 정리한다.", 2f); };
-        if (hallDoor) hallDoor.Used += () => { if (CurrentPhase == Phase.Lab && (!zoneLab || zoneLab.IsCleared)) doorUsed = true; else StoryState.Say(Ray, "…등 뒤를 비워 둘 순 없다.", 2f); };
-        if (masterUse) masterUse.Used += () => { if (CurrentPhase == Phase.Master) masterTaken = true; };
-        if (consoleUse) consoleUse.Used += () => { if (CurrentPhase == Phase.Broadcast) broadcast = true; };
+        if (liftUse) liftUse.Used += () => { if (CurrentPhase == Phase.Garage && (!zoneGarage || zoneGarage.IsCleared)) liftUsed = true; else { StoryInteractable.Refuse(); StoryState.Say(Ray, "…놈들부터 정리한다.", 2f); } };
+        if (hallDoor) hallDoor.Used += () => { if (CurrentPhase == Phase.Lab && (!zoneLab || zoneLab.IsCleared)) doorUsed = true; else { StoryInteractable.Refuse(); StoryState.Say(Ray, "…등 뒤를 비워 둘 순 없다.", 2f); } };
+        if (masterUse) masterUse.Used += () => { if (CurrentPhase == Phase.Master) masterTaken = true; else StoryInteractable.Refuse(); };
+        if (consoleUse) consoleUse.Used += () => { if (CurrentPhase == Phase.Broadcast) broadcast = true; else StoryInteractable.Refuse(); };
         if (zero) zero.GetComponent<Health>().Damaged += OnZeroHit;
         TapeShop.Opened += OnShopOpened;
         TapeShop.Traded += OnTraded;

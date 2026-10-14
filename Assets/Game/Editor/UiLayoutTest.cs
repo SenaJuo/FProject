@@ -321,17 +321,23 @@ public static class UiLayoutTest
             },
             teardown = () => { var shop = TapeShop.Current; if (shop) typeof(TapeShop).GetMethod("Close", Any).Invoke(shop, null); },
         });
-        // 9) 일시정지 네 쪽
-        foreach (var page in new[] { "Main", "Options", "Controls", "Tutorials", "Confirm" })
+        // 9) 일시정지 쪽들(설정은 탭 셋: 소리 · 화면 · 조작)
+        foreach (var page in new[] { "Main", "Options:Sound", "Options:Display", "Options:Controls", "Controls", "Tutorials", "Confirm" })
             list.Add(new Scenario
             {
-                name = "pause_" + page,
+                name = "pause_" + page.Replace(":", "_"),
                 setup = () =>
                 {
                     var pm = UnityEngine.Object.FindAnyObjectByType<PauseMenu>(FindObjectsInactive.Include);
                     typeof(PauseMenu).GetMethod("Open", Any).Invoke(pm, null);
+                    var parts = page.Split(':');
                     var pt = typeof(PauseMenu).GetNestedType("Page", Any);
-                    typeof(PauseMenu).GetField("page", Any).SetValue(pm, Enum.Parse(pt, page));
+                    typeof(PauseMenu).GetField("page", Any).SetValue(pm, Enum.Parse(pt, parts[0]));
+                    if (parts.Length > 1)
+                    {
+                        var tt = typeof(PauseMenu).GetNestedType("Tab", Any);
+                        typeof(PauseMenu).GetField("tab", Any).SetValue(pm, Enum.Parse(tt, parts[1]));
+                    }
                 },
                 teardown = () => { var pm = UnityEngine.Object.FindAnyObjectByType<PauseMenu>(FindObjectsInactive.Include); typeof(PauseMenu).GetMethod("Close", Any).Invoke(pm, null); },
             });

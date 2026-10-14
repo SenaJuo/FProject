@@ -89,7 +89,11 @@ public class Chapter2Director : MonoBehaviour
         }
         if (fenceGap) fenceGap.Used += () => gapUsed = true;
         if (vanUse) vanUse.Used += () => vanSearched = true;
-        if (keypadUse) keypadUse.Used += OnKeypad;
+        if (keypadUse)
+        {
+            keypadUse.Used += OnKeypad;
+            keypadUse.oneShot = false; // 번호를 모른 채 열었다 닫아도 다시 누를 수 있게(전에는 한 번 열면 다시 안 열렸다)
+        }
         GameManager.PlayerRespawned += OnRespawned;
         if (dannyBox) dannyBox.Used += () =>
         {
@@ -99,9 +103,13 @@ public class Chapter2Director : MonoBehaviour
             StartCoroutine(OpenDannyBox());
         };
         if (recordsDoorUse) recordsDoorUse.Used += OnRecordsDoor;
-        if (terminalUse) terminalUse.Used += () => { if (CurrentPhase == Phase.Records && recordsOpen) StartCoroutine(ReadRecords()); };
+        if (terminalUse) terminalUse.Used += () => { if (CurrentPhase == Phase.Records && recordsOpen) StartCoroutine(ReadRecords()); else StoryInteractable.Refuse(); };
         if (rayDeskUse) rayDeskUse.Used += OnRayDesk;
-        if (backDoorOut) backDoorOut.Used += OnBackDoorOut;
+        if (backDoorOut)
+        {
+            backDoorOut.Used += OnBackDoorOut;
+            backDoorOut.oneShot = false; // 싸우는 중에 눌러 "먼저 정리한다"로 막혀도 다시 누를 수 있게(전에는 한 번 누르면 영영 안 열렸다)
+        }
         CombatZone.Entered += OnZoneEntered;
         if (clerk)
         {
@@ -144,7 +152,7 @@ public class Chapter2Director : MonoBehaviour
 
     void Update()
     {
-        if (rainAudio) rainAudio.volume = (indoors ? 0.1f : 0.45f) * GameSettings.Gain(GameSettings.Channel.Ambience); // 안에서는 창 너머로 멀게
+        if (rainAudio) rainAudio.volume = (indoors ? 0.1f : 0.45f) * GameSettings.Gain(GameSettings.Channel.Sfx); // 안에서는 창 너머로 멀게
     }
 
     // ---------- 진행 ----------
@@ -280,6 +288,7 @@ public class Chapter2Director : MonoBehaviour
         StopCoroutine(nameof(ClerkInside));
         CurrentPhase = Phase.Floor2;
         StartCoroutine(SwingDoor(evidenceDoor, false, 0.01f, 0f));
+        if (keypadUse) keypadUse.enabled = true;
         StoryState.Objective = "증거물 보관실에 들어간다";
         StoryState.Waypoint = keypadUse ? keypadUse.transform : null;
     }
@@ -314,6 +323,7 @@ public class Chapter2Director : MonoBehaviour
     IEnumerator EnterEvidence()
     {
         StoryState.ControlLocked = true;
+        if (keypadUse) keypadUse.enabled = false; // 들어간 뒤로는 문 앞 안내를 띄우지 않는다
         StoryState.Say("", "(삑 · 삑 · 삑 · 삑 — 철컥)", 1.6f);
         yield return SwingDoor(evidenceDoor, true, 0.45f, 0f);
         yield return FadeTo(1f, 0.3f);
@@ -376,7 +386,7 @@ public class Chapter2Director : MonoBehaviour
 
     void OnRecordsDoor()
     {
-        if (!keyFound) { StoryState.Say(Ray, "…잠겨 있다. 열쇠가 있어야 해.", 2.2f); return; }
+        if (!keyFound) { StoryInteractable.Refuse(); StoryState.Say(Ray, "…잠겨 있다. 열쇠가 있어야 해.", 2.2f); return; }
         recordsOpen = true;
         if (recordsDoorUse) recordsDoorUse.gameObject.SetActive(false);
         StartCoroutine(SwingDoor(recordsDoor, true, 0.6f, 0f));
@@ -468,8 +478,8 @@ public class Chapter2Director : MonoBehaviour
 
     void OnBackDoorOut()
     {
-        if (CurrentPhase != Phase.Downstairs && CurrentPhase != Phase.Alarm) return;
-        if (zoneDownstairs && !zoneDownstairs.IsCleared && zoneDownstairs.HoldsPlayer) { StoryState.Say(Ray, "…등을 보이면 쏜다. 먼저 정리한다.", 2.2f); return; }
+        if (CurrentPhase != Phase.Downstairs && CurrentPhase != Phase.Alarm) { StoryInteractable.Refuse(); return; }
+        if (zoneDownstairs && !zoneDownstairs.IsCleared && zoneDownstairs.HoldsPlayer) { StoryInteractable.Refuse(); StoryState.Say(Ray, "…등을 보이면 쏜다. 먼저 정리한다.", 2.2f); return; }
         StartCoroutine(GoOutside());
     }
 
@@ -609,7 +619,8 @@ public class Chapter2Director : MonoBehaviour
 
     void OnRayDesk()
     {
-        if (deskSeen || StoryState.LineVisible) return;
+        if (deskSeen) return;
+        if (StoryState.LineVisible) { StoryInteractable.Refuse(); return; }
         deskSeen = true;
         StoryState.Say(Ray, "…내 자리. 짐 상자가 그대로네. 명패도 안 치웠군.", 3f);
     }

@@ -27,6 +27,7 @@ public class FontWarmup : MonoBehaviour
 
     void OnGUI()
     {
+        UiTheme.Begin(); // 게임 글꼴(Noto Sans KR)
         if (Event.current.type != EventType.Repaint) return;
         normal ??= new GUIStyle(GUI.skin.label) { fontSize = 24, wordWrap = false };
         bold ??= new GUIStyle(normal) { fontStyle = FontStyle.Bold };

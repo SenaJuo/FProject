@@ -38,8 +38,8 @@ public class TitleScreen : MonoBehaviour
     public Rect keyStop = new(0.721f, 0.685f, 0.073f, 0.093f);
 
     // 저장이 있으면 '이어하기'가 맨 위(기본 선택), 없으면 '게임 시작'
-    string[] items = { "게임 시작", "옵션", "종료" };
-    const string ContinueItem = "이어하기", NewGameItem = "새로 시작", StartItem = "게임 시작", OptionsItem = "옵션", QuitItem = "종료";
+    string[] items = { "게임 시작", "설정", "종료" };
+    const string ContinueItem = "이어하기", NewGameItem = "새로 시작", StartItem = "게임 시작", OptionsItem = "설정", QuitItem = "종료";
     static readonly Color Paper = new(0.92f, 0.90f, 0.86f);
     static readonly Color Dim = new(0.55f, 0.54f, 0.52f);
 
@@ -166,7 +166,7 @@ public class TitleScreen : MonoBehaviour
         // 소리: 옵션 크기를 따라가며 서서히 커진다(시작하면 테이프가 멈추듯 음이 내려간다)
         float fadeIn = Mathf.Clamp01(t / 3f);
         float leaving = state == State.Starting ? Mathf.Clamp01((t - startT) / 1.8f) : 0f;
-        if (rain) rain.volume = rainBase * fadeIn * (1f - leaving) * GameSettings.Gain(GameSettings.Channel.Ambience);
+        if (rain) rain.volume = rainBase * fadeIn * (1f - leaving) * GameSettings.Gain(GameSettings.Channel.Sfx);
         UpdateDeck(dt);
         if (music)
         {
@@ -478,6 +478,7 @@ public class TitleScreen : MonoBehaviour
 
     void OnGUI()
     {
+        UiTheme.Begin(); // 게임 글꼴(Noto Sans KR)
         if (!background) return;
         float W = Screen.width, H = Screen.height, s = H / 1080f;
         GUI.depth = 10; // 맨 뒤(옵션 창이 위에 그려지게). 정하지 않으면 나중에 생긴 쪽이 위로 올라왔다
@@ -566,7 +567,7 @@ public class TitleScreen : MonoBehaviour
                 {
                     // ▶ 표시(고른 줄은 조금 밝게 숨 쉰다)
                     float pulse = 0.8f + 0.2f * Mathf.Sin(t * 3f);
-                    Label(new Rect(r.x - 34f * s, r.y, 30f * s, r.height), "▶", item, new Color(Paper.r, Paper.g, Paper.b, menuAlpha * pulse));
+                    Label(new Rect(r.x - 34f * s, r.y, 30f * s, r.height), "▶", item, new Color(UiTheme.Amber.r, UiTheme.Amber.g, UiTheme.Amber.b, menuAlpha * pulse)); // 호박색(다른 메뉴의 고른 줄과 같은 색)
                 }
                 Label(new Rect(r.x + 8f * s, r.y, r.width, r.height), items[i], item, on ? new Color(Paper.r, Paper.g, Paper.b, menuAlpha) : new Color(Dim.r, Dim.g, Dim.b, menuAlpha));
             }

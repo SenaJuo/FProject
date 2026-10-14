@@ -72,6 +72,7 @@ public class KeypadPanel : MonoBehaviour
 
     void OnGUI()
     {
+        UiTheme.Begin(); // 게임 글꼴(Noto Sans KR)
         if (!open) return;
         GUI.depth = -25;
         if (Event.current.type == EventType.Layout) return;
@@ -86,15 +87,16 @@ public class KeypadPanel : MonoBehaviour
         display.fontSize = Mathf.RoundToInt(40 * s);
         button.fontSize = Mathf.RoundToInt(28 * s);
 
-        float w = 300 * s, h = 470 * s;
+        // 새 꾸밈(2026-10-14): 둥근 판 · 녹색 표시창 · 둥근 단추(유니티 기본 회색 단추 대신)
+        float w = 320 * s, h = 450 * s;
         var r = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
-        Fill(r, new Color(0.08f, 0.09f, 0.1f, 0.94f));
-        Fill(new Rect(r.x, r.y, r.width, 3 * s), new Color(0.4f, 1f, 0.5f, 0.8f));
+        UiTheme.Window(r, s);
 
         // 표시창: 누른 자리는 ●, 남은 자리는 _
         bool wrong = Time.unscaledTime - wrongAt < 0.45f;
-        var screen = new Rect(r.x + 24 * s, r.y + 24 * s, r.width - 48 * s, 70 * s);
-        Fill(screen, wrong ? new Color(0.45f, 0.06f, 0.05f) : new Color(0.04f, 0.12f, 0.06f));
+        var screen = new Rect(r.x + 24 * s, r.y + 24 * s, r.width - 48 * s, 76 * s);
+        UiTheme.Panel(screen, wrong ? new Color(0.40f, 0.07f, 0.06f, 0.95f) : new Color(0.03f, 0.10f, 0.05f, 0.95f), s);
+        UiTheme.Outline(screen, wrong ? new Color(1f, 0.4f, 0.35f, 0.5f) : new Color(0.4f, 1f, 0.55f, 0.25f));
         string shown = "";
         for (int i = 0; i < code.Length; i++) shown += (i < entered.Length ? entered[i].ToString() : "_") + (i < code.Length - 1 ? " " : "");
         display.normal.textColor = wrong ? new Color(1f, 0.5f, 0.45f) : new Color(0.5f, 1f, 0.6f);
@@ -106,11 +108,26 @@ public class KeypadPanel : MonoBehaviour
         for (int i = 0; i < keys.Length; i++)
         {
             var b = new Rect(r.x + 24 * s + (i % 3) * (bw + 12 * s), screen.yMax + 22 * s + (i / 3) * (bh + 12 * s), bw, bh);
-            if (!GUI.Button(b, keys[i], button)) continue;
+            if (!KeyButton(b, keys[i], s)) continue;
             if (keys[i] == "×") Close();
             else if (keys[i] == "←") { if (entered.Length > 0 && !wrong) entered = entered.Substring(0, entered.Length - 1); }
             else Press(keys[i][0]);
         }
+    }
+
+    /// <summary>둥근 단추: 마우스를 올리면 밝아지고, 누르면 true</summary>
+    bool KeyButton(Rect b, string label, float s)
+    {
+        var e = Event.current;
+        bool hover = b.Contains(e.mousePosition);
+        UiTheme.Panel(b, hover ? new Color(1f, 1f, 1f, 0.12f) : new Color(1f, 1f, 1f, 0.06f), s);
+        if (hover) UiTheme.Outline(b, new Color(UiTheme.Amber.r, UiTheme.Amber.g, UiTheme.Amber.b, 0.7f));
+        digit.fontSize = button.fontSize;
+        digit.normal.textColor = label == "×" ? UiTheme.Tape : hover ? UiTheme.Amber : UiTheme.Paper;
+        UIText.Label(b, label, digit);
+        if (e.type != EventType.MouseDown || e.button != 0 || !hover) return false;
+        e.Use();
+        return true;
     }
 
     static void Fill(Rect r, Color c)

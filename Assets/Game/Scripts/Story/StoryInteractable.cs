@@ -15,6 +15,11 @@ public class StoryInteractable : MonoBehaviour
 
     public event Action Used;
 
+    static bool refused;
+    /// <summary>Used 처리 중에 부른다: "지금은 안 된다"(싸우는 중·아직 때가 아님) — 한 번만 쓰는 대상이어도 꺼지지 않고 다시 누를 수 있다.
+    /// (2026-10-14: 경찰서 뒷문·5장 리프트처럼 막힌 채 한 번 누르면 영영 안 열려 진행이 멈췄다)</summary>
+    public static void Refuse() => refused = true;
+
     InputAction interact;
     PlayerController inside;
     Collider own, insideCollider;
@@ -62,8 +67,11 @@ public class StoryInteractable : MonoBehaviour
 
         if (usable && StoryState.Nearby == this && interact.WasPressedThisFrame())
         {
+            refused = false;
             if (oneShot) enabled = false;
             Used?.Invoke();
+            if (refused && oneShot) enabled = true;
+            refused = false;
         }
     }
 }

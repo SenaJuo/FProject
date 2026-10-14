@@ -103,9 +103,9 @@ public static class Tutorial
                     $"{H("R")}을 누르고 있으면 주변의 시간이 거꾸로 흐릅니다. 손을 떼면 다음 {H("5초")} 지점에서 멈추고, 그 순간부터 다시 움직입니다.\n\n" +
                     $"되감기 {H("1회")}가 {H("5초")}를 되돌리며, 카세트 플레이어에 끼운 테이프의 {H("남은 되감기 횟수")}를 씁니다.",
                     "rewind_1"),
-                new Page("테이프와 충전",
-                    $"재생용 테이프를 끼우고 있으면 노래가 흐르고, {H("곡이 하나 끝날 때마다 되감기 1회")}가 충전됩니다(최대 {H("3회")}).\n\n" +
-                    $"단, 재생용 테이프로 한 번 되감으면 그 테이프는 {H("더 이상 재생되지 않습니다")}. {H("I")}로 인벤토리를 열거나 {H("2")}로 다른 테이프를 끼울 수 있고, " +
+                new Page("테이프와 횟수",
+                    $"테이프마다 되감기 횟수가 정해져 있습니다(최대 {H("3회")}). 듣는다고 {H("다시 차지 않습니다")}.\n\n" +
+                    $"횟수를 다 써도 끼운 테이프의 {H("노래는 계속 흐르고")}, 되감기는 횟수가 남은 다른 테이프를 씁니다. " +
                     $"다 쓴 테이프는 {H("테이프 가게")}에서 새 테이프로 바꿀 수 있습니다.",
                     "rewind_2"),
                 new Page("쓰러졌을 때",
@@ -274,9 +274,9 @@ public class TutorialUI : MonoBehaviour
     static readonly Color Panel = new(0.05f, 0.05f, 0.06f, 0.9f);
     static readonly Color PanelSolid = new(0.06f, 0.06f, 0.07f, 0.98f);
     static readonly Color Line = new(0.32f, 0.30f, 0.27f, 1f);
-    static readonly Color Gold = new(0.95f, 0.78f, 0.35f);
-    static readonly Color Paper = new(0.88f, 0.86f, 0.80f);
-    static readonly Color Dim = new(0.62f, 0.60f, 0.56f);
+    static Color Gold => UiTheme.Amber;
+    static Color Paper => UiTheme.Paper;
+    static Color Dim => UiTheme.Dim;
     static readonly Color Close = new(0.86f, 0.22f, 0.18f);
     static readonly Color Shadow = new(0f, 0f, 0f, 0.6f);
 
@@ -289,7 +289,7 @@ public class TutorialUI : MonoBehaviour
     float toastStart;
     int page;
     readonly Dictionary<string, Texture2D> images = new();
-    GUIStyle tiny, small, body, bold, heading, key, centre, glyphStyle, closeStyle;
+    GUIStyle tiny, small, body, bold, heading, key, centre, glyphStyle, closeStyle, eyebrow;
     float styleScale = -1f;
     readonly Dictionary<(GUIStyle, TextAnchor), GUIStyle> midStyles = new();
     static readonly Dictionary<string, string> shadowTexts = new();
@@ -404,6 +404,7 @@ public class TutorialUI : MonoBehaviour
 
     void OnGUI()
     {
+        UiTheme.Begin(); // 게임 글꼴(Noto Sans KR)
         if (open == null && (toast == null || StoryState.CutsceneActive || PauseMenu.IsOpen)) return; // 그릴 것이 없으면 바로 끝(일시정지 화면 위에는 알림을 띄우지 않는다)
         float s = UIText.Scale;
         BuildStyles(s);
@@ -423,8 +424,8 @@ public class TutorialUI : MonoBehaviour
         float w = 500 * s, h = 104 * s;
         var r = new Rect(Mathf.Lerp(-w, 40 * s, slide), Screen.height * 0.5f, w, h);
 
-        Fill(r, Tint(Panel, alpha));
-        Fill(new Rect(r.x, r.y, 4 * s, h), Tint(Gold, alpha));
+        UiTheme.Window(r, s, Tint(UiTheme.Ink, alpha));
+        UiTheme.Fill(new Rect(r.x, r.y + h * 0.2f, 3 * s, h * 0.6f), Tint(Gold, alpha));
         var icon = new Rect(r.x + 18 * s, r.y + 16 * s, 72 * s, 72 * s);
         DrawIcon(icon, e.category, alpha, s);
 
@@ -432,15 +433,15 @@ public class TutorialUI : MonoBehaviour
         Label(new Rect(x, r.y + 8 * s, w - (x - r.x), 28 * s), e.category, Mid(tiny, TextAnchor.MiddleLeft), Tint(Dim, alpha));
         Label(new Rect(x, r.y + 34 * s, w - (x - r.x), 40 * s), e.title, Mid(bold, TextAnchor.MiddleLeft), Tint(Gold, alpha));
         var cap = new Rect(x, r.y + 74 * s, 26 * s, 24 * s);
-        Fill(cap, Tint(Paper, alpha));
+        UiTheme.Panel(cap, Tint(Paper, alpha), s);
         Label(cap, "H", key, Tint(new Color(0.08f, 0.08f, 0.09f), alpha), shadow: false); // 밝은 키 모양 위라 그림자를 넣으면 번져 보인다
         Label(new Rect(cap.xMax + 8 * s, cap.y - 2 * s, 120 * s, 28 * s), "보기", Mid(tiny, TextAnchor.MiddleLeft), Tint(Paper, alpha));
     }
 
     void DrawIcon(Rect r, string category, float alpha, float s)
     {
-        Fill(r, Tint(new Color(0.12f, 0.12f, 0.13f), alpha));
-        Frame(r, Tint(Line, alpha), 2f * s);
+        UiTheme.Panel(r, Tint(new Color(0.13f, 0.13f, 0.14f), alpha), s);
+        UiTheme.Outline(r, Tint(UiTheme.Hair, alpha));
         // 분류마다 다른 표시: 카세트 플레이어 = 되감기 기호, 그 밖 = 마름모
         string glyph = category == "카세트 플레이어" ? "◀◀" : "◆";
         Label(r, glyph, glyphStyle, Tint(Paper, alpha));
@@ -448,29 +449,28 @@ public class TutorialUI : MonoBehaviour
 
     void DrawPopup(Tutorial.Entry e, float s)
     {
-        Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0f, 0f, 0f, 0.6f));
+        Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.01f, 0.01f, 0.02f, 0.66f));
         float w = 1160 * s, h = 680 * s;
         var win = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);
-        Fill(win, PanelSolid);
-        Frame(win, Line, 2f * s);
+        UiTheme.Window(win, s);
 
-        // 제목 줄 + 닫기
-        Label(new Rect(win.x + 36 * s, win.y + 14 * s, w, 60 * s), $"{e.category} 튜토리얼", Mid(heading, TextAnchor.MiddleLeft), Paper);
-        var close = new Rect(win.xMax - 78 * s, win.y + 22 * s, 48 * s, 40 * s);
-        Fill(close, Close);
-        Label(close, "✕", closeStyle, Color.white);
+        // 제목 줄(작은 영문 표제 + 분류) + 닫기
+        Label(new Rect(win.x + 36 * s, win.y + 14 * s, w, 22 * s), "T U T O R I A L", Mid(eyebrow, TextAnchor.MiddleLeft), Gold);
+        Label(new Rect(win.x + 36 * s, win.y + 32 * s, w, 46 * s), $"{e.category}", Mid(heading, TextAnchor.MiddleLeft), Paper);
+        var close = new Rect(win.xMax - 76 * s, win.y + 24 * s, 44 * s, 40 * s);
+        UiTheme.Panel(close, new Color(1f, 1f, 1f, 0.06f), s);
+        Label(close, "✕", closeStyle, Paper);
         if (Clicked(close)) { ClosePopup(); return; }
 
         var p = e.pages[page];
         // 부제 줄
-        var sub = new Rect(win.x + 36 * s, win.y + 84 * s, w - 72 * s, 48 * s);
-        Fill(sub, new Color(0.10f, 0.10f, 0.11f));
-        Fill(new Rect(sub.x, sub.yMax - 2 * s, sub.width, 2 * s), Line);
-        Label(new Rect(sub.x + 16 * s, sub.y, sub.width - 32 * s, sub.height), $"「{e.title}」 {p.heading}", Mid(bold, TextAnchor.MiddleLeft), Paper);
+        var sub = new Rect(win.x + 36 * s, win.y + 88 * s, w - 72 * s, 48 * s);
+        UiTheme.Hairline(sub.x, sub.y - 6 * s, sub.width, s);
+        Label(new Rect(sub.x, sub.y, sub.width - 32 * s, sub.height), $"<color=#F5B84D>{e.title}</color>   {p.heading}", Mid(bold, TextAnchor.MiddleLeft), Paper);
 
         // 본문(왼쪽) + 그림(오른쪽). 그림이 없으면 본문이 폭을 다 쓴다
         var content = new Rect(win.x + 36 * s, sub.yMax + 24 * s, w - 72 * s, h - (sub.yMax - win.y) - 24 * s - 136 * s);
-        Fill(content, new Color(0.08f, 0.08f, 0.09f));
+        UiTheme.Panel(content, UiTheme.InkSoft, s);
         var image = Image(p.image);
         float pad = 36 * s;
         if (image)
@@ -501,9 +501,9 @@ public class TutorialUI : MonoBehaviour
 
     void PageButton(Rect r, string text, bool enabled, float s)
     {
-        Fill(r, enabled ? new Color(0.16f, 0.16f, 0.17f) : new Color(0.10f, 0.10f, 0.11f));
-        Frame(r, enabled ? Gold : Line, 2f * s);
-        Label(r, text, Mid(bold, TextAnchor.MiddleCenter), enabled ? Paper : Dim);
+        UiTheme.Panel(r, enabled ? new Color(1f, 1f, 1f, 0.07f) : new Color(1f, 1f, 1f, 0.03f), s);
+        UiTheme.Outline(r, enabled ? Tint(Gold, 0.7f) : UiTheme.Hair);
+        Label(r, text, Mid(small, TextAnchor.MiddleCenter), enabled ? Paper : Dim);
     }
 
     /// <summary>한 줄 글씨를 칸 안에서 세로 가운데로(칸 높이를 넉넉히 주면 작은 화면에서도 잘리지 않는다)</summary>
@@ -538,7 +538,8 @@ public class TutorialUI : MonoBehaviour
         small = new GUIStyle(tiny) { fontSize = Mathf.RoundToInt(19 * s) };
         body = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(23 * s), wordWrap = true, richText = true };
         bold = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(24 * s), fontStyle = FontStyle.Bold, richText = true };
-        heading = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(32 * s), fontStyle = FontStyle.Bold };
+        heading = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(30 * s), fontStyle = FontStyle.Bold };
+        eyebrow = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(14 * s), fontStyle = FontStyle.Bold };
         key = new GUIStyle(GUI.skin.label) { fontSize = Mathf.RoundToInt(15 * s), fontStyle = FontStyle.Bold, alignment = TextAnchor.MiddleCenter };
         centre = new GUIStyle(GUI.skin.label) { alignment = TextAnchor.UpperCenter };
         glyphStyle = new GUIStyle(centre) { fontSize = Mathf.RoundToInt(30 * s), alignment = TextAnchor.MiddleCenter };
@@ -548,7 +549,8 @@ public class TutorialUI : MonoBehaviour
 
     static Color Tint(Color c, float a) => new(c.r, c.g, c.b, c.a * a);
 
-    static void Label(Rect r, string text, GUIStyle style, Color color, bool shadow = true)
+    // 설명 창·알림은 어두운 판 위라 기본은 그림자 없이(2026-10-14: 그림자가 작은 화면에서 글자를 두 겹으로 보이게 했다)
+    static void Label(Rect r, string text, GUIStyle style, Color color, bool shadow = false)
     {
         if (!shadow) { style.normal.textColor = color; UIText.Label(r, text, style); return; }
         // 그림자 + 글씨(강조 색 태그는 그대로 두고, 그림자는 색 태그를 지운 글씨로)

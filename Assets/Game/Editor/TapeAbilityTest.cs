@@ -125,7 +125,7 @@ public static class TapeAbilityTest
             case 7:
                 if (!w.Rewinding && Waited(0.5f))
                 {
-                    Note($"   되감은 뒤: 횟수 {tape.charges}(기대 2), 테이프 재생 가능 {tape.CanPlay}(기대 False — 규칙)");
+                    Note($"   되감은 뒤: 횟수 {tape.charges}(기대 2), 테이프 재생 가능 {tape.CanPlay}(기대 True — 2026-10-14 규칙: 노래는 계속 흐른다)");
                     // ④ 장르 없는 테이프
                     var plain = new CassetteTape { title = "주운 테이프", playable = false, charges = 2 };
                     w.AddTape(plain); w.Equip(w.tapes.IndexOf(plain));

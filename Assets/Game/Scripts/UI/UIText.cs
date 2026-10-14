@@ -116,9 +116,20 @@ public static class UIText
         });
     }
 
+    /// <summary>
+    /// 글자 색을 모든 상태(평소 · 마우스 올림 · 누름 · 선택)에 똑같이(2026-10-14): 유니티 기본 글자 칸은 마우스가 올라가면
+    /// '마우스 올림' 상태의 색으로 그리는데, 우리는 평소 색만 바꿔 왔다 → 마우스를 올리면 그림자까지 밝게 찍혀 글자가 두 겹으로 번졌다
+    /// </summary>
+    static void Ink(GUIStyle style, Color c)
+    {
+        style.normal.textColor = style.hover.textColor = style.active.textColor = style.focused.textColor = c;
+        style.onNormal.textColor = style.onHover.textColor = style.onActive.textColor = style.onFocused.textColor = c;
+    }
+
     /// <summary>GUI.Label과 같지만 넘치면 줄여서 그린다</summary>
     public static void Label(Rect r, string text, GUIStyle style)
     {
+        Ink(style, style.normal.textColor);
         var f = Fit(r, text, style);
         int keep = style.fontSize; bool wrap = style.wordWrap; var clip = style.clipping;
         style.fontSize = f.size; style.wordWrap = !f.single; style.clipping = TextClipping.Overflow;
@@ -130,6 +141,7 @@ public static class UIText
     /// <summary>그림자를 따로 그릴 때(검사에 넣지 않는다)</summary>
     public static void ShadowOnly(Rect r, string text, GUIStyle style)
     {
+        Ink(style, style.normal.textColor);
         var f = Fit(r, text, style);
         int keep = style.fontSize; bool wrap = style.wordWrap; var clip = style.clipping;
         style.fontSize = f.size; style.wordWrap = !f.single; style.clipping = TextClipping.Overflow;
@@ -147,9 +159,9 @@ public static class UIText
         int keep = style.fontSize; bool wrap = style.wordWrap; var clip = style.clipping;
         style.fontSize = f.size; style.wordWrap = !f.single; style.clipping = TextClipping.Overflow;
         float o = ShadowOffset(f.size, offset);
-        style.normal.textColor = ink;
+        Ink(style, ink);
         GUI.Label(new Rect(r.x + o, r.y + o, r.width, r.height), Plain(shadowText != null && f.text == text ? shadowText : f.text), style);
-        style.normal.textColor = paper;
+        Ink(style, paper);
         GUI.Label(r, f.text, style);
         Record(r, f.text, style, f.fits, keep);
         style.fontSize = keep; style.wordWrap = wrap; style.clipping = clip;

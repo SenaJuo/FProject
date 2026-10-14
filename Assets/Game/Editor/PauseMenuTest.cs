@@ -142,7 +142,7 @@ public static class PauseMenuTest
             case 31: Release(); break;
             case 32:
                 Note($"   Esc: 인벤토리 {Walkman.InventoryOpen}, 일시정지 {PauseMenu.IsOpen}, 시간 배율 {Time.timeScale} (기대 False, False, 1)");
-                // ⑦ 타이틀로 확인 쪽: 열기 → S S S Enter → 아니요 → 처음 쪽(조작법이 끼어 타이틀로는 4번째)
+                // ⑦ 타이틀로 확인 쪽: 열기 → S S(조작법 확인) → S S Enter → 아니요 → 처음 쪽(조작법·튜토리얼이 끼어 타이틀로는 5번째)
                 Tap(Key.Escape);
                 break;
             case 33: Release(); break;
@@ -156,13 +156,15 @@ public static class PauseMenuTest
             case 41: Release(); break;
             case 42: Note($"   Esc: 쪽 {PauseMenu.CurrentPage}(기대 Main), 고른 줄 {PauseMenu.SelectedIndex}(기대 2)"); Tap(Key.S); break;
             case 43: Release(); break;
-            case 44: Tap(Key.Enter); break;
+            case 44: Tap(Key.S); break; // 튜토리얼이 끼어 타이틀로는 5번째(4)
             case 45: Release(); break;
-            case 46: Note($"⑦ 타이틀로: 쪽 {PauseMenu.CurrentPage}(기대 Confirm), 고른 줄 {PauseMenu.SelectedIndex}(기대 0 = 아니요)"); Tap(Key.Enter); break;
+            case 46: Note($"   S×2: 고른 줄 {PauseMenu.SelectedIndex}(기대 4 = 타이틀로)"); Tap(Key.Enter); break;
             case 47: Release(); break;
-            case 48: Note($"   아니요: 쪽 {PauseMenu.CurrentPage}(기대 Main), 고른 줄 {PauseMenu.SelectedIndex}(기대 3)"); Tap(Key.Escape); break;
-            case 49: Release(); next = Time.unscaledTime + 0.3f; break;
-            case 50:
+            case 48: Note($"⑦ 타이틀로: 쪽 {PauseMenu.CurrentPage}(기대 Confirm), 고른 줄 {PauseMenu.SelectedIndex}(기대 0 = 아니요)"); Tap(Key.Enter); break;
+            case 49: Release(); break;
+            case 50: Note($"   아니요: 쪽 {PauseMenu.CurrentPage}(기대 Main), 고른 줄 {PauseMenu.SelectedIndex}(기대 4)"); Tap(Key.Escape); break;
+            case 51: Release(); next = Time.unscaledTime + 0.3f; break;
+            case 52:
                 Note($"   닫힘 {!PauseMenu.IsOpen}, 시간 배율 {Time.timeScale}");
                 // 시험 전 소리 설정으로 돌려 둔다
                 GameSettings.Set(GameSettings.Channel.Master, savedMaster);

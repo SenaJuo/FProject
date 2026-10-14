@@ -45,6 +45,7 @@ public class SceneLoader : MonoBehaviour
 
     void OnGUI()
     {
+        UiTheme.Begin(); // 게임 글꼴(Noto Sans KR)
         if (!Busy) return;
         GUI.depth = -100; // 모든 화면 위에
         var keep = GUI.color;

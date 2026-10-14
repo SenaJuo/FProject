@@ -82,7 +82,7 @@ public class Chapter3Director : MonoBehaviour
         }
         if (serviceDoor) serviceDoor.Used += () => doorUsed = true;
         if (switchUse) switchUse.Used += OnSwitch;
-        if (elevatorUse) elevatorUse.Used += () => { if (CurrentPhase == Phase.ToLift) liftUsed = true; };
+        if (elevatorUse) elevatorUse.Used += () => { if (CurrentPhase == Phase.ToLift) liftUsed = true; else StoryInteractable.Refuse(); };
         if (booth) booth.Collapsed += OnCollapsed;
         if (controlTrigger) controlTrigger.Entered += OnControlRoom;
         if (shopApproach) shopApproach.Entered += OnShopApproach;
@@ -148,7 +148,7 @@ public class Chapter3Director : MonoBehaviour
 
     void Update()
     {
-        if (rainAudio) rainAudio.volume = (indoors ? 0.06f : 0.45f) * GameSettings.Gain(GameSettings.Channel.Ambience);
+        if (rainAudio) rainAudio.volume = (indoors ? 0.06f : 0.45f) * GameSettings.Gain(GameSettings.Channel.Sfx);
     }
 
     // ---------- 구역 1 ----------
@@ -306,8 +306,8 @@ public class Chapter3Director : MonoBehaviour
     void OnSwitch()
     {
         if (switched || !booth) return;
-        if (!KnowsCollapse) { StoryState.Say(Ray, "…함부로 만졌다간 저 사람이 다칠지도 몰라.", 2.4f); return; }
-        if (booth.Current != ExperimentBooth.State.Running) return;
+        if (!KnowsCollapse) { StoryInteractable.Refuse(); StoryState.Say(Ray, "…함부로 만졌다간 저 사람이 다칠지도 몰라.", 2.4f); return; }
+        if (booth.Current != ExperimentBooth.State.Running) { StoryInteractable.Refuse(); return; }
         booth.Stop();
         switched = true;
         if (switchUse) switchUse.gameObject.SetActive(false);

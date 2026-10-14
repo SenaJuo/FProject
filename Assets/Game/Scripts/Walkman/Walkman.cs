@@ -4,8 +4,8 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 
 /// <summary>
-/// 주인공의 카세트 플레이어. 어떤 테이프든 넣을 수 있고, 재생 가능한 테이프는 재생되며 트랙을 하나 끝낼 때마다
-/// 되감기 1회가 충전된다(최대 3). R을 누르고 있으면 Walkman에 든 테이프로 되감는다: 월드가 VCR처럼
+/// 주인공의 카세트 플레이어. 어떤 테이프든 넣을 수 있고, 재생 가능한 테이프는 노래가 계속 흐른다.
+/// 테이프마다 되감기·능력 횟수(최대 3)가 정해져 있고, 듣는다고 다시 차지 않는다(2026-10-14). R을 누르고 있으면 Walkman에 든 테이프로 되감는다: 월드가 VCR처럼
 /// 거꾸로 재생되고, 손을 떼면 다음 5초 지점에서 멈춘다 — 5초를 되돌릴 때마다 충전 1회를 쓴다.
 /// </summary>
 [RequireComponent(typeof(Health))]
@@ -51,10 +51,10 @@ public class Walkman : MonoBehaviour
     public int RewindableTapeCount { get { int n = 0; foreach (var t in tapes) if (t.charges > 0) n++; return n; } } // FindAll은 매번 목록을 새로 만들어(HUD가 매 프레임 부른다) 직접 센다
     /// <summary>가진 테이프 전부의 남은 되감기 횟수(R은 끼운 테이프가 비면 다른 테이프로 되감는다)</summary>
     public int TotalCharges { get { int n = 0; foreach (var t in tapes) n += t.charges; return n; } }
-    /// <summary>끼운 테이프의 남은 되감기 횟수(테이프 한 개당 최대 3회). 화면에는 이것만 보인다</summary>
-    public int CurrentCharges => Inserted?.charges ?? 0;
-    /// <summary>인벤토리에 있는, 횟수가 남은 다른 테이프 수</summary>
-    public int SpareTapeCount { get { int n = 0; foreach (var t in tapes) if (t.charges > 0 && t != Inserted) n++; return n; } }
+    /// <summary>지금 R을 누르면 쓰일 테이프의 남은 횟수(테이프 한 개당 최대 3회). 끼운 테이프가 비었으면 다음 테이프의 횟수</summary>
+    public int CurrentCharges => ManualRewindTape()?.charges ?? 0;
+    /// <summary>그 밖에 횟수가 남은 테이프 수</summary>
+    public int SpareTapeCount { get { var inUse = ManualRewindTape(); int n = 0; foreach (var t in tapes) if (t.charges > 0 && t != inUse) n++; return n; } }
     public int SpentTapeCount { get { int n = 0; foreach (var t in tapes) if (t.IsSpent) n++; return n; } }
     /// <summary>카세트 릴이 회전한 각도. HUD에서 쓴다.</summary>
     public float ReelAngle { get; private set; }
@@ -135,13 +135,9 @@ public class Walkman : MonoBehaviour
         if (tape == null || !tape.CanPlay || StoryState.WalkmanStowed) return; // 착용 전에는 재생되지 않는다
 
         ReelAngle += 150f * deltaTime;
-        int finishedBefore = tape.CompletedTracks;
-        tape.position = Mathf.Min(tape.position + deltaTime, tape.Length);
-        if (tape.CompletedTracks > finishedBefore && tape.charges < CassetteTape.MaxCharges)
-        {
-            tape.charges++;
-            Announce("+1 되감기");
-        }
+        // 노래만 흐른다: 횟수는 차지 않고, 테이프 끝에 닿으면 처음 곡부터 다시 돈다
+        tape.position += deltaTime;
+        if (tape.position >= tape.Length) tape.position = 0f;
     }
 
     // ---------- 테이프 ----------
@@ -273,7 +269,7 @@ public class Walkman : MonoBehaviour
 
     /// <summary>
     /// 끼운 재생용 테이프의 지금 곡을 테이프 위치에 맞춰 튼다. 테이프가 멈춰 있으면(주머니 속·컷신의 시간 붙잡기·되감기·
-    /// 메뉴·사망) 음악도 멈춘다. 되감는 데 쓴 재생용 테이프는 다시 소리가 나지 않는다(규칙).
+    /// 메뉴·사망) 음악도 멈춘다. 되감기·능력에 쓴 테이프도 노래는 계속 흐른다.
     /// </summary>
     void UpdateMusic()
     {
@@ -365,7 +361,7 @@ public class Walkman : MonoBehaviour
         var tape = ManualRewindTape();
         if (tape == null)
         {
-            Announce(SpareTapeCount > 0 ? "되감기 없음 — I" : "되감기 없음");
+            Announce("되감기 없음");
             return;
         }
         if (TimeRewind.RecordedSeconds < 0.2f) return;
@@ -393,15 +389,12 @@ public class Walkman : MonoBehaviour
         Time.timeScale = 1f;
     }
 
-    CassetteTape ManualRewindTape() => Inserted != null && Inserted.charges > 0 ? Inserted : null;
+    /// <summary>되감기·능력에 쓸 테이프: 끼운 테이프에 횟수가 있으면 그것, 없으면 인벤토리에서 횟수가 남은 테이프(음악 없는 테이프부터).
+    /// 끼운 테이프는 바꾸지 않는다 — 횟수를 다 써도 듣던 노래는 계속 흐른다</summary>
+    CassetteTape ManualRewindTape() => Inserted != null && Inserted.charges > 0 ? Inserted : SpareWithCharges();
 
-    /// <summary>끼운 테이프를 다 썼으면 횟수가 남은 테이프로 바꿔 끼운다(재생이 안 되는 테이프부터 — 음악 테이프는 아껴 둔다)</summary>
-    void SwapOutSpent()
-    {
-        if (Inserted != null && !Inserted.IsSpent) return;
-        var next = tapes.Find(t => t.charges > 0 && !t.CanPlay) ?? tapes.Find(t => t.charges > 0);
-        if (next != null) Inserted = next;
-    }
+    CassetteTape SpareWithCharges() => tapes.Find(t => t.charges > 0 && !t.CanPlay) ?? tapes.Find(t => t.charges > 0);
+
 
     /// <summary>
     /// 버튼을 누르고 있지 않아도 정해진 횟수만큼 5초 단위로 되감는다 — 컷신(떨어뜨린
@@ -425,13 +418,8 @@ public class Walkman : MonoBehaviour
     {
         if (InventoryOpen) CloseInventory();
         TimeRewind.RecordNow();
-        // 쓰러지면: 끼운 테이프로 되감는다. 끼운 테이프에 횟수가 없으면 횟수가 남은 테이프를 대신 끼워 준다(사망 화면에선 인벤토리를 못 연다)
-        if (Inserted == null || Inserted.charges == 0)
-        {
-            var spare = tapes.Find(t => t.charges > 0 && !t.CanPlay) ?? tapes.Find(t => t.charges > 0);
-            if (spare != null) Inserted = spare;
-        }
-        var tape = Inserted != null && Inserted.charges > 0 ? Inserted : null;
+        // 쓰러지면: 끼운 테이프로 되감는다. 끼운 테이프에 횟수가 없으면 횟수가 남은 다른 테이프로(끼운 테이프는 그대로 — 노래가 이어진다)
+        var tape = ManualRewindTape();
         if (tape == null || TimeRewind.RecordedSeconds <= 0.01f) return false;
 
         RewindTape = tape;
@@ -509,11 +497,7 @@ public class Walkman : MonoBehaviour
         var tape = RewindTape;
         int cost = Mathf.Clamp(Mathf.CeilToInt(stopAt / secondsPerCharge - 0.001f), 1, tape.charges);
         bool practice = StoryState.FreeRewind; // 튜토리얼 연습: 횟수를 쓰지 않고, 재생용 테이프도 그대로 둔다
-        if (!practice)
-        {
-            tape.charges -= cost;
-            if (tape.playable) tape.rewound = true;
-        }
+        if (!practice) tape.charges -= cost; // 횟수만 준다: 테이프는 계속 재생된다
 
         TimeRewind.RewindTo(TimeRewind.At(startClock - stopAt));
         TimeRewind.PlayingBack = false;
@@ -526,7 +510,6 @@ public class Walkman : MonoBehaviour
         phase = Phase.Playing;
         if (!practice) PlayerController.MemoryStrikeUntil = Time.unscaledTime + 3f; // 기억의 일격: 3초 안의 첫 주먹은 세 배
 
-        SwapOutSpent(); // 끼운 테이프를 다 썼으면 인벤토리에서 횟수가 남은 테이프를 꺼내 끼운다
         // 남은 횟수는 왼쪽 아래 칸으로 보인다(알림 없음)
     }
 

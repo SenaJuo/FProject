@@ -51,6 +51,7 @@ public class CutsceneSkip : MonoBehaviour
 
     void OnGUI()
     {
+        UiTheme.Begin(); // 게임 글꼴(Noto Sans KR)
         if (shown <= 0.01f) return;
         float s = UIText.Scale;
         GUI.depth = -20;

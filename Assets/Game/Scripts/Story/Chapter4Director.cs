@@ -97,7 +97,7 @@ public class Chapter4Director : MonoBehaviour
 
     void Update()
     {
-        if (rainAudio) rainAudio.volume = 0.5f * GameSettings.Gain(GameSettings.Channel.Ambience);
+        if (rainAudio) rainAudio.volume = 0.5f * GameSettings.Gain(GameSettings.Channel.Sfx);
     }
 
     // ---------- 구역 1: 산길 ----------
