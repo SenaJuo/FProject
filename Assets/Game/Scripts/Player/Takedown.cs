@@ -111,12 +111,15 @@ public class Takedown : MonoBehaviour
 
     /// <summary>목 조르기 중(시험용)</summary>
     public static bool Choking { get; private set; }
+    /// <summary>지금 목이 졸리는 적(근처 순찰이 목격하는지 본다). 없으면 null</summary>
+    public static EnemyAI Victim { get; private set; }
 
     IEnumerator Perform(EnemyAI e)
     {
         busy = true;
         Target = null;
         Choking = true;
+        Victim = e;
         int generation = TimeRewind.Generation;
         var sight = e.GetComponent<PatrolSight>();
         if (sight) { sight.Silence(); sight.Holding = true; } // 맞아도 소리치지 않고, 순찰 걸음도 멈춘다
@@ -165,6 +168,7 @@ public class Takedown : MonoBehaviour
             if (!rewound && !e.Health.IsDead) { if (sight) { sight.Holding = false; sight.Alert(false); } else e.Activate(); }
             busy = false;
             Choking = false;
+            Victim = null;
             yield break;
         }
 
@@ -177,6 +181,7 @@ public class Takedown : MonoBehaviour
         foreach (var c in theirCols) if (c && mineCol) Physics.IgnoreCollision(mineCol, c, false);
         busy = false;
         Choking = false;
+        Victim = null;
     }
 
     static void EndShot(GameObject shot)

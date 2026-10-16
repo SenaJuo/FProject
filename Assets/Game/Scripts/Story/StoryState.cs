@@ -7,8 +7,15 @@ using UnityEngine;
 /// </summary>
 public static class StoryState
 {
-    /// <summary>컷신 중: HUD 대신 레터박스·자막만 보이고, 모든 조작이 잠긴다.</summary>
-    public static bool CutsceneActive;
+    /// <summary>컷신 중: HUD 대신 레터박스·자막만 보이고, 모든 조작이 잠긴다.
+    /// 컷신이 시작하거나 끝나면 건너뛰기도 함께 꺼진다(2026-10-16: 1장 반장 등장 장면을 건너뛴 뒤 표시가 켜진 채 남아,
+    /// 반장을 쓰러뜨린 뒤의 대사 · 새벽 장면까지 통째로 건너뛰어졌다)</summary>
+    public static bool CutsceneActive
+    {
+        get => cutsceneActive;
+        set { if (value != cutsceneActive) SkipRequested = false; cutsceneActive = value; } // 컷신이 시작 · 끝날 때마다 새로
+    }
+    static bool cutsceneActive;
     /// <summary>컷신이 아니어도 조작만 잠글 때(예: 대사 중)</summary>
     public static bool ControlLocked;
     /// <summary>공격 금지(프롤로그 첫 회차: 주인공은 그저 친구에게 물어보러 가는 길이다)</summary>
@@ -80,6 +87,17 @@ public static class StoryState
     /// <summary>지금 눌러야 할 키 안내(예: 실전 첫 되감기 "R 길게 누르기"). null이면 없음</summary>
     public static string Prompt;
 
+    /// <summary>이야기가 "R 을 길게 눌러 되감는다"를 띄운 동안(들킴 · 쓰러지는 장면 등). 컷신 중이어도 R이 받아지고,
+    /// 장르 테이프여도 Q/E 고르기 없이 바로 되감는다(2026-10-14: 3장 7번이 쓰러지는 컷신에서 R이 안 먹었다). 되감기가 시작되면 풀린다</summary>
+    public static bool RewindAsked;
+
+    /// <summary>되감기를 요구하는 안내를 띄운다</summary>
+    public static void AskRewind(string prompt)
+    {
+        Prompt = prompt;
+        RewindAsked = true;
+    }
+
     public static string Speaker { get; private set; }
     public static string Line { get; private set; }
     static float lineUntil;
@@ -98,7 +116,7 @@ public static class StoryState
 
     public static void ResetAll()
     {
-        CutsceneActive = ControlLocked = CombatLocked = RewindLocked = WalkmanStowed = MenuOpen = FreeRewind = SkipRequested = HoldTime = false;
+        CutsceneActive = ControlLocked = CombatLocked = RewindLocked = WalkmanStowed = MenuOpen = FreeRewind = SkipRequested = HoldTime = RewindAsked = false;
         LetterHeading = LetterText = null;
         Objective = null;
         Waypoint = null;

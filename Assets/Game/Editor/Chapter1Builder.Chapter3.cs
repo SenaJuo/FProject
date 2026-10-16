@@ -260,7 +260,7 @@ public static partial class Chapter1Builder
         b.dockSave = P.Marker(triggers, "DockSave", new Vector3(46f, 0.05f, -38f), 0f);
 
         // 경비(손전등 순찰): 서쪽 통로 · 동쪽 통로 · 트럭 옆 제자리(마당을 본다)
-        Guard(people, routes, "Guard_West", new Vector3(40f, 0.02f, -22f), 0f, new Vector3(40f, 0.02f, -22f), new Vector3(40f, 0.02f, 34f));
+        Guard(people, routes, "Guard_West", new Vector3(40f, 0.02f, -22f), 0f, new Vector3(40f, 0.02f, -22f), new Vector3(40f, 0.02f, 12f)); // 트럭 옆 경비 7m 앞에서 돌아선다(전에는 2.6m 옆을 지나갔다)
         Guard(people, routes, "Guard_East", new Vector3(57.5f, 0.02f, 34f), 180f, new Vector3(57.5f, 0.02f, 34f), new Vector3(57.5f, 0.02f, -26f));
         Guard(people, routes, "Guard_Truck", new Vector3(37f, 0.02f, 19.2f), 90f, new Vector3(37f, 0.02f, 19.2f));
         // 정문 경비 둘(앞마당, 제자리)

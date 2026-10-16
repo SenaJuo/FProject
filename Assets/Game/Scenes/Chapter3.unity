@@ -13911,7 +13911,7 @@ Transform:
   m_GameObject: {fileID: 357297225}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 40, y: 0.02, z: 34}
+  m_LocalPosition: {x: 40, y: 0.02, z: 12}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -78587,6 +78587,7 @@ SkinnedMeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: ee6952c04580b5541994d5c69855f840, type: 2}
+  - {fileID: 2100000, guid: b8be0dbfdfeacbe47abef13af05c522f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -79010,6 +79011,7 @@ GameObject:
   - component: {fileID: 8690704354154996763}
   - component: {fileID: 8690704354154996762}
   - component: {fileID: 8690704354154996761}
+  - component: {fileID: 8690704354154996764}
   m_Layer: 0
   m_Name: Model
   m_TagString: Untagged
@@ -79811,6 +79813,18 @@ MonoBehaviour:
     fist2: 0
   holdFist: 1.2
   alwaysFist: 0
+--- !u!114 &8690704354154996764
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5457546537609586137}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc9ceeebe942b69449cdc1afbb6c4523, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FaceExpression
 --- !u!4 &8702426144171508505
 Transform:
   m_ObjectHideFlags: 0

@@ -84,3 +84,8 @@
 - Noto Sans KR (Assets/Game/Resources/Fonts/NotoSansKR.ttf) — Google / Adobe, SIL Open Font License 1.1.
   게임 화면 글자(HUD · 메뉴 · 설명 창)에 쓴다. OFL은 게임에 넣어 배포하는 것을 허용한다(글꼴 자체를 따로 팔 수는 없다).
   원문: https://openfontlicense.org
+
+[2026-10-16] 주인공 얼굴 손질
+- Art/Baroque/Characters/Protagonist/Protagonist_Face_{BaseColor,Normal,MetalRough,MetallicSmoothness}.png — 위 VARCO 3D 주인공 텍스처를
+  Blender에서 얼굴만 한 조각으로 다시 펼쳐 구운 것(원본 조각 경계 자국은 주변 색으로 메움). 출처·라이선스는 원본(VARCO 이용약관)과 같다.
+- Protagonist_FaceRig.json(얼굴 UV · 표정 모양 8개 · 눈꺼풀)과 Blender/Protagonist_Face.blend — 직접 제작.

@@ -68,6 +68,9 @@ public static class BugFixTest
                 gunnerSpawn = gunner.transform.position;
                 var sight = guard.GetComponent<PatrolSight>();
                 sight.Holding = true;
+                // 옆 경비 B가 다른 쪽을 보는 틈에 제압한다(2026-10-16: 동료가 당하는 걸 보면 소리친다 — B를 붙잡아 두어 "안 보는 틈"을 만든다)
+                var other = GameObject.Find("Thug_Exit_B").GetComponent<PatrolSight>();
+                other.Holding = true;
                 Vector3 behind = guard.transform.position - guard.transform.forward * 1.1f;
                 behind.y = guard.transform.position.y + 0.02f;
                 p.Teleport(behind, Quaternion.LookRotation(guard.transform.position - behind));
@@ -82,7 +85,7 @@ public static class BugFixTest
                     var td = p.GetComponent<Takedown>();
                     td.StartCoroutine((IEnumerator)typeof(Takedown).GetMethod("Perform", Any).Invoke(td, new object[] { guard }));
                 }
-                next = Time.unscaledTime + 1.4f;
+                next = Time.unscaledTime + 2.6f; // 목 조르기는 2.1초 뒤에 축 늘어진다
                 break;
             }
             case 3:

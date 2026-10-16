@@ -174,6 +174,9 @@ public class PatrolSight : MonoBehaviour, IRewindable
         float distance = 0f;
         // 조작이 잠긴 동안(문을 여는 장면 · 컷신)은 알아채지 않는다: 레이가 피할 수 없는 순간에 들키는 일이 없게(2026-10-14 경찰서 뒷문)
         bool seen = CanDetect && !StoryState.ControlLocked && SeesPlayer(out distance);
+        // 동료가 당하는 것을 봤다(목이 졸리거나 방금 쓰러졌다): 레이를 못 봤어도 바로 소리친다
+        // (2026-10-16 "바로 옆에 애가 Q로 제압당해서 쓰러져도 모른다" — 나란히 걷던 동료는 레이가 시야 밖이라 몰랐다)
+        if (CanDetect && !StoryState.ControlLocked && WitnessesMateDown()) { Alert(true); return; }
         if (seen)
         {
             // 가까울수록 빨리 알아챈다: 1.6m 0.45초, 11m 1.6초
@@ -243,6 +246,28 @@ public class PatrolSight : MonoBehaviour, IRewindable
         if (distance > near && angle > viewAngle) return false;
         // 머리나 가슴 둘 중 하나라도 가리는 것 없이 보이면 보인 것이다
         return Clear(eye, playerHead.position) || Clear(eye, playerChest.position);
+    }
+
+    /// <summary>
+    /// 목이 졸리는 동료나 방금(6초 안) 쓰러진 동료를 봤는가. 시야는 평소보다 조금 넓게(+25°), 3.5m 안이면 방향과 상관없이
+    /// 몸싸움·쓰러지는 소리로 알아챈다. 가려져 있으면 모른다(벽 너머·차 뒤)
+    /// </summary>
+    bool WitnessesMateDown()
+    {
+        Vector3 eye = transform.position + Vector3.up * 1.6f;
+        foreach (var e in EnemyAI.All)
+        {
+            if (!e || e == Enemy) continue;
+            bool beingChoked = Takedown.Choking && Takedown.Victim == e;
+            bool justFell = e.Health.IsDead && Time.time - e.DiedAt < 6f;
+            if (!beingChoked && !justFell) continue;
+            Vector3 flat = e.transform.position - transform.position; flat.y = 0f;
+            float distance = flat.magnitude;
+            if (distance > viewDistance) continue;
+            if (distance > 3.5f && Vector3.Angle(transform.forward, flat) > viewAngle + 25f) continue;
+            if (Clear(eye, e.transform.position + Vector3.up * (beingChoked ? 1.3f : 0.4f))) return true;
+        }
+        return false;
     }
 
     bool Clear(Vector3 from, Vector3 to)

@@ -13,7 +13,7 @@ using P = PrologueBuilder;
 /// 배치(미터, y 0):
 ///   지하 주차장: x -18~18, z 0~40, 천장 3.6. 남쪽 입구에서 시작. 서남쪽 구석에 7번(가게). 북쪽 벽 가운데 화물 엘리베이터.
 ///     (2026-10-14 "주차장이 쓸데없이 넓다" → 60×60에서 36×40으로 줄였다. 싸움 한 판 + 가게 + 엘리베이터만 있는 곳이다)
-///   연구소(따로, x 300~328, z 12~28): 복도 z 17~21 · 북쪽 실험실 넷(5.5m 폭, 문이 열려 있다) · 남쪽 장비실 둘(14×5m). 동쪽 끝 격벽.
+///   연구소(따로, x 300~328, z 12~28): 복도 z 17~21 · 북쪽 실험실 넷(5.5m 폭, 문이 열려 있다) · 남쪽 장비실 둘(양 끝 7×5m, 가운데는 막힘). 동쪽 끝 격벽.
 ///     (2026-10-14 "쓸데없이 넓다" → 44×20m · 복도 폭 6m에서 줄였다)
 ///   마스터 테이프 홀(따로, x 406~434, z 0~30, 높이 8): 가운데 받침대의 거대한 릴 녹음기와 마스터 테이프 · 서북쪽 방송 콘솔
 ///     · 북쪽 벽 높이 4m의 유리 관람석(z 26~30, 윗선 셋이 서 있다).
@@ -241,8 +241,10 @@ public static partial class Chapter1Builder
         for (int i = 0; i + 1 < labs.Length; i++) doors.Add(((labs[i] + labs[i + 1]) / 2f, 1.6f));
         WallX(g, S, cz1, x0, x1, 0f, doors.ToArray());
         foreach (float x in labs) WallZ(g, S, x, cz1, z1, 0f);
-        WallX(g, S, cz0, x0, x1, 0f, (307f, 1.6f), (321f, 1.6f));
-        WallZ(g, S, 314f, z0, cz0, 0f);
+        // 장비실 둘은 양 끝 7×5m만(2026-10-16 "실험체 방에 쓸데없이 긴 방": 14×5m에 남쪽 벽 장비뿐이었다). 가운데 14m는 막힌 벽
+        WallX(g, S, cz0, x0, x1, 0f, (303.5f, 1.6f), (324.5f, 1.6f));
+        WallZ(g, S, 307f, z0, cz0, 0f);
+        WallZ(g, S, 321f, z0, cz0, 0f);
         // 실험실 안: 끈 달린 의자 하나 — 사람은 실험체로 나온다
         for (int i = 0; i + 1 < labs.Length; i++)
         {
@@ -251,14 +253,15 @@ public static partial class Chapter1Builder
             P.Box(g, "Restraint", new Vector3(x + 1.2f, 0.6f, z1 - 1f), new Vector3(0.7f, 0.05f, 0.05f), S["Steel"], Vector2.one, collider: false);
         }
         // 장비실: 릴 녹음기 · 콘솔(서쪽 방) · 테이프 선반(동쪽 방)
-        foreach (float x in new[] { 302.2f, 305.2f, 308.2f }) TryProp("ReelToReel", g, new Vector3(x, 0f, z0 + 0.6f), 0f);
-        TryProp("MixingConsole", g, new Vector3(311.6f, 0f, z0 + 2.4f), 0f);
-        foreach (float x in new[] { 317f, 320.5f, 324f }) TryProp("CassetteShelf", g, new Vector3(x, 0f, z0 + 0.4f), 0f);
+        foreach (float x in new[] { 301.8f, 304.6f }) TryProp("ReelToReel", g, new Vector3(x, 0f, z0 + 0.6f), 0f);
+        TryProp("MixingConsole", g, new Vector3(305.6f, 0f, z0 + 2.6f), -90f);
+        foreach (float x in new[] { 322.6f, 325.4f }) TryProp("CassetteShelf", g, new Vector3(x, 0f, z0 + 0.4f), 0f);
         TapeSpot(g, triggers, "LabTape", new Vector3(326.6f, 0f, z0 + 1.2f), 2, 1, box: true);
         // 형광등
         foreach (float x in new[] { 305f, 314f, 323f })
             foreach (float z in new[] { cz, 24.5f, 14.5f })
             {
+                if (z < cz0 && x == 314f) continue; // 막힌 가운데
                 P.Box(g, "FluorPanel", new Vector3(x, WallH - 0.03f, z), new Vector3(1.2f, 0.04f, 0.3f), S["Fluor"], Vector2.one, collider: false);
                 var l = P.AddLight(g, "Fluor", new Vector3(x, WallH - 0.3f, z), LightType.Point, new Color(0.9f, 0.95f, 1f), 4.5f, 9f);
                 l.shadows = LightShadows.None;

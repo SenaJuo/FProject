@@ -113,11 +113,12 @@ public class Walkman : MonoBehaviour
         if (health.IsDead || TapeShop.Current) return;
 
         // 컷신 중이거나 아직 되감기 능력을 모르는 구간(프롤로그 첫 회차)에는 조작을 받지 않는다. 녹화와 재생은 계속된다.
-        bool locked = StoryState.InputLocked || StoryState.RewindLocked;
-        if (!locked && Inserted != null && Inserted.Genre != TapeGenre.None) Tutorial.Show("genre"); // 장르 테이프를 처음 끼우면 장르 능력 설명(한 번만)
+        bool asked = StoryState.RewindAsked; // 이야기가 되감기를 요구하는 중: 컷신이어도 R은 바로 되감기
+        bool locked = (StoryState.InputLocked && !(asked && !StoryState.MenuOpen)) || StoryState.RewindLocked; // 메뉴·설명 창이 열려 있으면 그래도 막는다
+        if (!locked && !asked && Inserted != null && Inserted.Genre != TapeGenre.None) Tutorial.Show("genre"); // 장르 테이프를 처음 끼우면 장르 능력 설명(한 번만)
         // 연출로 시간을 붙잡은 동안(1장 강제 되감기)에는 열지 않는다: 닫을 때 시간이 정상 속도로 풀려 버렸다
-        if (!locked && !StoryState.HoldTime && inventoryAction.WasPressedThisFrame()) { OpenInventory(); return; }
-        if (!locked && rewindAction.WasPressedThisFrame()) { if (!TryOpenChoice()) TryRewindNow(); return; }
+        if (!locked && !asked && !StoryState.HoldTime && inventoryAction.WasPressedThisFrame()) { OpenInventory(); return; }
+        if (!locked && rewindAction.WasPressedThisFrame()) { if (asked || !TryOpenChoice()) TryRewindNow(); return; }
         if (!StoryState.InputLocked && healAction != null && healAction.WasPressedThisFrame()) UsePotion();
 
         float dt = Time.unscaledDeltaTime;
@@ -458,6 +459,7 @@ public class Walkman : MonoBehaviour
 
     void BeginPlayback(CassetteTape tape, bool afterDeath)
     {
+        StoryState.RewindAsked = false;
         RewindTape = tape;
         fromDeath = afterDeath;
         startClock = TimeRewind.Clock;

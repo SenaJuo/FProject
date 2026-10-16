@@ -515,6 +515,7 @@ public static class PrologueBuilder
         var animator = player.animator;
         animator.runtimeAnimatorController = BaroqueCharacterSetup.EnsureIKController();
         Debug.Log(FingerRig.Apply(animator)); // 손가락 뼈: 주먹을 쥐게 한다(바로크 뼈대에는 손가락이 없어 손날이 됐다)
+        Debug.Log(FaceRig.Apply(animator)); // 얼굴: 한 장으로 다시 구운 얼굴 텍스처 · 눈꺼풀 · 표정(2026-10-16)
         ik = animator.gameObject.AddComponent<HumanoidIK>();
         ragdoll = animator.gameObject.AddComponent<Ragdoll>();
 

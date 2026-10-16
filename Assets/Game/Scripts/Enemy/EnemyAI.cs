@@ -483,8 +483,12 @@ public class EnemyAI : MonoBehaviour, IRewindable
         nextAttackTime = Mathf.Max(nextAttackTime, Time.time + 0.4f);
     }
 
+    /// <summary>쓰러진 시각(Time.time). 근처 순찰이 "방금 쓰러지는 것"을 봤는지 가리는 데 쓴다</summary>
+    public float DiedAt { get; private set; } = -99f;
+
     void OnDied()
     {
+        DiedAt = Time.time;
         state = State.Dead;
         ClearTelegraph();
         StopMoving();

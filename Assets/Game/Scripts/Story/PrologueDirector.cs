@@ -266,7 +266,6 @@ public class PrologueDirector : MonoBehaviour
         phase = Phase.Street;
         StoryState.Objective = $"{Danny}에게 카세트 플레이어에 대해 물어보러 간다";
         StoryState.Waypoint = friendDoor.transform;
-        StoryState.Say(Ray, "비까지 오네.", 2.5f);
         yield return new WaitUntil(() => friendDoorUsed);
 
         StoryState.ControlLocked = true;

@@ -71645,6 +71645,7 @@ SkinnedMeshRenderer:
   m_RendererPriority: 0
   m_Materials:
   - {fileID: 2100000, guid: ee6952c04580b5541994d5c69855f840, type: 2}
+  - {fileID: 2100000, guid: b8be0dbfdfeacbe47abef13af05c522f, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -72122,6 +72123,7 @@ GameObject:
   - component: {fileID: 8429873227644951299}
   - component: {fileID: 8429873227644951301}
   - component: {fileID: 8429873227644951300}
+  - component: {fileID: 8429873227644951302}
   m_Layer: 0
   m_Name: Model
   m_TagString: Untagged
@@ -72845,6 +72847,18 @@ MonoBehaviour:
   lookTarget: {fileID: 0}
   look: 0
   blendSpeed: 6
+--- !u!114 &8429873227644951302
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5177557580559604419}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc9ceeebe942b69449cdc1afbb6c4523, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::FaceExpression
 --- !u!4 &8497623186754194200
 Transform:
   m_ObjectHideFlags: 0

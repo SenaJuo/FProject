@@ -15,10 +15,10 @@ using P = PrologueBuilder;
 ///   뒷골목(시작): 서쪽 건물(x -22~-2)과 동쪽 건물(x 8~30) 사이 골목 x -2~8, z -48~2. 남쪽 끝은 막다른 벽.
 ///     골목 서쪽 건물 1층에 정보원 영감의 「골목 전파사」(앞면 x -2, z -26~-17) = 저장 지점·테이프 교환.
 ///   뒷길(동서): z 2~12, x -22~44(2026-10-14: x -30~150에서 줄였다 — 골목 입구에서 철망 틈까지 12m만 쓰는 길이었다). 길 북쪽이 보관소 철망(z 14), 남쪽은 창고 줄.
-///   압수차량 보관소: x 10~140, z 14~100. 서쪽 끝 철망이 썩어 들춰진 틈(x 14). 동쪽 차량 문(x 120~132)과 경비 초소.
-///     차 다섯 줄(z 26·40·54·68·82, 차는 남북으로 세움), 가운데 감시탑(x 75, z 60, 높이 7m)의 탐조등, 투광등 기둥 여섯.
+///   압수차량 보관소: x 10~104, z 14~84(2026-10-16 차 줄 간격 14 → 10m, 북쪽 16m 당김). 서쪽 끝 철망이 썩어 들춰진 틈(x 14). 동쪽 차량 문(x 120~132)과 경비 초소.
+///     차 다섯 줄(z 26·36·46·56·66, 차는 남북으로 세움), 가운데 감시탑(x 78, z 51, 높이 7m)의 탐조등, 투광등 기둥 여섯.
 ///     북동쪽 구석 차고 옆에 1장의 검은 승합차. 서북쪽에 보관소 사무실 컨테이너.
-///   경찰서: 보관소 북쪽(z 106~140), 뒷면이 보관소를 본다. 북쪽 철망(z 100)의 사람 문(x 67~73)을 지나 뒷문(x 70, z 106).
+///   경찰서: 보관소 북쪽(z 90~124), 뒷면이 보관소를 본다. 북쪽 철망(z 84)의 사람 문(x 67~73)을 지나 뒷문(x 70, z 90).
 ///   (2026-10-14 "쓸데없이 넓다" → 골목 막다른 벽을 z -49에서 -37로, 보관소 동쪽 끝을 x 140에서 104로 당겼다(차량 문·차고·승합차도 36m 서쪽으로))
 /// </summary>
 public static partial class Chapter1Builder
@@ -26,9 +26,11 @@ public static partial class Chapter1Builder
     const string Ch2ScenePath = "Assets/Game/Scenes/Chapter2.unity";
     const string Ch2NavMeshPath = "Assets/Game/Scenes/Chapter2_NavMesh.asset";
     const string Ch2VolumePath = P.ArtRoot + "/Chapter2Volume.asset";
-    const float LotX0 = 10f, LotX1 = 104f, LotZ0 = 14f, LotZ1 = 100f;
+    // 2026-10-16 "경찰서 주차장이 아직 쓸데없이 넓다": 차 줄 사이 14 → 10m(통로 폭 8.6 → 4.6m), 그 북쪽은 모두 16m 당김(깊이 86 → 70m)
+    const float LotX0 = 10f, LotX1 = 104f, LotZ0 = 14f, LotZ1 = 84f;
+    const float RowZ0 = 26f, RowStep = 10f;
     const float AlleyX0 = -2f, AlleyX1 = 8f;
-    const float StationZ0 = 106f, StationZ1 = 140f;
+    const float StationZ0 = 90f, StationZ1 = 124f;
 
     class Built2
     {
@@ -324,7 +326,7 @@ public static partial class Chapter1Builder
         // 바닥 주차선
         for (int r = 0; r < 5; r++)
         {
-            float z = 26f + r * 14f;
+            float z = RowZ0 + r * RowStep;
             for (float x = 20f; x <= 96f; x += 3.2f)
                 P.Box(g, "ParkLine", new Vector3(x - 1.6f, 0.004f, z), new Vector3(0.12f, 0.01f, 5.4f), H["EdgePaint"], Vector2.one, collider: false);
         }
@@ -333,7 +335,7 @@ public static partial class Chapter1Builder
         string[] kinds = { "Sedan", "Sedan", "PoliceCar", "Sedan", "BoxTruck", "Sedan", "PoliceCar" };
         for (int r = 0; r < 5; r++)
         {
-            float z = 26f + r * 14f;
+            float z = RowZ0 + r * RowStep;
             for (float x = 21.6f; x <= 96f; x += 3.2f)
             {
                 if ((x > 54f && x < 64f) || (x > 94f && x < 104f)) continue; // 가로 통로
@@ -347,33 +349,33 @@ public static partial class Chapter1Builder
         }
         // 북동쪽 구석: 압수 차고(골판 창고) + 그 앞의 검은 승합차(1장 대니 집 앞의 그 차)
         // 보관소 서쪽 철망 너머: 건물 한 줄(2026-10-14: 여기가 비어 있어 철망 틈으로 기지 않고 보관소를 빙 돌아 경찰서 뒤까지 갈 수 있었다)
-        P.Building(g, "Block_LotWest", new Vector3((-34f + LotX0 - 0.4f) / 2f, 7f, (LotZ0 - 0.5f + 146f) / 2f), new Vector3(LotX0 - 0.4f + 34f, 14f, 146f - LotZ0 + 0.5f), M["FacadeB"], M["BuildingBack"], Vector3.right);
+        P.Building(g, "Block_LotWest", new Vector3((-34f + LotX0 - 0.4f) / 2f, 7f, (LotZ0 - 0.5f + 130f) / 2f), new Vector3(LotX0 - 0.4f + 34f, 14f, 130f - LotZ0 + 0.5f), M["FacadeB"], M["BuildingBack"], Vector3.right);
         // 보관소 동쪽 철망 너머: 낡은 창고 한 동(뒷길 동쪽 끝에서 북쪽으로 새는 빈 땅을 막는다)
         Shed(g, H, "Shed_LotEast", new Vector3((LotX1 + 2f + 150f) / 2f, 0f, (LotZ0 + LotZ1) / 2f), new Vector3(150f - LotX1 - 2f, 10f, LotZ1 - LotZ0), Vector3.left);
-        P.Box(g, "StaffLot_E_Wall", new Vector3(150f, 3f, (LotZ1 + 106f) / 2f), new Vector3(4f, 6f, 106f - LotZ1 + 1f), M["BuildingBack"], new Vector2(4f, 4f));
-        Shed(g, H, "ImpoundGarage", new Vector3(95f, 0f, 90f), new Vector3(14f, 6f, 14f), Vector3.left);
-        var van = TryProp("BlackVan", g, new Vector3(82f, 0f, 88f), 180f);
-        b.van = van ? van.transform : P.Marker(triggers, "Van", new Vector3(82f, 0f, 88f), 180f);
-        foreach (var (x, z, yaw) in new[] { (79.5f, 84.8f, 0f), (84.6f, 84.6f, 10f) }) TryProp("TrafficCone", g, new Vector3(x, 0f, z), yaw);
+        P.Box(g, "StaffLot_E_Wall", new Vector3(150f, 3f, (LotZ1 + StationZ0) / 2f), new Vector3(4f, 6f, StationZ0 - LotZ1 + 1f), M["BuildingBack"], new Vector2(4f, 4f));
+        Shed(g, H, "ImpoundGarage", new Vector3(95f, 0f, 74f), new Vector3(14f, 6f, 14f), Vector3.left);
+        var van = TryProp("BlackVan", g, new Vector3(82f, 0f, 72f), 180f);
+        b.van = van ? van.transform : P.Marker(triggers, "Van", new Vector3(82f, 0f, 72f), 180f);
+        foreach (var (x, z, yaw) in new[] { (79.5f, 68.8f, 0f), (84.6f, 68.6f, 10f) }) TryProp("TrafficCone", g, new Vector3(x, 0f, z), yaw);
         // 차고 처마의 작업등: 승합차 양옆을 위에서 고르게(한쪽만 비추면 뒤지는 쪽이 새까맸다)
-        P.AddLight(g, "VanLamp", new Vector3(82f, 6.2f, 86f), LightType.Spot, new Color(1f, 0.82f, 0.55f), 70f, 14f, 100f, Quaternion.Euler(80f, 0f, 0f));
+        P.AddLight(g, "VanLamp", new Vector3(82f, 6.2f, 70f), LightType.Spot, new Color(1f, 0.82f, 0.55f), 70f, 14f, 100f, Quaternion.Euler(80f, 0f, 0f));
         // 실내등: 문을 열면 켜진다(감독이 켠다)
-        var dome = P.AddLight(g, "VanDome", new Vector3(82f, 1.95f, 87.2f), LightType.Point, new Color(1f, 0.86f, 0.62f), 2.2f, 3.5f); // 차 안 앞좌석 위(창으로 새어 나온다)
+        var dome = P.AddLight(g, "VanDome", new Vector3(82f, 1.95f, 71.2f), LightType.Point, new Color(1f, 0.86f, 0.62f), 2.2f, 3.5f); // 차 안 앞좌석 위(창으로 새어 나온다)
         dome.enabled = false;
         b.vanDome = dome;
-        b.vanUse = P.Interactable(g, "VanSearch", new Vector3(80.4f, 1.1f, 88f), new Vector3(1.8f, 2.2f, 4f), "승합차를 뒤진다");
-        b.vanSave = P.Marker(triggers, "VanSave", new Vector3(78.6f, 0.05f, 88f), 0f);
+        b.vanUse = P.Interactable(g, "VanSearch", new Vector3(80.4f, 1.1f, 72f), new Vector3(1.8f, 2.2f, 4f), "승합차를 뒤진다");
+        b.vanSave = P.Marker(triggers, "VanSave", new Vector3(78.6f, 0.05f, 72f), 0f);
 
         // 서북쪽: 보관소 사무실(컨테이너 사무실, 창에 불)
-        P.Box(g, "Office", new Vector3(28f, 1.45f, 93f), new Vector3(12f, 2.9f, 4f), H["ContGrey"], new Vector2(2.44f, 2.59f));
-        P.Box(g, "OfficeRoof", new Vector3(28f, 2.98f, 93f), new Vector3(12.4f, 0.1f, 4.4f), H["Steel"], Vector2.one, collider: false);
+        P.Box(g, "Office", new Vector3(28f, 1.45f, 77f), new Vector3(12f, 2.9f, 4f), H["ContGrey"], new Vector2(2.44f, 2.59f));
+        P.Box(g, "OfficeRoof", new Vector3(28f, 2.98f, 77f), new Vector3(12.4f, 0.1f, 4.4f), H["Steel"], Vector2.one, collider: false);
         foreach (float x in new[] { 24f, 31f })
-            P.Box(g, "OfficeWindow", new Vector3(x, 1.7f, 90.98f), new Vector3(2f, 0.9f, 0.02f), Mat("WindowGlow") ?? M["NightWindow"], Vector2.one, collider: false);
-        P.AddLight(g, "OfficeSpill", new Vector3(27f, 1.8f, 89.5f), LightType.Point, new Color(1f, 0.85f, 0.62f), 2.4f, 7f);
-        TapeSpot(g, triggers, "OfficeTape", new Vector3(36.5f, 0f, 95.6f), 2, 1, box: true); // 사무실 뒤
+            P.Box(g, "OfficeWindow", new Vector3(x, 1.7f, 74.98f), new Vector3(2f, 0.9f, 0.02f), Mat("WindowGlow") ?? M["NightWindow"], Vector2.one, collider: false);
+        P.AddLight(g, "OfficeSpill", new Vector3(27f, 1.8f, 73.5f), LightType.Point, new Color(1f, 0.85f, 0.62f), 2.4f, 7f);
+        TapeSpot(g, triggers, "OfficeTape", new Vector3(36.5f, 0f, 79.6f), 2, 1, box: true); // 사무실 뒤
 
         // 가운데 감시탑: 다리 넷 · 7m 위 발판 · 지붕 · 탐조등
-        var tower = new Vector3(78f, 0f, 61f);
+        var tower = new Vector3(78f, 0f, 51f); // 차 줄(z 46 · 56) 사이 통로
         foreach (float sx in new[] { -1.4f, 1.4f })
         foreach (float sz in new[] { -1.4f, 1.4f })
             P.Box(g, "TowerLeg", tower + new Vector3(sx, 3.5f, sz), new Vector3(0.22f, 7f, 0.22f), H["Steel"], Vector2.one);
@@ -386,10 +388,10 @@ public static partial class Chapter1Builder
         // 쌓아 둔 타이어·부품 상자(엄폐물)
         (string name, Vector3 at, float yaw)[] props =
         {
-            ("CrateStack", new Vector3(59.5f, 0f, 33f), 10f), ("PalletStack", new Vector3(99f, 0f, 47f), -20f),
-            ("CrateStack", new Vector3(60.2f, 0f, 75f), 80f), ("SteelDrums", new Vector3(100.4f, 0f, 61f), 30f),
-            ("PalletBoxes", new Vector3(45f, 0f, 96.5f), 0f), ("GasCylinders", new Vector3(100.5f, 0f, 30f), -90f),
-            ("Forklift", new Vector3(57.5f, 0f, 92.5f), 160f), ("ConstructionBarrier", new Vector3(62.5f, 0f, 97.6f), 0f), // 사람 문(x 67~73) 옆
+            ("CrateStack", new Vector3(59.5f, 0f, 31f), 10f), ("PalletStack", new Vector3(99f, 0f, 41f), -20f),
+            ("CrateStack", new Vector3(60.2f, 0f, 61f), 80f), ("SteelDrums", new Vector3(100.4f, 0f, 51f), 30f),
+            ("PalletBoxes", new Vector3(45f, 0f, 80.5f), 0f), ("GasCylinders", new Vector3(100.5f, 0f, 30f), -90f),
+            ("Forklift", new Vector3(57.5f, 0f, 76.5f), 160f), ("ConstructionBarrier", new Vector3(62.5f, 0f, 81.6f), 0f), // 사람 문(x 67~73) 옆
         };
         foreach (var (name, at, yaw) in props) TryProp(name, g, at, yaw);
     }
@@ -430,7 +432,7 @@ public static partial class Chapter1Builder
         // 4층 건물, 뒷면(남쪽)이 보관소를 본다. 창에 드문드문 불
         P.Building(g, "Station", new Vector3(75f, 9f, (StationZ0 + StationZ1) / 2f), new Vector3(150f, 18f, StationZ1 - StationZ0), M["FacadeB"], M["BuildingBack"], Vector3.back);
         // 직원 주차장(z 100~106): 경찰차 몇 대
-        foreach (var (x, yaw) in new[] { (30f, 0f), (36f, 0f), (104f, 180f), (110f, 0f), (116f, 0f) }) TryProp("PoliceCar", g, new Vector3(x, 0f, 103.4f), yaw);
+        foreach (var (x, yaw) in new[] { (30f, 0f), (36f, 0f), (104f, 180f), (110f, 0f), (116f, 0f) }) TryProp("PoliceCar", g, new Vector3(x, 0f, StationZ0 - 2.6f), yaw);
         // 뒷문: 차양 · 문틀 · 카드 단말기 · 불빛
         float doorX = 70f;
         P.Box(g, "BackDoor", new Vector3(doorX, 1.15f, StationZ0 - 0.06f), new Vector3(1.4f, 2.3f, 0.1f), H["Steel"], Vector2.one, collider: false);
@@ -452,7 +454,7 @@ public static partial class Chapter1Builder
         var g = new GameObject("LotLights").transform;
         g.SetParent(parent);
         // 투광등 기둥(나트륨 주황): 보관소 군데군데를 웅덩이처럼 밝히고 사이는 어둡게(숨을 곳)
-        var poles = new[] { new Vector3(24f, 0f, 19f), new Vector3(62f, 0f, 47f), new Vector3(80f, 0f, 22f), new Vector3(40f, 0f, 77f), new Vector3(99f, 0f, 71f), new Vector3(100f, 0f, 52f) };
+        var poles = new[] { new Vector3(24f, 0f, 19f), new Vector3(62f, 0f, 41f), new Vector3(80f, 0f, 22f), new Vector3(40f, 0f, 62.4f), new Vector3(99f, 0f, 57.4f), new Vector3(100f, 0f, 44.6f) };
         for (int i = 0; i < poles.Length; i++) FloodPole(g, H, poles[i], i < 3);
     }
 
@@ -463,12 +465,12 @@ public static partial class Chapter1Builder
     static void Ch2Police(Transform people, Transform routes, Transform triggers, Dictionary<string, Material> H, Built2 b)
     {
         // 순찰(손전등): 서쪽 세로 통로 · 가운데 가로 통로 · 감시탑 둘레 · 북쪽 통로(승합차 가는 길)
-        Cop(people, routes, "Cop_West", new Vector3(17f, 0.02f, 22f), 0f, new Vector3(17f, 0.02f, 22f), new Vector3(17f, 0.02f, 94f));
-        Cop(people, routes, "Cop_Cross", new Vector3(24f, 0.02f, 47f), 90f, new Vector3(24f, 0.02f, 47f), new Vector3(96f, 0.02f, 47f));
-        // 감시탑 둘레: 차 줄(z 54 · 68) 사이 통로 안에서만 돈다(2026-10-14: 점이 차 줄 위·차 사이 좁은 틈에 찍혀 경찰이 차 지붕 위로 붙었다)
-        Cop(people, routes, "Cop_Tower", new Vector3(70f, 0.02f, 58.5f), 0f,
-            new Vector3(70f, 0.02f, 58.5f), new Vector3(70f, 0.02f, 63.5f), new Vector3(86f, 0.02f, 63.5f), new Vector3(86f, 0.02f, 58.5f));
-        Cop(people, routes, "Cop_North", new Vector3(96f, 0.02f, 75f), -90f, new Vector3(96f, 0.02f, 75f), new Vector3(52f, 0.02f, 75f));
+        Cop(people, routes, "Cop_West", new Vector3(17f, 0.02f, 22f), 0f, new Vector3(17f, 0.02f, 22f), new Vector3(17f, 0.02f, 78f));
+        Cop(people, routes, "Cop_Cross", new Vector3(24f, 0.02f, 41f), 90f, new Vector3(24f, 0.02f, 41f), new Vector3(96f, 0.02f, 41f));
+        // 감시탑 둘레: 차 줄(z 46 · 56) 사이 통로 안에서만 돈다(2026-10-14: 점이 차 줄 위·차 사이 좁은 틈에 찍혀 경찰이 차 지붕 위로 붙었다)
+        Cop(people, routes, "Cop_Tower", new Vector3(70f, 0.02f, 50f), 0f,
+            new Vector3(70f, 0.02f, 50f), new Vector3(70f, 0.02f, 52f), new Vector3(86f, 0.02f, 52f), new Vector3(86f, 0.02f, 50f));
+        Cop(people, routes, "Cop_North", new Vector3(96f, 0.02f, 61f), -90f, new Vector3(96f, 0.02f, 61f), new Vector3(52f, 0.02f, 61f));
         // 초소 경찰(밖 길을 본다) · 뒷문 앞 경찰(담배, 보관소를 본다) — 제자리
         Cop(people, routes, "Cop_Gate", new Vector3(90f, 0.02f, LotZ0 + 3.2f), 180f, new Vector3(90f, 0.02f, LotZ0 + 3.2f));
         Cop(people, routes, "Cop_Door", new Vector3(76.5f, 0.02f, StationZ0 - 2.2f), 200f, new Vector3(76.5f, 0.02f, StationZ0 - 2.2f));
@@ -492,8 +494,8 @@ public static partial class Chapter1Builder
         search.shoutLine = ""; // 외침은 장면 감독이 한다(경찰 말투)
         search.path = new[]
         {
-            new Vector3(30f, 0f, 33f), new Vector3(86f, 0f, 33f), new Vector3(94f, 0f, 61f),
-            new Vector3(86f, 0f, 89f), new Vector3(40f, 0f, 89f), new Vector3(30f, 0f, 61f),
+            new Vector3(30f, 0f, 31f), new Vector3(86f, 0f, 31f), new Vector3(94f, 0f, 51f),
+            new Vector3(86f, 0f, 73f), new Vector3(40f, 0f, 73f), new Vector3(30f, 0f, 51f),
         };
         b.searchlight = search;
     }

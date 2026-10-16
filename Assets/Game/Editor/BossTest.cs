@@ -73,12 +73,15 @@ public static class BossTest
                 if (Waited(1f)) { Tp(new Vector3(180f, 0.02f, 319f), new Vector3(198f, 0f, 333.5f)); Note("부두 앞 마당으로(컨테이너 쪽에서)"); Next(); }
                 break;
             case 2:
-                if (d.CurrentPhase == Chapter1Director.Phase.BossIntro && Waited(4f)) { Shot("boss_intro"); Next(); }
+                // 등장 장면은 Space로 건너뛴다(2026-10-16: 건너뛴 표시가 남아 마지막 대사 · 새벽 장면까지 건너뛰어지던 버그를 같이 본다)
+                if (d.CurrentPhase == Chapter1Director.Phase.BossIntro && Waited(1.5f)) { Shot("boss_intro"); CutsceneSkip.SimulateHold = true; Next(); }
                 else if (Waited(10f) && d.CurrentPhase != Chapter1Director.Phase.BossIntro) End("반장 소개가 시작되지 않음");
                 break;
             case 3:
+                if (d.CurrentPhase == Chapter1Director.Phase.Boss) CutsceneSkip.SimulateHold = false;
                 if (d.CurrentPhase == Chapter1Director.Phase.Boss && Waited(2f))
                 {
+                    Note($"등장 장면 건너뜀 뒤 건너뛰기 표시 {StoryState.SkipRequested}(기대 False)");
                     Note($"싸움: 목표 '{StoryState.Objective}', 반장 활성 {d.boss.IsActive}, 체력 {d.boss.Health.Current}/{d.boss.Health.Max}");
                     Shot("boss_fight");
                     d.boss.Health.TakeDamage(d.boss.Health.Max / 2, p.transform.position);
@@ -148,8 +151,20 @@ public static class BossTest
                 }
                 break;
             case 10:
-                if (d.CurrentPhase == Chapter1Director.Phase.Finale && Waited(3f)) { Shot("finale_down"); Next(); }
-                else if (Waited(10f) && d.CurrentPhase != Chapter1Director.Phase.Finale) End("막은 뒤 마무리로 넘어가지 않음");
+                // 막은 뒤: 바로 끝나지 않고 반장이 남은 체력으로 맞선다(2026-10-16) → 다 깎아야 마무리
+                if (d.CurrentPhase == Chapter1Director.Phase.Boss && d.boss.IsActive && Waited(1f))
+                {
+                    Note($"막은 뒤 마지막 싸움: 반장 체력 {d.boss.Health.Current}/{d.boss.Health.Max}(기대 0보다 큼), 싸움 중 {d.boss.IsActive}, 목표 '{StoryState.Objective}'");
+                    Shot("last_stand");
+                    d.boss.Health.TakeDamage(9999, p.transform.position);
+                    step = 13; since = Time.realtimeSinceStartup;
+                }
+                else if (d.CurrentPhase == Chapter1Director.Phase.Finale) End("막자마자 마무리로 넘어감(남은 체력을 깎지 않음)");
+                else if (Waited(10f)) End($"막은 뒤 마지막 싸움이 시작되지 않음(단계 {d.CurrentPhase})");
+                break;
+            case 13:
+                if (d.CurrentPhase == Chapter1Director.Phase.Finale && Waited(3f)) { Shot("finale_down"); step = 11; since = Time.realtimeSinceStartup; }
+                else if (Waited(10f) && d.CurrentPhase != Chapter1Director.Phase.Finale) End("반장을 쓰러뜨린 뒤 마무리로 넘어가지 않음");
                 break;
             case 11:
                 if (StoryState.Speaker == "대니 (녹음)" && Waited(0.5f)) { Shot("dawn"); Next(); }

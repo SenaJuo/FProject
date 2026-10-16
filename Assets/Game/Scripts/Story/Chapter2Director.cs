@@ -97,9 +97,10 @@ public class Chapter2Director : MonoBehaviour
         GameManager.PlayerRespawned += OnRespawned;
         if (dannyBox) dannyBox.Used += () =>
         {
-            if (CurrentPhase != Phase.EvidenceRoom || keyFound) return;
+            // 아직 때가 아니면 누름을 소모하지 않는다(한 번만 쓰는 상자라 그대로 꺼져 진행이 멈췄다)
+            if (CurrentPhase != Phase.EvidenceRoom || keyFound) { StoryInteractable.Refuse(); return; }
             var ai = clerk ? clerk.GetComponent<EnemyAI>() : null;
-            if (clerk && clerk.Current == EvidenceClerk.State.Inside && ai && !ai.Health.IsDead) return; // 담당부터
+            if (clerk && clerk.Current == EvidenceClerk.State.Inside && ai && !ai.Health.IsDead) { StoryInteractable.Refuse(); return; } // 담당부터
             StartCoroutine(OpenDannyBox());
         };
         if (recordsDoorUse) recordsDoorUse.Used += OnRecordsDoor;
@@ -153,6 +154,9 @@ public class Chapter2Director : MonoBehaviour
     void Update()
     {
         if (rainAudio) rainAudio.volume = (indoors ? 0.1f : 0.45f) * GameSettings.Gain(GameSettings.Channel.Sfx); // 안에서는 창 너머로 멀게
+        // 담당이 비밀번호로 연 문으로 따라 들어왔다(레이는 번호를 누르지 않음): 들어간 것으로 친다
+        // (2026-10-16: 전에는 비밀번호 단계에 멈춰 목표·담당·상자가 그대로라 진행이 안 됐다)
+        if (CurrentPhase == Phase.Floor2 && !keyingIn && player && InEvidenceRoom(player.transform.position)) SneakedIntoEvidence();
     }
 
     // ---------- 진행 ----------
@@ -320,8 +324,26 @@ public class Chapter2Director : MonoBehaviour
         StoryState.Waypoint = dannyBox ? dannyBox.transform : null;
     }
 
+    /// <summary>증거물 보관실 안(2층, x 326~340 · z 20~30 — 문턱은 빼고)</summary>
+    static bool InEvidenceRoom(Vector3 p) => p.x > 326.3f && p.x < 340f && p.z > 20.6f && p.z < 30f && p.y > 3.5f && p.y < 8f;
+
+    void SneakedIntoEvidence()
+    {
+        if (KeypadPanel.IsOpen) return; // 패널을 연 채로 문틈에 선 경우는 패널 쪽에 맡긴다
+        if (keypadUse) keypadUse.enabled = false;
+        bool someoneInside = clerk && clerk.Current == EvidenceClerk.State.Inside;
+        if (clerk && !someoneInside) clerk.LockedFromInside = true;
+        CurrentPhase = Phase.EvidenceRoom;
+        StoryState.Objective = "대니 사건 기록을 찾는다";
+        StoryState.Waypoint = dannyBox ? dannyBox.transform : null;
+        if (someoneInside) StartCoroutine(nameof(ClerkInside));
+    }
+
+    bool keyingIn; // 비밀번호로 들어가는 중(순간 이동 직후 위의 "따라 들어옴" 판정과 겹치지 않게)
+
     IEnumerator EnterEvidence()
     {
+        keyingIn = true;
         StoryState.ControlLocked = true;
         if (keypadUse) keypadUse.enabled = false; // 들어간 뒤로는 문 앞 안내를 띄우지 않는다
         StoryState.Say("", "(삑 · 삑 · 삑 · 삑 — 철컥)", 1.6f);
@@ -337,6 +359,7 @@ public class Chapter2Director : MonoBehaviour
         StoryState.Waypoint = dannyBox ? dannyBox.transform : null;
         yield return FadeTo(0f, 0.5f);
         StoryState.ControlLocked = false;
+        keyingIn = false;
         if (someoneInside) StartCoroutine(nameof(ClerkInside));
     }
 
@@ -513,7 +536,7 @@ public class Chapter2Director : MonoBehaviour
 
     void OnZoneEntered(CombatZone zone)
     {
-        if (zone == zoneUpstairs) StoryState.Say("정리반", "저기다! 테이프 든 놈!", 2f);
+        if (zone == zoneUpstairs) StoryState.Say("정리반", "저기다! 카세트 플레이어 든 놈!", 2f);
         else if (zone == zoneLot) StoryState.Say("정리반 부반장", "여기까지다, 레이. 위에서 너 하나 지우라더군.", 3.2f);
     }
 
@@ -548,7 +571,7 @@ public class Chapter2Director : MonoBehaviour
             { "창가의 남자", "…7년 전에 조용히 죽어 줬으면 좋았잖나, 레이.", "3.6" },
             { Ray, "…너였냐.", "2.0" },
             { Ray, "내 파트너가 정보과장이라… 대니도, 그 밤도 네 짓이었어.", "3.4" },
-            { "옛 파트너", "회사에서 기다리지. 한결 타워 꼭대기. 테이프는 가져오고.", "3.6" },
+            { "옛 파트너", "회사에서 기다리지. 한결 타워 꼭대기. 그 카세트 플레이어는 가져오고.", "3.6" },
         };
         for (int i = 0; i < lines.GetLength(0); i++)
         {
@@ -722,7 +745,7 @@ public class Chapter2Director : MonoBehaviour
         bool canRewind = walkman && walkman.CurrentCharges > 0 && TimeRewind.RecordedSeconds >= 2f;
         if (canRewind)
         {
-            StoryState.Prompt = "R 을 길게 눌러 되감는다";
+            StoryState.AskRewind("R 을 길게 눌러 되감는다");
             yield return new WaitUntil(() => walkman.Rewinding);
             StoryState.HoldTime = false;
             StoryState.Prompt = null;

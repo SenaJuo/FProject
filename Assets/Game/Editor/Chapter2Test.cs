@@ -99,7 +99,7 @@ public static class Chapter2Test
                 {
                     Note($"붙잡힘 → 다시: 위치 ({p.transform.position.x:0},{p.transform.position.z:0}), 순찰 경계 {Find("Cop_Cross").Alerted}(기대 False)");
                     // ⑤ 승합차
-                    Tp(new Vector3(79f, 0.05f, 88f), 90f);
+                    Tp(new Vector3(79f, 0.05f, 72f), 90f);
                     Fire(d.vanUse);
                     Next();
                 }
@@ -248,7 +248,7 @@ public static class Chapter2Test
                     Note($"밖: 위치 ({p.transform.position.x:0},{p.transform.position.z:0}), 비 {RainOn()}(기대 False — 10-13 비 없앰), 목표 '{StoryState.Objective}', 저장 {SaveGame.Read()?.checkpoint ?? "-"}");
                     Shot("outside");
                     // ③ 사람 문을 지나 보관소 북쪽으로
-                    Tp(new Vector3(70f, 0.05f, 97.5f), 180f);
+                    Tp(new Vector3(70f, 0.05f, 81.5f), 180f);
                     Next();
                 }
                 else if (Waited(10f)) End("밖으로 나가지 못함");

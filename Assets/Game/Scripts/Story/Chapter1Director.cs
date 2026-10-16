@@ -377,6 +377,7 @@ public class Chapter1Director : MonoBehaviour
             foreach (var t in pierThugs) if (t && !t.Health.IsDead) t.Activate();
             yield return new WaitUntil(() => !boss || boss.Health.IsDead || (bossBrain && bossBrain.WantsToBurn));
             yield return BurnSequence();
+            yield return LastStand();
             yield return Finale();
         }
         CurrentPhase = Phase.End;
@@ -560,10 +561,10 @@ public class Chapter1Director : MonoBehaviour
             { Ray, "정리반, 어디로 갔어.", "2.4" },
             { "저격수", "크윽… 형사님 아니세요…? 아, 이제 형사도 아니시지.", "3.4" },
             { Ray, "대답해.", "1.6" },
-            { "저격수", "항구요… 3번 부두. 새벽 다섯 시에 배가 떠요. 대니가 숨긴 걸 찾으면 그대로 싣고 간다고…", "4.6" },
+            { "저격수", "항구요… 3번 부두. 새벽 다섯 시에 배가 떠요. 대니가 녹음해 둔 테이프… 찾으면 손대지 말고 그대로 실으래요. 위에서 직접 듣겠다고…", "5.4" },
             { Ray, "경찰이 왜 놈들 차를 지켜 줘. 누가 시켰어.", "3.0" },
             { "저격수", "위에서… 다 알아요. 당신이 뭘 캐고 다녔는지도. 그래서 잘린 거잖아요.", "4.2" },
-            { Ray, "……항구다.", "2.0" },
+            { Ray, "……대니가 뭘 녹음했길래. …항구다.", "2.6" },
         };
         for (int i = 0; i < lines.GetLength(0); i++)
         {
@@ -646,7 +647,7 @@ public class Chapter1Director : MonoBehaviour
         Time.timeScale = 0.04f;
         yield return StoryState.Sleep(0.6f);
         StoryState.Objective = "되감아서 들키기 전으로 돌아간다";
-        StoryState.Prompt = "R 을 길게 눌러 되감는다   ·   5초 전, 들키기 전으로";
+        StoryState.AskRewind("R 을 길게 눌러 되감는다   ·   5초 전, 들키기 전으로");
         yield return new WaitUntil(() => walkman.Rewinding);
         StoryState.HoldTime = false;
         StoryState.Prompt = null;
@@ -730,7 +731,7 @@ public class Chapter1Director : MonoBehaviour
         {
             { Boss, "…레이. 오랜만이군.", "2.6" },
             { Ray, "선배…? 정리반 반장이 당신이었어?", "3.0" },
-            { Boss, "대니가 숨긴 건 이거 하나였다. 이걸 태우면 다 끝나. 대니 일도, 네 일도.", "4.4" },
+            { Boss, "대니가 숨긴 건 이거 하나였다. 위에선 직접 들어 보기 전엔 아무도 손대지 말라더군.", "4.4" },
             { Ray, "그 테이프 내놔요.", "2.0" },
             { Boss, "형사 시절에 가르쳐 줬지. 끝까지 물고 늘어지지 말라고.", "3.6" },
         };
@@ -775,7 +776,7 @@ public class Chapter1Director : MonoBehaviour
             var agent = boss.GetComponent<UnityEngine.AI.NavMeshAgent>();
             if (agent && !agent.enabled) agent.enabled = true;
             if (agent) { agent.isStopped = false; agent.speed = attempt == 1 ? 5.2f : 3.0f; agent.stoppingDistance = 0.2f; agent.SetDestination(throwSpot); }
-            StoryState.Say(Boss, attempt == 1 ? "…됐다. 이걸로 끝이다!" : "비켜, 레이!", 1.8f);
+            StoryState.Say(Boss, attempt == 1 ? "…위에서 뭐라 하든, 너한테 넘기느니 태워 버린다!" : "비켜, 레이!", attempt == 1 ? 2.6f : 1.8f); // 처음엔 '그대로 가져오라'는 명령 때문에 안 태웠다(2026-10-16)
             StoryState.Objective = "반장이 테이프를 태우기 전에 막는다";
             StoryState.Waypoint = boss.transform;
             if (memoryLine) { memoryLine.enabled = attempt > 1; memoryLine.SetPosition(0, boss.transform.position + Vector3.up * 0.06f); memoryLine.SetPosition(1, throwSpot + Vector3.up * 0.06f); }
@@ -805,6 +806,27 @@ public class Chapter1Director : MonoBehaviour
         StoryState.Waypoint = null;
     }
 
+    /// <summary>
+    /// 테이프를 막아 낸 뒤(또는 라이터가 헛돈 뒤): 반장은 남은 체력으로 끝까지 맞선다 — 체력을 다 깎아야 마지막 장면으로 넘어간다.
+    /// (2026-10-16 "보스 피가 다 안 깎였는데 다 스킵되고 2장으로": 전에는 한 대만 가로막아도 25% 남은 반장이 즉사 처리됐다)
+    /// 그사이 쓰러져 다시 시작하면 반장 체력은 처음이 아니라 이 싸움을 시작할 때의 체력으로 돌아간다.
+    /// </summary>
+    IEnumerator LastStand()
+    {
+        if (!boss || boss.Health.IsDead) yield break;
+        CurrentPhase = Phase.Boss;
+        int startHp = Mathf.Max(1, boss.Health.Current);
+        void Respawned() { if (boss && !boss.Health.IsDead) boss.Health.SetCurrent(startHp); }
+        GameManager.PlayerRespawned += Respawned;
+        boss.Health.Invulnerable = false;
+        StoryState.Say(Boss, "…이건 못 넘긴다. 끝까지 간다, 레이!", 2.2f);
+        StoryState.Objective = "정리반 반장을 쓰러뜨린다";
+        StoryState.Waypoint = null;
+        boss.Activate();
+        yield return new WaitUntil(() => !boss || boss.Health.IsDead);
+        GameManager.PlayerRespawned -= Respawned;
+    }
+
     /// <summary>테이프가 불에 들어간다 → 시간이 거의 멈추고 R을 기다린다 → 되감기</summary>
     IEnumerator BurnAndRewind()
     {
@@ -828,7 +850,7 @@ public class Chapter1Director : MonoBehaviour
         Time.timeScale = 0.05f;
         yield return StoryState.Sleep(0.5f);
         StoryState.Objective = "되감아서 테이프가 타기 전으로 돌아간다";
-        StoryState.Prompt = "R 을 길게 눌러 되감는다";
+        StoryState.AskRewind("R 을 길게 눌러 되감는다");
         yield return new WaitUntil(() => walkman.Rewinding);
         StoryState.HoldTime = false;
         StoryState.Prompt = null;

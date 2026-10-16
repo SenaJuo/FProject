@@ -75,6 +75,9 @@ public class Health : MonoBehaviour, IRewindable
 
     public void Revive() => Current = maxHealth;
 
+    /// <summary>체력을 그 값으로 맞춘다(피해 이벤트 없이). 예: 보스 마지막 싸움 중 다시 시작하면 그때 남은 체력으로</summary>
+    public void SetCurrent(int value) => Current = Mathf.Clamp(value, 0, maxHealth);
+
     /// <summary>체력을 amount만큼 채운다(최대 체력까지). 실제로 찬 양을 돌려준다</summary>
     public int Heal(int amount)
     {

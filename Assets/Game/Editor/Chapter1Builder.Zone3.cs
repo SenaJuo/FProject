@@ -649,9 +649,9 @@ public static partial class Chapter1Builder
         Patrol(people, routes, "Thug_Yard_A", new Vector3(130.9f, 0.02f, 326f), 0f,
             new Vector3(130.9f, 0.02f, 326f), new Vector3(130.9f, 0.02f, 374f));
         Patrol(people, routes, "Thug_Yard_B", new Vector3(152f, 0.02f, 354.1f), -90f,
-            new Vector3(152f, 0.02f, 354.1f), new Vector3(122f, 0.02f, 354.1f));
+            new Vector3(152f, 0.02f, 354.1f), new Vector3(136f, 0.02f, 354.1f)); // A의 세로 골목(x 130.9) 5m 앞에서 돌아선다(교차점에서 0.9m까지 스쳤다)
         Patrol(people, routes, "Thug_Yard_C", new Vector3(141.4f, 0.02f, 376f), 180f,
-            new Vector3(141.4f, 0.02f, 376f), new Vector3(141.4f, 0.02f, 356f), new Vector3(130.9f, 0.02f, 354.1f), new Vector3(141.4f, 0.02f, 356f));
+            new Vector3(141.4f, 0.02f, 376f), new Vector3(141.4f, 0.02f, 360f)); // 가로 골목(B의 길) 6m 앞에서 돌아선다 — 전에는 B와 0.6m까지 붙어 다녔다(2026-10-16 순찰 간격 측정)
         // 창고 A 서쪽 트인 길(곧장 가는 길)을 지키는 순찰
         Patrol(people, routes, "Thug_WestLane", new Vector3(155.5f, 0.02f, 326f), 0f,
             new Vector3(155.5f, 0.02f, 326f), new Vector3(155.5f, 0.02f, 374f));

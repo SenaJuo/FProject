@@ -272,7 +272,7 @@ public class Chapter3Director : MonoBehaviour
         bool canRewind = walkman && walkman.CurrentCharges > 0 && TimeRewind.RecordedSeconds >= 2f;
         if (canRewind)
         {
-            StoryState.Prompt = "R 을 길게 눌러 되감는다";
+            StoryState.AskRewind("R 을 길게 눌러 되감는다");
             yield return new WaitUntil(() => walkman.Rewinding);
             StoryState.HoldTime = false;
             StoryState.Prompt = null;
@@ -524,7 +524,7 @@ public class Chapter3Director : MonoBehaviour
         bool canRewind = walkman && walkman.CurrentCharges > 0 && TimeRewind.RecordedSeconds >= 2f;
         if (canRewind)
         {
-            StoryState.Prompt = "R 을 길게 눌러 되감는다";
+            StoryState.AskRewind("R 을 길게 눌러 되감는다");
             yield return new WaitUntil(() => walkman.Rewinding);
             StoryState.HoldTime = false;
             StoryState.Prompt = null;

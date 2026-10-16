@@ -72,7 +72,7 @@ public static partial class Chapter1Builder
         b.outsideDoor = P.Marker(triggers, "OutsideDoor", new Vector3(70f, 0.05f, StationZ0 - 1.6f), 180f);
 
         // ---------- ③ 보관소 북쪽: 부반장 + 특공대 ----------
-        var boss = P.CreateThug(people, "SubBoss_Cleaner", new Vector3(70f, 0.02f, 90.5f), 0f, "Enforcer");
+        var boss = P.CreateThug(people, "SubBoss_Cleaner", new Vector3(70f, 0.02f, 74.5f), 0f, "Enforcer");
         SetCombat(boss, false);
         boss.displayName = "정리반 부반장";
         boss.isBoss = true;
@@ -89,14 +89,14 @@ public static partial class Chapter1Builder
         boss.executeEvery = 4; // 처형기: 네 번째마다 예고 없는 큰 주먹(되감으면 보인다)
         boss.executeDamage = 40;
         b.subBoss = boss;
-        var s1 = ShieldCop(people, "Swat_Shield_W", new Vector3(64.5f, 0.02f, 92f), 0f);
-        var s2 = ShieldCop(people, "Swat_Shield_E", new Vector3(75.5f, 0.02f, 92f), 0f);
+        var s1 = ShieldCop(people, "Swat_Shield_W", new Vector3(64.5f, 0.02f, 76f), 0f);
+        var s2 = ShieldCop(people, "Swat_Shield_E", new Vector3(75.5f, 0.02f, 76f), 0f);
         foreach (var s in new[] { s1, s2 }) s.displayName = "특공대";
-        var sg = P.CreateThug(people, "Swat_Gunner", new Vector3(70f, 0.02f, 86f), 0f, "RiotCop");
+        var sg = P.CreateThug(people, "Swat_Gunner", new Vector3(70f, 0.02f, 70f), 0f, "RiotCop");
         SetCombat(sg, true);
         sg.displayName = "특공대";
         sg.shotDamage = 16;
-        b.zoneLot = Zone(triggers, "Zone_LotNorth", new Vector3(70f, 1.5f, 92f), new Vector3(40f, 3f, 16f), boss, s1, s2, sg);
+        b.zoneLot = Zone(triggers, "Zone_LotNorth", new Vector3(70f, 1.5f, 76f), new Vector3(40f, 3f, 16f), boss, s1, s2, sg);
 
         // 모두 숨겨 둔다(경보가 울리면 감독이 꺼낸다)
         var all = new List<GameObject>();

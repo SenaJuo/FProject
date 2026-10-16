@@ -958,7 +958,7 @@ public static partial class Chapter1Builder
             new Vector3(112f, G, 41.4f), new Vector3(108.4f, G, 41.6f), new Vector3(106.6f, G, 40.3f));
         // 관리 도로의 검은 차 옆: 등을 돌리고 통화한다. 통화를 마치면 정자 쪽으로 걸어간다
         b.caller = Patrol(people, routes, "Thug_Caller", new Vector3(96.4f, G, LaneZ + 2.2f), -90f,
-            new Vector3(90f, G, LaneZ + 1.6f), new Vector3(86f, G, 54f), new Vector3(90f, G, LaneZ + 1.6f), new Vector3(97f, G, LaneZ + 2.2f));
+            new Vector3(93.5f, G, LaneZ + 1.6f), new Vector3(96f, G, 55f), new Vector3(93.5f, G, LaneZ + 1.6f), new Vector3(97f, G, LaneZ + 2.2f)); // 정자 순찰 사각형(x 78~88) 밖에서만 — 전에는 정자 순찰 길 위에 서 있어 1.4m까지 붙었다
         // 가운데 잔디밭을 도는 순찰: 산책길(x 106.2)을 옆에서 본다
         Patrol(people, routes, "Thug_Lawn", new Vector3(113f, G, 48f), 90f,
             new Vector3(113f, G, 47.6f), new Vector3(128f, G, 47.6f), new Vector3(128f, G, 54.4f), new Vector3(113f, G, 54.4f));
@@ -968,7 +968,7 @@ public static partial class Chapter1Builder
             new Vector3(134f, G, LaneZ - 0.4f), new Vector3(121f, G, LaneZ - 0.4f)); // 서쪽 끝은 통화 엿듣는 자리(x 103~106)에서 15m 넘게(시야 11m)
         // 정자 둘레
         Patrol(people, routes, "Thug_Pavilion", new Vector3(78f, G, 52f), 0f,
-            new Vector3(78f, G, 52f), new Vector3(78f, G, 68f), new Vector3(90f, G, 68f), new Vector3(90f, G, 52f));
+            new Vector3(78f, G, 52f), new Vector3(78f, G, 68f), new Vector3(88f, G, 68f), new Vector3(88f, G, 52f)); // 동쪽 변 x 88(통화하던 조직원 자리와 5.5m)
 
         // 공원 출구를 지키는 세 명: 둘은 출구 앞을 손전등으로 짧게 오가며 지키고(등 뒤로 몰래 제압할 틈이 생긴다), 총잡이는 출구 옆에서 망을 본다
         var e1 = Patrol(people, routes, "Thug_Exit_A", new Vector3(142.8f, G, 56.6f), -90f,

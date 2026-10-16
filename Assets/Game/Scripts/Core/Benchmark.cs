@@ -29,10 +29,18 @@ public class Benchmark : MonoBehaviour
     IEnumerator Start()
     {
         SaveGame.Enabled = false;
-        Application.targetFrameRate = -1;
-        QualitySettings.vSyncCount = 0; // 화면 주사율에 묶이지 않은 실제 속도
+        var args = System.Environment.GetCommandLineArgs();
+        // -capped: 실제 플레이처럼 프레임 제한(수직동기화)을 그대로 두고 잰다(CPU·팬 부하 비교용, 2026-10-16)
+        if (!args.Contains("-capped"))
+        {
+            Application.targetFrameRate = -1;
+            QualitySettings.vSyncCount = 0; // 화면 주사율에 묶이지 않은 실제 속도
+        }
+        // -only 장면이름: 그 장면 하나만
+        int only = System.Array.IndexOf(args, "-only");
+        var scenes = only >= 0 && only + 1 < args.Length ? new[] { args[only + 1] } : Scenes;
         lines.Add($"빌드 측정 {System.DateTime.Now:yyyy-MM-dd HH:mm} · {Screen.width}x{Screen.height} · {SystemInfo.graphicsDeviceName} ({SystemInfo.graphicsMemorySize}MB) · {SystemInfo.processorType}");
-        foreach (var scene in Scenes)
+        foreach (var scene in scenes)
         {
             SceneManager.LoadScene(scene);
             float t0 = Time.realtimeSinceStartup;

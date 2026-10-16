@@ -28,6 +28,8 @@ public class BossCleaner : MonoBehaviour, IRewindable
     Health health;
     NavMeshAgent agent;
     float phase2Started, baseSpeed;
+    /// <summary>"애들아! 나와!"로 부하를 이미 불렀다(한 번만 — 다시 맞싸움으로 돌아와도 또 외치지 않는다)</summary>
+    bool calledHelp;
     Coroutine toCover;
     /// <summary>2단계로 넘어가는 중(외치고 엄폐물로 달려가는 동안 — 무적, 공격하지 않는다)</summary>
     public bool Transitioning => toCover != null;
@@ -43,14 +45,29 @@ public class BossCleaner : MonoBehaviour, IRewindable
 
     void OnDestroy() => TimeRewind.Unregister(this);
 
-    public object CaptureState() => Phase;
+    void OnEnable() => GameManager.PlayerRespawned += OnRespawned;
+    void OnDisable() => GameManager.PlayerRespawned -= OnRespawned;
+
+    /// <summary>레이가 쓰러져 다시 시작하면 반장도 처음부터: 1단계, 부하는 다시 숨는다(외치면 또 나온다). 테이프를 태우러 간 뒤로는 감독이 맡는다</summary>
+    void OnRespawned()
+    {
+        if (Phase >= 3) return;
+        CancelTransition();
+        Phase = 1; calledHelp = false;
+        Apply(false);
+        foreach (var r in reinforcements) if (r) r.gameObject.SetActive(false);
+    }
+
+    public object CaptureState() => new Vector2Int(Phase, calledHelp ? 1 : 0);
 
     public void RestoreState(object state, bool preview)
     {
         if (preview) return;
-        int p = (int)state;
+        var st = (Vector2Int)state; int p = st.x;
         // 테이프를 태우러 달리기 시작한 뒤(3단계)로는 되돌리지 않는다: 그 되감기 자체가 연출의 일부다
-        if (Phase >= 3 || p == Phase) return;
+        if (Phase >= 3) return;
+        calledHelp = st.y == 1;
+        if (p == Phase) return;
         CancelTransition();
         Phase = p;
         Apply(false);
@@ -59,11 +76,12 @@ public class BossCleaner : MonoBehaviour, IRewindable
 
     void Update()
     {
-        // 테이프 소각(3단계) 전에는 큰 한 방으로 쓰러지지 않는다: 25%에서 멈춰 소각 장면으로 넘어간다
-        health.floor = Phase < 3 ? Mathf.FloorToInt(health.Max * phase3At) : 0;
+        // 단계를 건너뛰지 않는다(2026-10-16 "애들아! 나와!가 안 나오는 경우가 많다": 큰 한 방에 60%를 건너뛰고 25%로 떨어져 2단계가 통째로 빠졌다)
+        // 부하를 부르기 전에는 60%에서, 그 뒤 테이프 소각(3단계) 전에는 25%에서 멈춘다
+        health.floor = Phase >= 3 ? 0 : Mathf.FloorToInt(health.Max * (calledHelp ? phase3At : phase2At));
         if (health.IsDead || Phase >= 3 || Transitioning || !ai.IsActive) return;
         float ratio = health.Current / (float)health.Max;
-        if (Phase == 1 && ratio <= phase2At) { Phase = 2; phase2Started = Time.time; Apply(true); PhaseChanged?.Invoke(this, 2); }
+        if (Phase == 1 && !calledHelp && ratio <= phase2At) { calledHelp = true; Phase = 2; phase2Started = Time.time; Apply(true); PhaseChanged?.Invoke(this, 2); }
         else if (Phase == 2)
         {
             bool helpersDown = true;
@@ -71,7 +89,7 @@ public class BossCleaner : MonoBehaviour, IRewindable
             if (ratio <= phase3At) { Phase = 3; Apply(true); PhaseChanged?.Invoke(this, 3); }
             else if (helpersDown && Time.time - phase2Started > 4f || Time.time - phase2Started > 15f) { Phase = 1; Apply(true); }
         }
-        else if (Phase == 1 && ratio <= phase3At) { Phase = 3; Apply(true); PhaseChanged?.Invoke(this, 3); }
+        else if (Phase == 1 && calledHelp && ratio <= phase3At) { Phase = 3; Apply(true); PhaseChanged?.Invoke(this, 3); }
     }
 
     /// <summary>단계에 맞게 싸움 방식을 바꾼다. fresh면 처음 들어선 것(외치고 숨는 곳으로 간다), 아니면 되감기로 돌아온 것</summary>
