@@ -96,6 +96,7 @@ public static class FaceRig
         // 3) 눈꺼풀: 머리 뼈 하나에 붙인다
         var head = animator.GetBoneTransform(HumanBodyBones.Head);
         int headBone = System.Array.IndexOf(smr.bones, head);
+        if (headBone < 0) return $"{animator.name}: 머리 뼈를 찾지 못해 얼굴을 손질하지 않았다";
         int lidStart = vList.Count;
         foreach (var lv in data.lidVerts)
         {

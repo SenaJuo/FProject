@@ -209,6 +209,13 @@ public class TapeAbility : MonoBehaviour
             var mf = go.GetComponent<MeshFilter>();
             if (!mf.sharedMesh) mf.sharedMesh = new Mesh { name = "Ghost" };
             smr.BakeMesh(mf.sharedMesh, true);
+            var gr = go.GetComponent<MeshRenderer>();
+            if (gr.sharedMaterials.Length != mf.sharedMesh.subMeshCount) // 얼굴은 두 번째 서브메시(FaceRig)
+            {
+                var mats = new Material[mf.sharedMesh.subMeshCount];
+                for (int i = 0; i < mats.Length; i++) mats[i] = ghostMaterial;
+                gr.sharedMaterials = mats;
+            }
             go.transform.SetPositionAndRotation(smr.transform.position, smr.transform.rotation);
             go.SetActive(true);
             ghosts.Add((go, go.GetComponent<MeshRenderer>(), Time.unscaledTime));

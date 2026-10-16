@@ -55,6 +55,13 @@ public class BossCleaner : MonoBehaviour, IRewindable
         CancelTransition();
         Phase = 1; calledHelp = false;
         Apply(false);
+        StartCoroutine(HideHelpers());
+    }
+
+    /// <summary>부하는 한 프레임 뒤에 숨긴다: 같은 순간 EnemyAI가 처음 자리로 옮기는데, 먼저 꺼 버리면 옮겨지지 않아 쓰러지던 자리에서 다시 나왔다</summary>
+    IEnumerator HideHelpers()
+    {
+        yield return null;
         foreach (var r in reinforcements) if (r) r.gameObject.SetActive(false);
     }
 

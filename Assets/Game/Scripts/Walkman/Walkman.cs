@@ -376,6 +376,7 @@ public class Walkman : MonoBehaviour
     /// <summary>저장 지점에서 다시 시작할 때: 사망 화면·되감기 도중이면 모두 거두고 정상 시간으로 돌아간다</summary>
     public void ResetForRespawn()
     {
+        StoryState.RewindAsked = false;
         if (InventoryOpen) CloseInventory();
         if (phase == Phase.Playing) return;
         StopAllCoroutines();

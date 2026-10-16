@@ -40,6 +40,7 @@ public class Takedown : MonoBehaviour
     {
         Target = null;
         busy = false; // 꺼지면 코루틴도 멈춘다 → 다시 켜졌을 때 제압이 영영 막히지 않게
+        Choking = false; Victim = null; // 남아 있으면 그 적을 보는 순찰마다 바로 소리쳤다
     }
 
     void Update()

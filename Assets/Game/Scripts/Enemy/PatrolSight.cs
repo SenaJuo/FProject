@@ -301,7 +301,8 @@ public class PatrolSight : MonoBehaviour, IRewindable
         {
             StoryState.Say("조직원", spottedLine, 1.4f);
             foreach (var other in All)
-                if (other != this && !other.Alerted && !other.Enemy.Health.IsDead && Vector3.Distance(other.transform.position, transform.position) <= alertRadius)
+                if (other != this && !other.Alerted && !other.Enemy.Health.IsDead && Vector3.Distance(other.transform.position, transform.position) <= alertRadius
+                    && !(Takedown.Choking && Takedown.Victim == other.Enemy)) // 목 졸리는 중인 적은 깨우지 않는다(졸리는 동작 도중 움직였다)
                     other.Alert(false);
         }
         Spotted?.Invoke(this);

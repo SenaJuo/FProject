@@ -218,6 +218,7 @@ public class Chapter1Director : MonoBehaviour
 
     void OnDestroy()
     {
+        GameManager.PlayerRespawned -= OnLastStandRespawn; // 마지막 싸움 도중 타이틀로 나가도 남지 않게
         TapeShop.Opened -= OnShopOpened;
         TapeShop.Traded -= OnTraded;
         CombatZone.Entered -= OnZoneEntered;
@@ -815,17 +816,23 @@ public class Chapter1Director : MonoBehaviour
     {
         if (!boss || boss.Health.IsDead) yield break;
         CurrentPhase = Phase.Boss;
-        int startHp = Mathf.Max(1, boss.Health.Current);
-        void Respawned() { if (boss && !boss.Health.IsDead) boss.Health.SetCurrent(startHp); }
-        GameManager.PlayerRespawned += Respawned;
+        // 테이프를 태우러 가는 사이 레이가 쓰러져 다시 시작하면 반장 체력이 처음으로 찼다 → 많아야 25%에서 시작
+        int startHp = Mathf.Clamp(boss.Health.Current, 1, Mathf.CeilToInt(boss.Health.Max * 0.25f));
+        boss.Health.SetCurrent(startHp);
+        lastStandHp = startHp;
+        GameManager.PlayerRespawned -= OnLastStandRespawn;
+        GameManager.PlayerRespawned += OnLastStandRespawn;
         boss.Health.Invulnerable = false;
         StoryState.Say(Boss, "…이건 못 넘긴다. 끝까지 간다, 레이!", 2.2f);
         StoryState.Objective = "정리반 반장을 쓰러뜨린다";
         StoryState.Waypoint = null;
         boss.Activate();
         yield return new WaitUntil(() => !boss || boss.Health.IsDead);
-        GameManager.PlayerRespawned -= Respawned;
+        GameManager.PlayerRespawned -= OnLastStandRespawn;
     }
+
+    int lastStandHp;
+    void OnLastStandRespawn() { if (boss && !boss.Health.IsDead) boss.Health.SetCurrent(lastStandHp); }
 
     /// <summary>테이프가 불에 들어간다 → 시간이 거의 멈추고 R을 기다린다 → 되감기</summary>
     IEnumerator BurnAndRewind()

@@ -157,6 +157,10 @@ public class Chapter2Director : MonoBehaviour
         // 담당이 비밀번호로 연 문으로 따라 들어왔다(레이는 번호를 누르지 않음): 들어간 것으로 친다
         // (2026-10-16: 전에는 비밀번호 단계에 멈춰 목표·담당·상자가 그대로라 진행이 안 됐다)
         if (CurrentPhase == Phase.Floor2 && !keyingIn && player && InEvidenceRoom(player.transform.position)) SneakedIntoEvidence();
+        // 보관실에 들어간 뒤 들켜 되감아 복도로 돌아왔다(문은 닫히고 패드는 꺼져 다시 들어갈 길이 없었다) → 문 앞 단계로 되돌린다
+        else if (CurrentPhase == Phase.EvidenceRoom && !keyFound && !keyingIn && player && !InEvidenceRoom(player.transform.position)
+                 && Mathf.Abs(player.transform.position.y - 4.2f) < 1f && player.transform.position.z > 16f && player.transform.position.z < 20f)
+            BackToEvidenceDoor();
     }
 
     // ---------- 진행 ----------
@@ -326,6 +330,21 @@ public class Chapter2Director : MonoBehaviour
 
     /// <summary>증거물 보관실 안(2층, x 326~340 · z 20~30 — 문턱은 빼고)</summary>
     static bool InEvidenceRoom(Vector3 p) => p.x > 326.3f && p.x < 340f && p.z > 20.6f && p.z < 30f && p.y > 3.5f && p.y < 8f;
+
+    void BackToEvidenceDoor()
+    {
+        StopCoroutine(nameof(ClerkInside));
+        CurrentPhase = Phase.Floor2;
+        if (keypadUse) keypadUse.enabled = true;
+        if (clerk)
+        {
+            clerk.LockedFromInside = false;
+            var ai = clerk.GetComponent<EnemyAI>();
+            if (ai && !ai.Health.IsDead && !ai.IsActive) clerk.enabled = true; // 덤비기 전이면 원래대로 오간다
+        }
+        StoryState.Objective = "증거물 보관실에 들어간다";
+        StoryState.Waypoint = keypadUse ? keypadUse.transform : null;
+    }
 
     void SneakedIntoEvidence()
     {

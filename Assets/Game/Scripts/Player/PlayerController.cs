@@ -570,7 +570,8 @@ public class PlayerController : MonoBehaviour, IRewindable
         if (health.IsDead) return;
         Vector3 away = transform.position - source;
         away.y = 0f;
-        hurtPush = away.sqrMagnitude > 0.001f ? away.normalized * 6f : Vector3.zero;
+        // 피격 동작은 제자리에서 움찔하는 모션이라 몸을 많이 밀면 발이 바닥을 미끄러졌다(2026-10-16) → 크게 맞았을 때만 조금 더
+        hurtPush = away.sqrMagnitude > 0.001f ? away.normalized * (amount >= 30 ? 3.2f : 2.4f) : Vector3.zero;
         // 타격감: 멀리서 맞았으면 총알, 가까우면 주먹
         float range = away.magnitude;
         HitFeel.Impact(amount >= 30 ? HitFeel.Tier.Heavy : HitFeel.Tier.Medium, transform.position + Vector3.up * 1.4f, -away, gameObject, true, false, bullet: range > 3f);
@@ -581,7 +582,7 @@ public class PlayerController : MonoBehaviour, IRewindable
     }
 
     /// <summary>맞지 않았어도 밀려나며 하던 동작이 끊긴다(방패 밀치기). 구르는 중·특수 동작 중에는 통하지 않는다</summary>
-    public void Shove(Vector3 source, float force = 6f)
+    public void Shove(Vector3 source, float force = 3.5f)
     {
         if (state is State.Dead or State.Dodge or State.Busy) return;
         if (state == State.Attack && counterStrike) return; // 반격 돌려차기는 밀쳐도 끊기지 않는다
