@@ -120,10 +120,9 @@ public class KeypadPanel : MonoBehaviour
     {
         var e = Event.current;
         bool hover = b.Contains(e.mousePosition);
-        UiTheme.Panel(b, hover ? new Color(1f, 1f, 1f, 0.12f) : new Color(1f, 1f, 1f, 0.06f), s);
-        if (hover) UiTheme.Outline(b, new Color(UiTheme.Amber.r, UiTheme.Amber.g, UiTheme.Amber.b, 0.7f));
+        UiTheme.Button(b, hover, s); // 덱 누름 단추: 마우스를 올리면 호박빛
         digit.fontSize = button.fontSize;
-        digit.normal.textColor = label == "×" ? UiTheme.Tape : hover ? UiTheme.Amber : UiTheme.Paper;
+        digit.normal.textColor = label == "×" ? UiTheme.Tape : hover ? new Color(1f, 0.96f, 0.88f) : UiTheme.Paper;
         UIText.Label(b, label, digit);
         if (e.type != EventType.MouseDown || e.button != 0 || !hover) return false;
         e.Use();

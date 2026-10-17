@@ -20,7 +20,74 @@ public static class UiTheme
     public static readonly Color Tape = new(0.86f, 0.33f, 0.24f);               // 경고 · 체력 낮음
     public static readonly Color Track = new(1f, 1f, 1f, 0.10f);                // 밀대 바탕
 
+    /// <summary>창 겉감(2026-10-17 바르코): 덱 앞판(기본) · 가죽 카세트 가방(인벤토리) · 나무 계산대(가게)</summary>
+    public enum Skin { Deck, Case, Wood }
+
+    /// <summary>9칸 늘이기 그림: 테두리(l, r, t, b — 그림 px)는 그대로, 가운데만 늘인다. k = 화면 배율 1일 때 그림 1px의 화면 px</summary>
+    public sealed class NineArt { public Texture2D tex; public int l, r, t, b; public float k; }
+    static NineArt deckArt, caseArt, woodArt, buttonArt, buttonLitArt;
+    static bool artTried;
+
+    static void LoadArt()
+    {
+        if (artTried) return;
+        artTried = true;
+        NineArt A(string n, int l, int r, int t, int b, float k) { var tex = Resources.Load<Texture2D>("UI/" + n); return tex ? new NineArt { tex = tex, l = l, r = r, t = t, b = b, k = k } : null; }
+        deckArt = A("Skin_Deck", 70, 70, 70, 70, 0.6f);       // 네 귀퉁이 나사
+        caseArt = A("Skin_Case", 72, 72, 72, 72, 0.55f);      // 박음질 · 놋쇠 리벳
+        woodArt = A("Skin_Wood", 62, 62, 62, 62, 0.6f);       // 놋쇠 테 · 모서리 판
+        buttonArt = A("Skin_Button", 36, 36, 36, 36, 0.3f);   // 은색 테두리 누름 단추
+        buttonLitArt = A("Skin_ButtonLit", 36, 36, 36, 36, 0.3f);
+    }
+
+    /// <summary>9칸 늘이기로 그린다(칸이 테두리보다 작으면 테두리를 줄인다)</summary>
+    public static void Nine(Rect r, NineArt a, Color c, float s)
+    {
+        if (Event.current.type != EventType.Repaint || a == null || !a.tex) return;
+        float w = a.tex.width, h = a.tex.height;
+        float L = a.l * a.k * s, R = a.r * a.k * s, T = a.t * a.k * s, B = a.b * a.k * s;
+        float fx = Mathf.Min(1f, r.width / Mathf.Max(1f, L + R)), fy = Mathf.Min(1f, r.height / Mathf.Max(1f, T + B));
+        L *= fx; R *= fx; T *= fy; B *= fy;
+        // 조각 경계를 화면 픽셀에 맞춘다: 소수점 자리에 그리면 조각 사이에 가는 틈(선)이 보였다
+        float[] xs = { Mathf.Round(r.x), Mathf.Round(r.x + L), Mathf.Round(r.xMax - R), Mathf.Round(r.xMax) };
+        float[] ys = { Mathf.Round(r.y), Mathf.Round(r.y + T), Mathf.Round(r.yMax - B), Mathf.Round(r.yMax) };
+        float[] us = { 0f, a.l / w, 1f - a.r / w, 1f };
+        float[] vs = { 1f, 1f - a.t / h, a.b / h, 0f }; // 위에서 아래로(그림 좌표는 아래가 0)
+        var keep = GUI.color;
+        GUI.color = c;
+        for (int i = 0; i < 3; i++)
+        for (int j = 0; j < 3; j++)
+        {
+            var dst = new Rect(xs[i], ys[j], xs[i + 1] - xs[i], ys[j + 1] - ys[j]);
+            if (dst.width <= 0.01f || dst.height <= 0.01f) continue;
+            GUI.DrawTextureWithTexCoords(dst, a.tex, new Rect(us[i], vs[j + 1], us[i + 1] - us[i], vs[j] - vs[j + 1]));
+        }
+        GUI.color = keep;
+    }
+
+    public static bool HasButtonArt { get { LoadArt(); return buttonArt != null; } }
+
+    /// <summary>하이파이 덱 누름 단추(그림이 없으면 둥근 판). lit이면 호박빛이 켜진 단추, dim이면 흐리게(누를 수 없음)</summary>
+    public static void Button(Rect r, bool lit, float s, bool dim = false)
+    {
+        if (Event.current.type != EventType.Repaint) return;
+        LoadArt();
+        if (buttonArt == null) { Panel(r, lit ? InkHover : InkSoft, s); return; }
+        if (lit && buttonLitArt != null) Nine(r, buttonLitArt, new Color(0.62f, 0.57f, 0.52f, 1f), s); // 글씨가 묻히지 않게 불빛을 낮춘다
+        else Nine(r, buttonArt, dim ? new Color(0.55f, 0.55f, 0.55f, 0.8f) : new Color(0.92f, 0.92f, 0.92f, 1f), s);
+    }
+
     static Font font;
+    static Texture2D panelTexture; static bool panelTried;
+    /// <summary>창 바탕 질감(Resources/UI/PanelTexture, UiArtBuilder). 없으면 null(단색 판)</summary>
+    public static Texture2D PanelTexture
+    {
+        get
+        {
+            if (!panelTried) { panelTried = true; panelTexture = Resources.Load<Texture2D>("UI/PanelTexture"); }
+            return panelTexture;
+        }
+    }
     static Texture2D round, roundSoft, shadow, roundSmall, roundTiny;
     static GUIStyle roundStyle, softStyle, shadowStyle, smallStyle, tinyStyle;
 
@@ -62,16 +129,38 @@ public static class UiTheme
     }
 
     /// <summary>판 + 그림자 + 얇은 테두리(창 하나)</summary>
-    public static void Window(Rect r, float s, Color? fill = null)
+    public static void Window(Rect r, float s, Color? fill = null, Skin skin = Skin.Deck)
     {
         if (Event.current.type != EventType.Repaint) return;
         Ensure();
+        LoadArt();
         var keep = GUI.color;
         float o = 18f * s;
         GUI.color = new Color(0f, 0f, 0f, 0.55f);
         shadowStyle.Draw(new Rect(r.x - o, r.y - o + 6f * s, r.width + o * 2f, r.height + o * 2f), false, false, false, false);
-        GUI.color = fill ?? Ink;
+        var f = fill ?? Ink;
+        var art = skin switch { Skin.Case => caseArt, Skin.Wood => woodArt, _ => deckArt };
+        if (art != null)
+        {
+            // 겉감 그림(9칸): 나사 · 리벳 · 놋쇠 모서리는 그대로, 가운데만 늘어난다. 글씨가 잘 보이게 조금 어둡게
+            float a = f.a / Ink.a, b = skin == Skin.Wood ? 0.80f : skin == Skin.Case ? 0.95f : 0.85f;
+            GUI.color = keep;
+            Nine(r, art, new Color(b, b, b, Mathf.Clamp01(a)), s);
+            GUI.color = keep;
+            return;
+        }
+        GUI.color = f;
         roundStyle.Draw(r, false, false, false, false);
+        // 바탕 질감(바르코: 낡은 검은 가죽 — 카세트 플레이어 겉감). 둥근 모서리 안쪽으로만
+        if (PanelTexture)
+        {
+            float inset = 4f * s, a = f.a / Ink.a;
+            GUI.color = new Color(0.62f, 0.60f, 0.58f, 0.9f * a); // 어둡게 깐다: 밝으면 줄 바탕(InkSoft)이 묻혀 버튼이 안 보였다
+            GUI.DrawTexture(new Rect(r.x + inset, r.y + inset, r.width - inset * 2f, r.height - inset * 2f), PanelTexture, ScaleMode.ScaleAndCrop, true);
+            // 위쪽 가장자리에 아주 옅은 호박빛(종이처럼 밋밋하지 않게)
+            GUI.color = new Color(Amber.r, Amber.g, Amber.b, 0.35f * a);
+            GUI.DrawTexture(new Rect(r.x + 14f * s, r.y + 1f, r.width - 28f * s, Mathf.Max(1f, s)), Texture2D.whiteTexture);
+        }
         GUI.color = Hair;
         softStyle.Draw(r, false, false, false, false);
         GUI.color = keep;
@@ -81,6 +170,13 @@ public static class UiTheme
     public static void RowBg(Rect r, bool selected, float s)
     {
         if (Event.current.type != EventType.Repaint) return;
+        LoadArt();
+        if (buttonArt != null)
+        {
+            // 하이파이 덱 누름 단추: 평소 검은 단추, 고르면 안에서 호박빛이 켜진다(밝기를 눌러 글씨가 묻히지 않게)
+            Button(r, selected, s);
+            return;
+        }
         Panel(r, selected ? InkHover : InkSoft, s);
         if (!selected) return;
         Panel(r, AmberSoft, s);

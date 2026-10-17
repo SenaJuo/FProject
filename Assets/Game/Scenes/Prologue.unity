@@ -71502,7 +71502,7 @@ MonoBehaviour:
     animState: Kick
   punchLean: 16
   counterWindow: 1.1
-  counterDamageMultiplier: 3.5
+  counterDamageMultiplier: 3
   counterRange: 7
 --- !u!1 &310175700235942852
 GameObject:

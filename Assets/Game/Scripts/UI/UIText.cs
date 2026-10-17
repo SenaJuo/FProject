@@ -13,7 +13,17 @@ public static class UIText
     const int MinSize = 9;
 
     /// <summary>화면 배율: 1920×1080 기준. 세로만 보면 좁은 화면(게임 창을 작게 띄운 경우)에서 가로가 모자라 글자·칸이 겹친다 → 둘 중 작은 쪽</summary>
-    public static float Scale => Mathf.Min(Screen.height / 1080f, Screen.width / 1920f);
+    /// 단, 에디터의 작은 게임 창(예: 1000×400 → 0.37)에서는 글자가 7px까지 줄어 줄끼리 겹쳤다(2026-10-17) →
+    /// 가장 큰 창(세로 약 720)이 화면에 들어가는 만큼까지는 키운다(1920×1080 같은 보통 화면은 그대로 1)
+    public static float Scale
+    {
+        get
+        {
+            float fit = Mathf.Min(Screen.height / 1080f, Screen.width / 1920f);
+            float floor = Mathf.Min(1f, Mathf.Min(Screen.height / 760f, Screen.width / 1350f));
+            return Mathf.Max(fit, floor);
+        }
+    }
 
     // ---------- 검사용 기록 ----------
     public struct Drawn { public Rect box, cell; public string text; public bool overflow; public int size, orig; public float depth; public int frame; }

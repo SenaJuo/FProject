@@ -6,7 +6,7 @@ using UnityEngine.Rendering.Universal;
 /// <summary>
 /// 테이프 능력(R → E): 끼운 테이프의 장르에 따라 잠깐 힘이 생긴다. 되감기 1회분을 쓰지만 테이프는 계속 재생된다
 /// (되감기 Q는 살아나는 대신 재생용 테이프를 다시는 못 듣게 만든다).
-///  시티팝·신스 「네온 러시」 4초: 세상이 1/4로 느려지고 레이만 제 속도 — 뒤로 형광 잔상이 남는다.
+///  시티팝·신스 「네온 러시」 7초(2026-10-17: 4초는 짧다): 세상이 1/4로 느려지고 레이만 제 속도 — 뒤로 형광 잔상이 남는다.
 ///  재즈 「즉흥」 8초: 무적 회피가 두 배, 완벽 회피 판정이 넓고 반격이 세다.
 ///  소울·블루스 「그루브」 8초: 주먹 피해 1.5배, 방패를 무시한다.
 ///  앰비언트 「고요」 10초: 받는 피해 절반, 적을 쓰러뜨릴 때마다 체력 회복.
@@ -32,11 +32,21 @@ public class TapeAbility : MonoBehaviour
 
     public static float Seconds(TapeGenre g) => g switch
     {
-        TapeGenre.CityPop => 4f,
+        TapeGenre.CityPop => 7f,
         TapeGenre.Jazz => 8f,
         TapeGenre.Soul => 8f,
         TapeGenre.Ambient => 10f,
         _ => 0f,
+    };
+
+    /// <summary>한 줄 설명(가게 · 인벤토리)</summary>
+    public static string Describe(TapeGenre g) => g switch
+    {
+        TapeGenre.CityPop => "세상이 느려지고 레이만 제 속도로 움직인다",
+        TapeGenre.Jazz => "회피 무적이 길어지고, 반격이 세진다",
+        TapeGenre.Soul => "주먹 피해 1.5배, 방패를 뚫는다",
+        TapeGenre.Ambient => "받는 피해 절반, 쓰러뜨릴 때마다 체력 회복",
+        _ => "",
     };
 
     public static Color Tint(TapeGenre g) => g switch

@@ -104,7 +104,7 @@ public static class BossTest
                 {
                     int helpers = 0; foreach (var r in d.bossBrain.reinforcements) if (r && r.gameObject.activeInHierarchy && r.IsActive) helpers++;
                     float atCover = d.bossBrain.coverPoint ? Vector3.Distance(d.boss.transform.position, d.bossBrain.coverPoint.position) : -1f;
-                    Note($"2단계: 단계 {d.bossBrain.Phase}(기대 2), 권총 {d.boss.ranged}, 부하 등장 {helpers}(기대 2), 체력 {d.boss.Health.Current}, 엄폐물까지 {atCover:0.0}m, 무적 {d.boss.Health.Invulnerable}(기대 False), 활성 {d.boss.IsActive}");
+                    Note($"2단계: 단계 {d.bossBrain.Phase}(기대 2), 권총 {d.boss.ranged}, 사격 거리 {d.boss.shootRange:0}m(기대 30), 부하 등장 {helpers}(기대 2), 체력 {d.boss.Health.Current}, 엄폐물까지 {atCover:0.0}m, 무적 {d.boss.Health.Invulnerable}(기대 False), 활성 {d.boss.IsActive}");
                     Shot("boss_phase2");
                     foreach (var r in d.bossBrain.reinforcements) if (r && r.gameObject.activeInHierarchy) r.GetComponent<Health>().TakeDamage(999, p.transform.position);
                     // 큰 한 방(되감기 기억 3배 · 능력 등)으로 25% 아래까지 한꺼번에 깎여도 쓰러지지 않고 소각 장면으로 가야 한다(10-14 버그: 바로 2장으로 넘어감)
@@ -116,7 +116,14 @@ public static class BossTest
                 else if (Waited(6f)) End("엄폐물에 도착하지 못함(넘어가는 장면이 끝나지 않음)");
                 break;
             case 6:
-                if (d.CurrentPhase == Chapter1Director.Phase.Burn && Waited(0.8f)) { Note($"3단계 달리기: 목표 '{StoryState.Objective}'"); Shot("burn_run"); Next(); }
+                if (d.CurrentPhase == Chapter1Director.Phase.Burn && Waited(0.8f))
+                {
+                    Note($"3단계 달리기: 목표 '{StoryState.Objective}', 컷신 {StoryState.CutsceneActive}(기대 True)");
+                    Shot("burn_run");
+                    // 첫 달리기에서 맞아도 막은 것이 되면 안 된다(2026-10-17: 때리면 테이프 장면이 통째로 건너뛰어졌다)
+                    d.boss.Health.TakeDamage(10, p.transform.position);
+                    Next();
+                }
                 else if (Waited(8f)) End("3단계(태우러 달리기)로 넘어가지 않음");
                 break;
             case 7:
@@ -133,7 +140,7 @@ public static class BossTest
                 if (!w.Rewinding && Waited(1.5f))
                 {
                     var line = GameObject.Find("BossMemoryPath");
-                    Note($"되감은 뒤: 시간 배율 {Time.timeScale:0.00}, 기억의 길 {(line ? line.GetComponent<LineRenderer>().enabled.ToString() : "없음")}, 반장 테이프 손에 {(d.bossBrain.heldTape ? d.bossBrain.heldTape.parent != null : false)}");
+                    Note($"되감은 뒤: 컷신 {StoryState.CutsceneActive}(기대 False), 시간 배율 {Time.timeScale:0.00}, 기억의 길 {(line ? line.GetComponent<LineRenderer>().enabled.ToString() : "없음")}, 반장 테이프 손에 {(d.bossBrain.heldTape ? d.bossBrain.heldTape.parent != null : false)}");
                     Shot("after_rewind");
                     // 반장 곁으로 붙어 때린다
                     var bp = d.boss.transform.position;

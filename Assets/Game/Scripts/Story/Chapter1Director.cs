@@ -764,14 +764,26 @@ public class Chapter1Director : MonoBehaviour
         CurrentPhase = Phase.Burn;
         int attempt = 0;
         var memoryLine = MakeMemoryLine();
+        var paused = new System.Collections.Generic.List<EnemyAI>();
         while (true)
         {
             attempt++;
+            // 첫 번째는 막을 수 없는 짧은 컷신: 반장이 드럼통으로 달려가 테이프를 던지는 걸 보여 주고 → 되감기.
+            // (2026-10-17 "테이프를 버리러 갈 때 때리면 그 씬이 스킵": 바로 옆이라 한 대에 '막아 냄'이 되어 되감기 장면이 통째로 빠졌다)
+            // 되감은 뒤부터는 바닥의 기억 경로를 보고 먼저 가서 막는다
+            bool firstRun = attempt == 1;
+            if (firstRun)
+            {
+                StoryState.CutsceneActive = true;
+                // 적은 컷신을 모른다: 조작이 잠긴 레이를 부하들이 때리지 않게 잠시 세운다(되감으면 5초 전 상태로 돌아온다)
+                foreach (var e in EnemyAI.All)
+                    if (e && e != boss && e.IsActive && !e.Health.IsDead) { e.Deactivate(); paused.Add(e); }
+            }
             boss.Deactivate();
-            boss.Health.Invulnerable = false;
+            boss.Health.Invulnerable = firstRun; // 첫 달리기는 무엇에도 멈추지 않는다(맞으면 움찔하다 9초 시간 제한에 걸렸다)
             if (boss.Health.IsDead) boss.Health.Revive();
             bool intercepted = false;
-            void OnHit(int amount, Vector3 from) => intercepted = true;
+            void OnHit(int amount, Vector3 from) { if (!firstRun) intercepted = true; }
             boss.Health.Damaged += OnHit;
             Vector3 throwSpot = burnBarrel.position + Flat(boss.transform.position - burnBarrel.position).normalized * 1.1f;
             var agent = boss.GetComponent<UnityEngine.AI.NavMeshAgent>();
@@ -781,11 +793,23 @@ public class Chapter1Director : MonoBehaviour
             StoryState.Objective = "반장이 테이프를 태우기 전에 막는다";
             StoryState.Waypoint = boss.transform;
             if (memoryLine) { memoryLine.enabled = attempt > 1; memoryLine.SetPosition(0, boss.transform.position + Vector3.up * 0.06f); memoryLine.SetPosition(1, throwSpot + Vector3.up * 0.06f); }
+            if (firstRun)
+            {
+                // 옆에서: 달려가는 반장과 드럼통 불이 한 화면에
+                Vector3 run = Flat(boss.transform.position - burnBarrel.position);
+                Vector3 dir = run.sqrMagnitude > 0.01f ? run.normalized : Vector3.forward;
+                Vector3 side = Vector3.Cross(Vector3.up, dir);
+                Vector3 mid = Vector3.Lerp(boss.transform.position, burnBarrel.position, 0.5f) + Vector3.up * 1.1f;
+                Vector3 camAt = mid + side * (run.magnitude * 0.6f + 3.5f) + Vector3.up * 0.8f;
+                Place(dynamicA, camAt, mid, 46f);
+                Shot(dynamicA, 0.35f);
+            }
             float started = StoryState.Now;
             yield return new WaitUntil(() => intercepted || boss.Health.IsDead
                                               || Flat(boss.transform.position - throwSpot).magnitude < 0.6f
                                               || StoryState.Now - started > 9f);
             boss.Health.Damaged -= OnHit;
+            boss.Health.Invulnerable = false;
             if (memoryLine) memoryLine.enabled = false;
             if (agent && agent.enabled && agent.isOnNavMesh) agent.isStopped = true;
             if (intercepted || boss.Health.IsDead) break;
@@ -802,6 +826,19 @@ public class Chapter1Director : MonoBehaviour
                 break;
             }
             yield return BurnAndRewind();
+            if (firstRun) { StoryState.CutsceneActive = false; Resume(); }
+        }
+        if (StoryState.CutsceneActive) // 첫 시도에서 라이터가 헛돌았다
+        {
+            StoryState.CutsceneActive = false;
+            gameplayRig.SnapBehindTarget();
+            Shot(gameplayCamera, 0f);
+        }
+        Resume();
+        void Resume()
+        {
+            foreach (var e in paused) if (e && !e.Health.IsDead && !e.IsActive) e.Activate();
+            paused.Clear();
         }
         if (memoryLine) Destroy(memoryLine.gameObject);
         StoryState.Waypoint = null;

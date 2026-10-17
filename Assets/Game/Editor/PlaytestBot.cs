@@ -613,8 +613,13 @@ public static class PlaytestBot
     static void ShopInput(float t)
     {
         if (shopStep < 0f) shopStep = t;
-        if (t - shopStep > 3f && t - shopStep < 3.3f) tap = Key.F;          // 하나 바꿔 본다
-        else if (t - shopStep > 5f) { tap = Key.C; shopDone = true; Note("가게 나옴"); shopStep = -1f; }
+        // 하나 바꿔 본다: 진열대에서 고르고(F) → 내줄 테이프를 넣고(F, 미리 골라져 있으면 건너뜀) → 교환(Space) → 모자라 남아 있으면 뒤로(C) → 나가기(C)
+        float k = t - shopStep; var shop = TapeShop.Current;
+        if (k > 3f && k < 3.3f) tap = Key.F;
+        else if (k > 3.8f && k < 4.1f && shop && shop.Offering && shop.Offer.Count == 0) tap = Key.F;
+        else if (k > 4.6f && k < 4.9f) tap = Key.Space;
+        else if (k > 5.4f && k < 5.7f && shop && shop.Offering) tap = Key.C;
+        else if (k > 6.2f) { tap = Key.C; shopDone = true; Note("가게 나옴"); shopStep = -1f; }
     }
 
     static void Send()

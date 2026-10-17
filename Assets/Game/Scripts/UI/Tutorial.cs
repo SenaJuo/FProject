@@ -39,6 +39,14 @@ public static class Tutorial
 
     static void SaveSeen() { PlayerPrefs.SetString(SeenKey, string.Join(",", shown)); PlayerPrefs.Save(); }
 
+    /// <summary>처음이면 true를 돌려주고 본 것으로 적는다(설명 창 없이 한 번만 보이는 표시용: 「기억의 일격」 글자)</summary>
+    public static bool FirstTime(string id)
+    {
+        if (!shown.Add(id)) return false;
+        SaveSeen();
+        return true;
+    }
+
     /// <summary>시험용: 본 기록을 지운다(다음 Show부터 다시 뜬다)</summary>
     public static void ForgetSeen() { shown.Clear(); PlayerPrefs.DeleteKey(SeenKey); }
 
@@ -455,10 +463,11 @@ public class TutorialUI : MonoBehaviour
         UiTheme.Window(win, s);
 
         // 제목 줄(작은 영문 표제 + 분류) + 닫기
-        Label(new Rect(win.x + 36 * s, win.y + 14 * s, w, 22 * s), "T U T O R I A L", Mid(eyebrow, TextAnchor.MiddleLeft), Gold);
-        Label(new Rect(win.x + 36 * s, win.y + 32 * s, w, 46 * s), $"{e.category}", Mid(heading, TextAnchor.MiddleLeft), Paper);
-        var close = new Rect(win.xMax - 76 * s, win.y + 24 * s, 44 * s, 40 * s);
-        UiTheme.Panel(close, new Color(1f, 1f, 1f, 0.06f), s);
+        // 덱 앞판의 귀퉁이 나사를 피해 안쪽으로
+        Label(new Rect(win.x + 70 * s, win.y + 18 * s, w, 22 * s), "T U T O R I A L", Mid(eyebrow, TextAnchor.MiddleLeft), Gold);
+        Label(new Rect(win.x + 70 * s, win.y + 36 * s, w, 46 * s), $"{e.category}", Mid(heading, TextAnchor.MiddleLeft), Paper);
+        var close = new Rect(win.xMax - 116 * s, win.y + 26 * s, 48 * s, 42 * s);
+        UiTheme.Button(close, close.Contains(Event.current.mousePosition), s);
         Label(close, "✕", closeStyle, Paper);
         if (Clicked(close)) { ClosePopup(); return; }
 
@@ -501,8 +510,7 @@ public class TutorialUI : MonoBehaviour
 
     void PageButton(Rect r, string text, bool enabled, float s)
     {
-        UiTheme.Panel(r, enabled ? new Color(1f, 1f, 1f, 0.07f) : new Color(1f, 1f, 1f, 0.03f), s);
-        UiTheme.Outline(r, enabled ? Tint(Gold, 0.7f) : UiTheme.Hair);
+        UiTheme.Button(r, false, s, dim: !enabled);
         Label(r, text, Mid(small, TextAnchor.MiddleCenter), enabled ? Paper : Dim);
     }
 

@@ -166,6 +166,14 @@ public class Walkman : MonoBehaviour
         return spent;
     }
 
+    /// <summary>테이프 하나를 꺼낸다(상점 교환). 끼워 둔 테이프였으면 카세트 플레이어가 빈다</summary>
+    public void RemoveTape(CassetteTape tape)
+    {
+        if (!tapes.Remove(tape)) return;
+        if (Inserted == tape) Inserted = null;
+        InventorySelected = Mathf.Clamp(InventorySelected, 0, Mathf.Max(0, tapes.Count - 1));
+    }
+
     /// <summary><paramref name="index"/> 위치의 테이프를 Walkman에 넣는다.</summary>
     public void Equip(int index)
     {

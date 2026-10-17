@@ -413,8 +413,8 @@ public class PlayerController : MonoBehaviour, IRewindable
     [Header("회피 반격")]
     [Tooltip("완벽 회피 뒤 이 시간(게임 초) 안에 공격하면, 빈틈 난 적에게 달려들어 강하게 찬다")]
     public float counterWindow = 1.1f;
-    [Tooltip("반격 피해 = 공격력 × 이 값(보통 돌려차기는 2)")]
-    public float counterDamageMultiplier = 3.5f;
+    [Tooltip("반격 피해 = 공격력 × 이 값(보통 돌려차기는 2). 3.5는 너무 세다는 말에 3으로(2026-10-17)")]
+    public float counterDamageMultiplier = 3f;
     [Tooltip("이 거리(m) 안의 적에게만 달려든다")]
     public float counterRange = 7f;
 

@@ -41927,7 +41927,7 @@ MonoBehaviour:
     animState: Kick
   punchLean: 16
   counterWindow: 1.1
-  counterDamageMultiplier: 3.5
+  counterDamageMultiplier: 3
   counterRange: 7
 --- !u!95 &6298276005117217211
 Animator:

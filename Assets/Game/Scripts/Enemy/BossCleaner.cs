@@ -27,7 +27,9 @@ public class BossCleaner : MonoBehaviour, IRewindable
     EnemyAI ai;
     Health health;
     NavMeshAgent agent;
-    float phase2Started, baseSpeed;
+    float phase2Started, baseSpeed, baseShootRange;
+    /// <summary>2단계 사격 거리: 엄폐물에서 부두 앞마당 끝까지(2026-10-17: 기본 11m라 멀리 떨어지면 총을 쏘지 않았다)</summary>
+    const float GunRange = 30f;
     /// <summary>"애들아! 나와!"로 부하를 이미 불렀다(한 번만 — 다시 맞싸움으로 돌아와도 또 외치지 않는다)</summary>
     bool calledHelp;
     Coroutine toCover;
@@ -40,6 +42,7 @@ public class BossCleaner : MonoBehaviour, IRewindable
         health = GetComponent<Health>();
         agent = GetComponent<NavMeshAgent>();
         baseSpeed = agent ? agent.speed : 0f;
+        baseShootRange = ai.shootRange;
         TimeRewind.Register(this);
     }
 
@@ -106,6 +109,7 @@ public class BossCleaner : MonoBehaviour, IRewindable
         if (gun && fresh) { toCover = StartCoroutine(RunToCover()); return; }
         ai.ranged = gun;
         ai.holdPosition = gun;
+        ai.shootRange = gun ? GunRange : baseShootRange;
         ShowGun(gun);
         if (!gun && ai.aimIK) ai.aimIK.aim = false;
         if (Phase >= 3) ai.Deactivate();
@@ -148,6 +152,7 @@ public class BossCleaner : MonoBehaviour, IRewindable
         // 엄폐물에 붙어 레이를 보며 쏘기 시작한다
         ai.ranged = true;
         ai.holdPosition = true;
+        ai.shootRange = GunRange;
         health.Invulnerable = false;
         phase2Started = Time.time;
         toCover = null;

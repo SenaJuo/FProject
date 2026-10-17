@@ -449,13 +449,16 @@ public class PauseMenu : MonoBehaviour
         "일시정지" => "P A U S E D", "설정" => "S E T T I N G S", "조작법" => "C O N T R O L S", "튜토리얼" => "T U T O R I A L S", _ => "C O N F I R M",
     };
 
+    /// <summary>고른 줄 글씨: 호박빛 단추 위에서는 금색이 묻혀 따뜻한 흰색으로</summary>
+    static Color Lit => UiTheme.HasButtonArt ? new Color(1f, 0.96f, 0.88f) : Gold;
+
     Rect Window(float w, float h, float s, string heading)
     {
         var win = new Rect((Screen.width - w * s) / 2f, (Screen.height - h * s) / 2f, w * s, h * s);
         UiTheme.Window(win, s);
         // 작은 영문 표제(호박색) + 한글 제목 + 가는 선
         Label(new Rect(win.x, win.y + 22 * s, win.width, 24 * s), Eyebrow(heading), eyebrow, Gold);
-        Label(new Rect(win.x, win.y + 44 * s, win.width, 46 * s), heading, title, Paper);
+        Label(new Rect(win.x, win.y + 44 * s, win.width, 46 * s), heading, title, Paper); // 제목 뒤 띠(다이모 라벨)는 글씨를 가려 뺐다(2026-10-17)
         UiTheme.Hairline(win.x + 50 * s, win.y + 96 * s, win.width - 100 * s, s);
         return win;
     }
@@ -467,7 +470,7 @@ public class PauseMenu : MonoBehaviour
         {
             var r = new Rect(win.x + 60 * s, win.y + 128 * s + i * 80 * s, win.width - 120 * s, 62 * s);
             Row(r, i, mouseMoved, s);
-            Label(r, MainItems[i], item, i == selected ? Gold : Paper);
+            Label(r, MainItems[i], item, i == selected ? Lit : Paper);
         }
         Label(new Rect(win.x, win.yMax - 56 * s, win.width, 30 * s), "W/S 선택   Enter 결정   Esc 계속하기", small, Dim);
     }
@@ -497,7 +500,7 @@ public class PauseMenu : MonoBehaviour
         {
             var r = new Rect(win.x + 50 * s, win.y + 176 * s + i * 72 * s, win.width - 100 * s, 60 * s);
             Row(r, i, mouseMoved, s, activateOnClick: false);
-            Label(new Rect(r.x + 28 * s, r.y, 260 * s, r.height), names[i], itemLeft, i == selected ? Gold : Paper);
+            Label(new Rect(r.x + 28 * s, r.y, 260 * s, r.height), names[i], itemLeft, i == selected ? Lit : Paper);
             var area = new Rect(r.x + 300 * s, r.y, 420 * s, r.height); // 값 칸(밀대 · ◀ 값 ▶)
 
             if (IsSlider(i))
@@ -510,7 +513,7 @@ public class PauseMenu : MonoBehaviour
                 if (v > 0.001f) UiTheme.Panel(new Rect(bar.x, bar.y, Mathf.Max(bar.height, bar.width * v), bar.height), i == selected ? Gold : new Color(0.80f, 0.66f, 0.40f, 0.85f), s);
                 float kr = 9 * s;
                 UiTheme.Panel(new Rect(bar.x + bar.width * v - kr, bar.center.y - kr, kr * 2f, kr * 2f), Paper, s);
-                Label(new Rect(bar.xMax + 16 * s, r.y, 100 * s, r.height), text, percent, i == selected ? Gold : Paper);
+                Label(new Rect(bar.xMax + 16 * s, r.y, 100 * s, r.height), text, percent, i == selected ? Lit : Paper);
                 if (e.type == EventType.MouseDown && e.button == 0 && hit.Contains(e.mousePosition))
                 {
                     dragging = i;
@@ -529,10 +532,10 @@ public class PauseMenu : MonoBehaviour
                 // 고르기: ◀ 값 ▶ — 왼쪽 반을 누르면 앞으로, 오른쪽 반을 누르면 다음으로
                 var left = new Rect(area.x, r.y, 44 * s, r.height);
                 var right = new Rect(area.xMax - 44 * s, r.y, 44 * s, r.height);
-                Color c = i == selected ? Gold : Paper;
-                Label(left, "‹", arrow, i == selected ? Gold : Dim);
+                Color c = i == selected ? Lit : Paper;
+                Label(left, "‹", arrow, i == selected ? Lit : Dim);
                 Label(new Rect(left.xMax, r.y, right.x - left.xMax, r.height), ChoiceValue(i), item, c);
-                Label(right, "›", arrow, i == selected ? Gold : Dim);
+                Label(right, "›", arrow, i == selected ? Lit : Dim);
                 if (e.type == EventType.MouseDown && e.button == 0 && area.Contains(e.mousePosition) && mouseArmed && Time.unscaledTime - pageSince >= ActivateDelay)
                 {
                     selected = i;
@@ -553,9 +556,9 @@ public class PauseMenu : MonoBehaviour
         var reset = new Rect(win.x + 50 * s, by, (win.width - 120 * s) / 2f, 58 * s);
         var back = new Rect(reset.xMax + 20 * s, by, reset.width, reset.height);
         Row(reset, RowCount, mouseMoved, s);
-        Label(reset, "기본값으로", item, selected == RowCount ? Gold : Paper);
+        Label(reset, "기본값으로", item, selected == RowCount ? Lit : Paper);
         Row(back, RowCount + 1, mouseMoved, s);
-        Label(back, "뒤로", item, selected == RowCount + 1 ? Gold : Paper);
+        Label(back, "뒤로", item, selected == RowCount + 1 ? Lit : Paper);
 
         Label(new Rect(win.x, win.yMax - 52 * s, win.width, 30 * s), "Q/E 탭   W/S 선택   A/D 조절   Esc 뒤로", small, Dim);
     }
@@ -591,11 +594,11 @@ public class PauseMenu : MonoBehaviour
             var r = new Rect(win.x + 50 * s + col * (colW + 20 * s), win.y + 118 * s + row * 58 * s, colW, 50 * s);
             Row(r, i, mouseMoved, s);
             Label(new Rect(r.x + 20 * s, r.y, 170 * s, r.height), tutorials[i].category, smallLeft, Dim);
-            Label(new Rect(r.x + 190 * s, r.y, r.width - 200 * s, r.height), tutorials[i].title, itemLeft, i == selected ? Gold : Paper);
+            Label(new Rect(r.x + 190 * s, r.y, r.width - 200 * s, r.height), tutorials[i].title, itemLeft, i == selected ? Lit : Paper);
         }
         var back = new Rect(win.x + (win.width - 260 * s) / 2f, win.yMax - 112 * s, 260 * s, 56 * s);
         Row(back, tutorials.Length, mouseMoved, s);
-        Label(back, "뒤로", item, selected == tutorials.Length ? Gold : Paper);
+        Label(back, "뒤로", item, selected == tutorials.Length ? Lit : Paper);
         Label(new Rect(win.x, win.yMax - 48 * s, win.width, 30 * s), "W/S 선택   Enter 보기   Esc 뒤로", small, Dim);
     }
 
@@ -610,7 +613,7 @@ public class PauseMenu : MonoBehaviour
             float w = (win.width - 140 * s) / 2f;
             var r = new Rect(win.x + 50 * s + i * (w + 40 * s), win.y + 210 * s, w, 62 * s);
             Row(r, i, mouseMoved, s);
-            Label(r, ConfirmItems[i], item, i == selected ? Gold : Paper);
+            Label(r, ConfirmItems[i], item, i == selected ? Lit : Paper);
         }
         Label(new Rect(win.x, win.yMax - 52 * s, win.width, 30 * s), "A/D 선택   Enter 결정   Esc 뒤로", small, Dim);
     }
