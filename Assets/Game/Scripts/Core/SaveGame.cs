@@ -20,7 +20,7 @@ public static class SaveGame
     [Serializable]
     public class Data
     {
-        public int version = 1;
+        public int version = Version;
         public string scene;
         public string checkpoint;
         public string savedAt;
@@ -37,7 +37,13 @@ public static class SaveGame
     /// </summary>
     public static string FilePath => Path.Combine(Application.persistentDataPath, Application.isEditor ? "save_editor.json" : "save.json");
 
-    public static bool HasSave => File.Exists(FilePath);
+    /// <summary>
+    /// 저장 형식 판. 2 = 2026-10-19 고친 뒤(새 게임이 저장을 새로 쓰고, 에디터는 따로 쓴다).
+    /// 그 전 판 파일은 에디터 · 시험이 남긴 것일 수 있어 없는 것으로 본다(처음 켰는데 '이어하기'가 뜨고 2장부터 시작했다).
+    /// </summary>
+    public const int Version = 2;
+
+    public static bool HasSave => Read() != null;
 
     /// <summary>타이틀에서 시작했을 때만 저장한다(에디터에서 장면을 바로 틀거나 시험 도구가 돌 때 실제 저장을 덮어쓰지 않게)</summary>
     public static bool Enabled;
@@ -50,7 +56,12 @@ public static class SaveGame
 
     public static Data Read()
     {
-        try { return HasSave ? JsonUtility.FromJson<Data>(File.ReadAllText(FilePath)) : null; }
+        try
+        {
+            if (!File.Exists(FilePath)) return null;
+            var d = JsonUtility.FromJson<Data>(File.ReadAllText(FilePath));
+            return d != null && d.version >= Version && !string.IsNullOrEmpty(d.scene) ? d : null;
+        }
         catch (Exception e) { Debug.LogWarning("저장 파일을 읽지 못했다: " + e.Message); return null; }
     }
 
@@ -147,6 +158,6 @@ public static class SaveGame
 
     public static void Delete()
     {
-        try { if (HasSave) File.Delete(FilePath); } catch { }
+        try { if (File.Exists(FilePath)) File.Delete(FilePath); } catch { }
     }
 }
