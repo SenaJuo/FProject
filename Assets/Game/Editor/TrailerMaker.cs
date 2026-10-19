@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -14,6 +15,9 @@ using UnityEngine.UI;
 /// 트레일러 만들기(2026-10-16 "기깔나게 영화 같은 트레일러"): 플레이 중에 장면을 차례로 불러 영화식 카메라 움직임으로 찍는다.
 /// 2.39:1 검은 띠 · 자막(Noto Sans KR) · 검은 화면 전환 · 타이틀 곡 + 효과음을 섞어 Unity 내장 인코더(MediaEncoder)로 MP4.
 /// 결과: QA/trailer/REWIND_trailer.mp4 (미리보기 모드는 컷마다 사진 한 장: QA/trailer/preview_*.png)
+/// MakePlay(2026-10-19 "20초 정도 플레이 영상 중심"): 1장에서 실제 게임을 돌려 찍는다 — 몰래 제압 · 맨손 연타 · 되감기 · 네온 러시.
+/// 레이의 동작은 스크립트가 정한 때에 직접 일으키고(공격 · 구르기 · 제압 · 되감기 · 능력), 화면은 게임 카메라 그대로, 소리는 게임 소리(AudioRenderer) + 타이틀 곡.
+/// 결과: QA/trailer/REWIND_gameplay.mp4
 /// </summary>
 public static class TrailerMaker
 {
@@ -29,6 +33,9 @@ public static class TrailerMaker
         public Action<float> each;           // 매 프레임(0~1)
         public bool black, logo;             // 검은 화면(자막만) · 마지막 로고
         public string sfx; public float sfxAt; public float sfxGain = 1f;
+        // 플레이 영상: 게임 카메라로 찍는다(각도는 레이 기준 yaw · pitch · 거리), 정한 때에 레이의 동작을 일으킨다
+        public bool gameplay; public float camYawOff, camPitch = 12f, camDist = 4.5f, camDrift, camYaw;
+        public List<(float at, Action act)> cues = new();
     }
 
     static List<Shot> shots;
@@ -42,6 +49,9 @@ public static class TrailerMaker
     static Text caption, sub; static Image fade, logoImg; static CanvasGroup capGroup;
     static bool preview;
     static string musicName = "title-2"; static float musicStart = 13f; // 32초쯤 잠잠했다 34초부터 커진다 → 몽타주 시작(20.7초)에 맞춘다
+    static float musicFadeIn = 2.5f, musicGain = 0.8f;
+    static bool playVariant; static int cueIndex;
+    static string OutFile => playVariant ? "REWIND_gameplay.mp4" : "REWIND_trailer.mp4";
     public static string Status = "";
 
     // ---------------- 컷 구성 ----------------
@@ -104,14 +114,259 @@ public static class TrailerMaker
         return list;
     }
 
+    // ---------------- 플레이 영상(약 21초) ----------------
+
+    static List<Shot> BuildPlay()
+    {
+        Vector3 V(float x, float y, float z) => new(x, y, z);
+        var list = new List<Shot>();
+        // 글자는 넣지 않는다(2026-10-19 "이상한 자막 다 빼고 싸우다가 장르별로 되감기 · 능력 쓰는 것만")
+
+        // 1. 맨손 싸움: 부두 불빛 아래 셋을 상대로 연타 · 구르기 · 다시 연타
+        var fight = new Shot { scene = "Chapter1", gameplay = true, seconds = 3.2f, fadeIn = 0.4f, camYawOff = 40f, camPitch = 7f, camDist = 2.8f, camDrift = -14f };
+        fight.setup = () =>
+        {
+            Unscript();
+            Place(V(199f, 0.02f, 311.5f), V(199f, 0f, 314f));
+            Fighters(V(199f, 0f, 311.5f), "Thug_Dock_A", "Thug_Dock_B", "Thug_Dock_C");
+        };
+        Attacks(fight, (0.10f, 0), (0.50f, 1), (0.95f, 2), (2.15f, 0), (2.55f, 1), (2.95f, 2));
+        fight.cues.Add((1.60f, () => Dodge(-90f)));
+        list.Add(fight);
+
+        // 2~4. 장르 테이프: R → (세상이 거의 멈춘 사이) E → 능력
+        list.Add(Ability("rain_jazz", V(206f, 0.02f, 320f), new[] { "Thug_Pier_A", "Thug_Pier_B", "Thug_Yard_A" }, 3.8f, 55f,
+            new[] { (1.55f, -90f), (2.45f, 90f) }, (0.10f, 0), (0.50f, 1), (1.95f, 2), (2.95f, 0), (3.30f, 1)));        // 재즈 「즉흥」: 구르고 받아친다
+        list.Add(Ability("dock_soul", V(164f, 0.02f, 100f), new[] { "Thug_Lane", "Thug_Caller", "Thug_Spotter" }, 3.6f, -40f,
+            new (float, float)[0], (0.10f, 0), (1.35f, 0), (1.70f, 1), (2.10f, 2), (2.70f, 1), (3.10f, 2)));            // 소울 「그루브」: 무겁게 친다
+        // 4. 네온 러시: 켜자마자 적에게 내달린다(옆에서 찍어 형광 잔상이 꼬리처럼 보이게) → 느려진 적들 사이에서 연타
+        var neon = new Shot { scene = "Chapter1", gameplay = true, seconds = 4.8f, camYawOff = 95f, camPitch = 6f, camDist = 3.6f, camDrift = -25f };
+        Vector3 neonAt = V(136f, 0.02f, 178f);
+        neon.setup = () =>
+        {
+            EndAbility();
+            Place(neonAt + Vector3.back * 9f, neonAt);
+            Fighters(neonAt + Vector3.back * 1.2f, "Thug_Market_A", "Thug_Market_B", "Thug_Road");
+            UseTape("citypop_1");
+        };
+        neon.cues.Add((0.10f, OpenChoice));
+        neon.cues.Add((0.45f, () => Pick(2))); // E
+        neon.cues.Add((0.55f, () => Run(Vector3.forward, 7.5f)));
+        neon.cues.Add((1.60f, StopRun));
+        Attacks(neon, (1.65f, 0), (1.95f, 1), (2.30f, 2), (2.80f, 0), (3.10f, 1), (3.45f, 2), (3.95f, 0), (4.25f, 1));
+        list.Add(neon);
+
+        // 5. 내달려 한 놈을 쓰러뜨리고 → 크게 맞는다 → R → Q 되감기(이 컷만 천천히: 레이가 뒷걸음치고 쓰러진 놈이 일어서는 게 보이게) → 이번엔 피하고 받아친다
+        var rewind = new Shot { scene = "Chapter1", gameplay = true, seconds = 7.6f, camYawOff = -60f, camPitch = 8f, camDist = 3.6f, camDrift = 6f };
+        Vector3 rwAt = V(163f, 0.02f, 82f);
+        rewind.setup = () =>
+        {
+            EndAbility();
+            Place(rwAt + Vector3.back * 5f, rwAt);
+            Fighters(rwAt + Vector3.back * 1.2f, "Thug_Exit_A", "Thug_Exit_B", "Thug_Yard_B");
+            UseTape("lighthouse");
+            var ph = Player().GetComponent<Health>(); ph.Invulnerable = false; ph.SetCurrent(ph.Max);
+            var w = UnityEngine.Object.FindAnyObjectByType<Walkman>(); if (w) w.playbackSpeed = 1.6f; // 보통 4배속 → 이 컷만 천천히
+            TimeRewind.Clear(); // 이 자리부터만 되감긴다
+        };
+        rewind.cues.Add((0.10f, () => Run(Vector3.forward, 6f)));
+        rewind.cues.Add((0.75f, StopRun));
+        Attacks(rewind, (0.80f, 0), (1.15f, 1), (1.55f, 2), (6.55f, 2), (7.00f, 0));
+        rewind.cues.Add((2.30f, () => { var e = Enemy("Thug_Exit_B"); var ph = Player().GetComponent<Health>(); ph.TakeDamage(35, e ? e.transform.position : Player().transform.position + Vector3.right); }));
+        rewind.cues.Add((2.75f, OpenChoice));
+        rewind.cues.Add((3.15f, () => Pick(1))); // Q
+        rewind.cues.Add((6.05f, () => { Player().GetComponent<Health>().Invulnerable = true; Dodge(180f); }));
+        rewind.cues.Add((7.50f, () => { var w = UnityEngine.Object.FindAnyObjectByType<Walkman>(); if (w) w.playbackSpeed = 4f; }));
+        list.Add(rewind);
+
+        // 6. 로고(글자 없이)
+        list.Add(new Shot { black = true, logo = true, seconds = 3.0f, sfx = "World/TapeStop", sfxAt = 0.05f, sfxGain = 0.8f });
+        return list;
+    }
+
+    /// <summary>장르 테이프 컷: 그 장르 테이프를 끼우고 싸우다가 R(고르기 · 세상이 거의 멈춤) → E(능력)</summary>
+    static Shot Ability(string musicId, Vector3 at, string[] enemies, float seconds, float yawOff, (float at, float deg)[] dodges, params (float at, int step)[] attacks)
+    {
+        var s = new Shot { scene = "Chapter1", gameplay = true, seconds = seconds, camYawOff = yawOff, camPitch = 7f, camDist = 3.0f, camDrift = 16f };
+        s.setup = () =>
+        {
+            EndAbility();
+            Place(at, at + Vector3.forward * 2f);
+            Fighters(at, enemies);
+            UseTape(musicId);
+        };
+        Attacks(s, attacks);
+        foreach (var (t, deg) in dodges) s.cues.Add((t, () => Dodge(deg)));
+        s.cues.Add((0.60f, OpenChoice));
+        s.cues.Add((1.05f, () => Pick(2))); // E
+        return s;
+    }
+
+    static void Attacks(Shot s, params (float at, int step)[] list)
+    {
+        foreach (var (at, i) in list) s.cues.Add((at, () => Attack(i)));
+        s.cues.Sort((x, y) => x.at.CompareTo(y.at));
+    }
+
+    /// <summary>레이 둘레(앞 · 오른쪽 · 왼쪽 뒤)에 덤비는 적 셋</summary>
+    static void Fighters(Vector3 at, params string[] names)
+    {
+        var offs = new[] { new Vector3(0f, 0f, 2.1f), new Vector3(2.2f, 0f, -0.3f), new Vector3(-2.1f, 0f, -0.9f) };
+        for (int i = 0; i < names.Length && i < offs.Length; i++) Fighter(names[i], at + offs[i] + Vector3.up * 0.02f);
+    }
+
+    /// <summary>그 장르 테이프(횟수 3)를 끼운다</summary>
+    static void UseTape(string musicId)
+    {
+        var w = UnityEngine.Object.FindAnyObjectByType<Walkman>(); if (!w) return;
+        w.AddTape(new CassetteTape { title = musicId, musicId = musicId, playable = true, charges = CassetteTape.MaxCharges });
+        w.Equip(w.tapes.Count - 1);
+    }
+
+    static void OpenChoice()
+    {
+        var w = UnityEngine.Object.FindAnyObjectByType<Walkman>();
+        if (w) typeof(Walkman).GetMethod("TryOpenChoice", Any).Invoke(w, null);
+    }
+
+    /// <summary>레이를 그 방향(월드)으로 달리게 한다: 연출 이동(조작 잠금 동안 감독이 정한 속도로 움직이는 길)을 빌린다</summary>
+    static void Run(Vector3 dir, float speed) { StoryState.ControlLocked = true; Player().scriptedVelocity = dir.normalized * speed; }
+    static void StopRun() { Player().scriptedVelocity = Vector3.zero; StoryState.ControlLocked = false; }
+
+    static void Pick(int pick) { var w = UnityEngine.Object.FindAnyObjectByType<Walkman>(); if (w) w.Choose(pick); }
+
+    static void EndAbility() { var ab = UnityEngine.Object.FindAnyObjectByType<TapeAbility>(); if (ab) ab.EndNow(); Time.timeScale = 1f; }
+
+    static PlayerController Player() => UnityEngine.Object.FindAnyObjectByType<PlayerController>();
+    static EnemyAI Enemy(string name) => UnityEngine.Object.FindObjectsByType<EnemyAI>(FindObjectsInactive.Include, FindObjectsSortMode.None).FirstOrDefault(x => x.name == name);
+    const System.Reflection.BindingFlags Any = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+
+    /// <summary>1장 이야기를 멈춘다(컷신 · 대사 · 잠금이 촬영에 끼어들지 않게). 카세트 노래는 끄고 되감을 테이프를 넉넉히</summary>
+    static void Unscript()
+    {
+        var d = UnityEngine.Object.FindAnyObjectByType<Chapter1Director>();
+        if (d)
+        {
+            d.StopAllCoroutines(); d.enabled = false;
+            // 시작 장면의 연출 카메라가 켜져 있으면 게임 카메라로 돌린다
+            if (d.gameplayCamera) typeof(Chapter1Director).GetMethod("Shot", Any).Invoke(d, new object[] { d.gameplayCamera, 0f });
+        }
+        StoryState.CutsceneActive = StoryState.ControlLocked = StoryState.CombatLocked = StoryState.RewindLocked = StoryState.WalkmanStowed = StoryState.HoldTime = false;
+        StoryState.Objective = null; StoryState.Waypoint = null;
+        var w = UnityEngine.Object.FindAnyObjectByType<Walkman>();
+        if (w)
+        {
+            w.musicVolume = 0f; // 트레일러 곡과 겹치지 않게
+            for (int i = 0; i < 3; i++) w.AddTape(new CassetteTape { title = "트레일러", playable = false, charges = CassetteTape.MaxCharges });
+        }
+    }
+
+    /// <summary>적을 그 자리에 세운다(순찰 걸음을 멈추고, 아직 싸우지 않는다)</summary>
+    static void Stand(EnemyAI e, Vector3 at, Vector3 facing)
+    {
+        if (!e) return;
+        e.gameObject.SetActive(true);
+        e.Deactivate();
+        var ps = e.GetComponent<PatrolSight>(); if (ps) { ps.Holding = true; ps.Staged = false; ps.CanDetect = false; }
+        e.PlaceAt(at, Quaternion.LookRotation(Vector3.ProjectOnPlane(facing, Vector3.up)));
+    }
+
+    /// <summary>레이를 노리고 덤비는 적으로 세운다</summary>
+    static void Fighter(string name, Vector3 at)
+    {
+        var e = Enemy(name); if (!e) { Debug.LogWarning("[트레일러] 적 없음 " + name); return; }
+        var p = Player();
+        e.gameObject.SetActive(true);
+        var ps = e.GetComponent<PatrolSight>(); if (ps) { ps.Holding = false; ps.Staged = false; }
+        e.PlaceAt(at, Quaternion.LookRotation(Vector3.ProjectOnPlane(p.transform.position - at, Vector3.up)));
+        e.Activate();
+    }
+
+    /// <summary>주먹: 닿는 거리(약 2.4m — 달라붙는 거리 포함)에 적이 있을 때만 그쪽을 보고 친다.
+    /// 없으면 허공에 휘두르지 않고 가장 가까운 적에게 달려간다(2026-10-19 "허공에 주먹질하는 장면이 너무 많다")</summary>
+    static void Attack(int step)
+    {
+        var p = Player();
+        var target = NearestEnemy(p.transform.position, out float d);
+        if (!target) return;
+        if (d > 2.4f) { Chase(target); return; }
+        StopChase();
+        Vector3 to = Vector3.ProjectOnPlane(target.transform.position - p.transform.position, Vector3.up);
+        if (to.sqrMagnitude > 0.01f) p.transform.rotation = Quaternion.LookRotation(to);
+        typeof(PlayerController).GetMethod("BeginAttack", Any).Invoke(p, new object[] { step, Vector3.zero });
+    }
+
+    static EnemyAI NearestEnemy(Vector3 from, out float distance)
+    {
+        EnemyAI best = null; distance = float.MaxValue;
+        foreach (var e in EnemyAI.All)
+        {
+            if (!e || !e.isActiveAndEnabled || e.Health.IsDead) continue;
+            float dd = Vector3.Distance(Vector3.ProjectOnPlane(e.transform.position - from, Vector3.up), Vector3.zero);
+            if (dd < distance && dd < 12f) { distance = dd; best = e; }
+        }
+        return best;
+    }
+
+    static EnemyAI chaseTarget;
+    static void Chase(EnemyAI e) { chaseTarget = e; Run(e.transform.position - Player().transform.position, 6.5f); }
+    static void StopChase() { if (chaseTarget) { chaseTarget = null; StopRun(); } }
+
+    /// <summary>매 프레임: 쫓는 중이면 방향을 고쳐 잡고, 닿을 거리면 멈춘다</summary>
+    static void UpdateChase()
+    {
+        if (!chaseTarget) return;
+        var p = Player();
+        if (chaseTarget.Health.IsDead) { StopChase(); return; }
+        Vector3 to = Vector3.ProjectOnPlane(chaseTarget.transform.position - p.transform.position, Vector3.up);
+        if (to.magnitude < 1.6f) { StopChase(); return; }
+        p.scriptedVelocity = to.normalized * 6.5f;
+    }
+
+    /// <summary>구르기: 레이 앞 기준 각도(도)로</summary>
+    static void Dodge(float degrees)
+    {
+        var p = Player();
+        typeof(PlayerController).GetMethod("BeginDodge", Any).Invoke(p, new object[] { Quaternion.Euler(0f, degrees, 0f) * p.transform.forward });
+    }
+
+    static void Choke(string name)
+    {
+        var e = Enemy(name); var td = Player().GetComponent<Takedown>();
+        if (!e || !td) return;
+        td.StartCoroutine((IEnumerator)typeof(Takedown).GetMethod("Perform", Any).Invoke(td, new object[] { e }));
+    }
+
+    /// <summary>게임 카메라 각도: 촬영 시작 때 레이 방향 + 각도로 정하고, 컷 동안 천천히 돈다</summary>
+    static void SetGameCamera(Shot s, float t)
+    {
+        var tpc = UnityEngine.Object.FindAnyObjectByType<ThirdPersonCamera>(); if (!tpc) return;
+        typeof(ThirdPersonCamera).GetField("yaw", Any).SetValue(tpc, s.camYaw + s.camDrift * t);
+        typeof(ThirdPersonCamera).GetField("pitch", Any).SetValue(tpc, s.camPitch);
+        tpc.distance = s.camDist;
+    }
+
     // ---------------- 시작 ----------------
 
     public static void Make(bool previewOnly)
     {
+        playVariant = false; musicStart = 13f; musicFadeIn = 2.5f; musicGain = 0.8f;
+        Start(previewOnly, Build());
+    }
+
+    /// <summary>20초쯤의 플레이 영상(1장)</summary>
+    public static void MakePlay(bool previewOnly)
+    {
+        playVariant = true; musicStart = 34f; musicFadeIn = 0.4f; musicGain = 0.55f; // 34초부터 곡이 커진다 · 게임 소리가 묻히지 않게 조금 작게
+        Start(previewOnly, BuildPlay());
+    }
+
+    static void Start(bool previewOnly, List<Shot> list)
+    {
         if (!EditorApplication.isPlaying) throw new InvalidOperationException("플레이 중에만");
         preview = previewOnly;
         Directory.CreateDirectory(Out);
-        shots = Build();
+        shots = list;
         index = -1; stage = -1;
         Status = "소리 불러오는 중";
         SetupCamera();
@@ -205,6 +460,15 @@ public static class TrailerMaker
             if (Time.realtimeSinceStartup < settleUntil) return;
             Calm();
             s.setup?.Invoke();
+            if (s.gameplay)
+            {
+                var pl = UnityEngine.Object.FindAnyObjectByType<PlayerController>();
+                s.camYaw = (pl ? pl.transform.eulerAngles.y : 0f) + s.camYawOff;
+                SetGameCamera(s, 0f);
+                if (!preview) AudioRenderer.Start(); // 게임 소리를 화면과 같은 박자로 받아 둔다
+            }
+            s.cues.Sort((x, y) => x.at.CompareTo(y.at)); // 정한 때 순서대로
+            cueIndex = 0;
             Time.captureFramerate = Fps;
             stage = 2; lastFrame = -1;
             return;
@@ -214,14 +478,30 @@ public static class TrailerMaker
         lastFrame = Time.frameCount;
         int total = Mathf.RoundToInt(s.seconds * Fps);
         float t = frame / (float)Mathf.Max(1, total - 1);
-        Render(s, t, frame / (float)Fps);
+        float now = frame / (float)Fps;
+        // 정한 때가 된 동작(다음 게임 프레임부터 보인다)
+        while (cueIndex < s.cues.Count && s.cues[cueIndex].at <= now)
+        {
+            try { s.cues[cueIndex].act(); } catch (Exception ex) { Debug.LogWarning($"[트레일러] 신호 실패 {index + 1}-{cueIndex}: {ex.GetBaseException().Message}"); }
+            cueIndex++;
+        }
+        if (s.gameplay) { SetGameCamera(s, t); UpdateChase(); }
+        Render(s, t, now);
         frame++;
         if (frame == Mathf.RoundToInt(total * 0.6f)) // 컷마다 한 장 남긴다(확인용). 미리보기면 거기서 다음 컷으로
         {
             File.WriteAllBytes(Path.Combine(Out, $"preview_{index + 1:00}.jpg"), frameTex.EncodeToJPG(85));
             if (preview) frame = total;
         }
-        if (frame >= total) { Time.captureFramerate = 0; stage = 0; NextShot(); }
+        else if (s.gameplay && (frame == Mathf.RoundToInt(total * 0.2f) || frame == Mathf.RoundToInt(total * 0.4f) || frame == Mathf.RoundToInt(total * 0.8f)))
+            File.WriteAllBytes(Path.Combine(Out, $"preview_{index + 1:00}_{frame * 100 / total:00}.jpg"), frameTex.EncodeToJPG(80)); // 플레이 영상은 동작 확인용으로 더
+        if (frame >= total)
+        {
+            Time.captureFramerate = 0; stage = 0;
+            if (s.gameplay && !preview) AudioRenderer.Stop();
+            if (s.gameplay) StopChase();
+            NextShot();
+        }
     }
     static int lastFrame;
 
@@ -244,7 +524,12 @@ public static class TrailerMaker
             caption.text = ""; sub.fontSize = 30;
         }
         else { logoImg.color = new Color(1, 1, 1, 0); sub.fontSize = 46; }
-        if (!s.black)
+        if (s.gameplay)
+        {
+            var mc = Camera.main;
+            if (mc) { cam.transform.SetPositionAndRotation(mc.transform.position, mc.transform.rotation); cam.fieldOfView = mc.fieldOfView * 0.82f; } // 게임 화각(55°)은 넓어 사람이 작게 보였다 → 조금 당겨 찍는다
+        }
+        else if (!s.black)
         {
             cam.transform.position = Vector3.Lerp(s.from, s.to, e);
             cam.transform.LookAt(Vector3.Lerp(s.lookFrom, s.lookTo, e));
@@ -252,7 +537,7 @@ public static class TrailerMaker
         }
         // 되감기 화면 효과
         var fx = UnityEngine.Object.FindAnyObjectByType<RewindEffect>();
-        if (fx) fx.SetWeight(s.rewind > 0f ? s.rewind * (0.75f + 0.25f * Mathf.Sin(sec * 9f)) : 0f);
+        if (fx && !s.gameplay) fx.SetWeight(s.rewind > 0f ? s.rewind * (0.75f + 0.25f * Mathf.Sin(sec * 9f)) : 0f); // 플레이 영상은 게임의 되감기 효과 그대로
         s.each?.Invoke(t);
         cam.clearFlags = s.black ? CameraClearFlags.SolidColor : CameraClearFlags.Skybox; cam.backgroundColor = Color.black;
         cam.cullingMask = s.black ? 1 << LogoLayer : ~((1 << 5) | (1 << OverlayLayer) | (1 << LogoLayer));
@@ -269,7 +554,7 @@ public static class TrailerMaker
             scenePx[i] = new Color32((byte)Mathf.Min(255, u.r + c.r * k / 255), (byte)Mathf.Min(255, u.g + c.g * k / 255), (byte)Mathf.Min(255, u.b + c.b * k / 255), 255);
         }
         frameTex.SetPixels32(scenePx);
-        if (!preview) { encoder.AddFrame(frameTex); PushAudio(); }
+        if (!preview) { encoder.AddFrame(frameTex); PushAudio(s.gameplay); }
     }
 
     // ---------------- 장면 손질 ----------------
@@ -346,21 +631,33 @@ public static class TrailerMaker
 
     static void BeginEncoder()
     {
-        string path = Path.Combine(Out, "REWIND_trailer.mp4");
+        string path = Path.Combine(Out, OutFile);
         if (File.Exists(path)) File.Delete(path);
-        var v = new VideoTrackAttributes { frameRate = new MediaRational(Fps), width = W, height = H, includeAlpha = false, bitRateMode = VideoBitrateMode.High };
+        var v = new VideoTrackAttributes { frameRate = new MediaRational(Fps), width = W, height = H, includeAlpha = false, bitRateMode = playVariant ? VideoBitrateMode.Medium : VideoBitrateMode.High }; // 플레이 영상은 발표 자료에 넣는다(영상 20MB 제한)
         var au = new AudioTrackAttributes { sampleRate = new MediaRational(Rate), channelCount = 2, language = "ko" };
         encoder = new MediaEncoder(path, v, au);
         audio = MixAudio(); audioCursor = 0;
     }
 
-    static void PushAudio()
+    static void PushAudio(bool gameSound)
     {
         int n = Rate / Fps * 2;
         using var buf = new NativeArray<float>(n, Allocator.Temp);
         var arr = new float[n];
         for (int i = 0; i < n; i++) arr[i] = audioCursor + i < audio.Length ? audio[audioCursor + i] : 0f;
         audioCursor += n;
+        if (gameSound)
+        {
+            // 이 프레임의 게임 소리(때리는 소리 · 구르기 · 되감기 테이프 소리): 출력이 48kHz 스테레오일 때만 그대로 더한다
+            int count = AudioRenderer.GetSampleCountForCaptureFrame();
+            int ch = AudioSettings.speakerMode == AudioSpeakerMode.Mono ? 1 : 2;
+            if (count > 0)
+            {
+                using var game = new NativeArray<float>(count * ch, Allocator.Temp);
+                if (AudioRenderer.Render(game) && AudioSettings.outputSampleRate == Rate && ch == 2)
+                    for (int i = 0; i < Mathf.Min(n, game.Length); i++) arr[i] = Mathf.Clamp(arr[i] + game[i], -1f, 1f);
+            }
+        }
         buf.CopyFrom(arr);
         encoder.AddSamples(buf);
     }
@@ -378,8 +675,8 @@ public static class TrailerMaker
             for (int i = 0; i < len && start + i < music.Length; i++)
             {
                 float tsec = i / 2f / Rate;
-                float env = Mathf.Clamp01(tsec / 2.5f) * Mathf.Clamp01((total - tsec) / 3.5f);
-                mix[i] += music[start + i] * 0.8f * env;
+                float env = Mathf.Clamp01(tsec / musicFadeIn) * Mathf.Clamp01((total - tsec) / 3.5f);
+                mix[i] += music[start + i] * musicGain * env;
             }
         }
         float at = 0f;
@@ -456,6 +753,7 @@ public static class TrailerMaker
 
     static void Finish()
     {
+        if (playVariant) EndAbility();
         EditorApplication.update -= Tick;
         Time.captureFramerate = 0;
         if (encoder != null) { encoder.Dispose(); encoder = null; }
@@ -464,7 +762,7 @@ public static class TrailerMaker
         Debug.Log("[트레일러] " + Status);
     }
 
-    static void Abort(string why) { EditorApplication.update -= Tick; Time.captureFramerate = 0; if (encoder != null) { encoder.Dispose(); encoder = null; } Status = "중단: " + why; }
+    static void Abort(string why) { EditorApplication.update -= Tick; Time.captureFramerate = 0; AudioRenderer.Stop(); if (encoder != null) { encoder.Dispose(); encoder = null; } Status = "중단: " + why; }
 
     static void Cleanup()
     {
