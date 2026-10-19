@@ -262,6 +262,9 @@ public static class FilmMaker
         return l;
     }
 
+    /// <summary>false면 설명 없이(포트폴리오 사진용)</summary>
+    public static bool ShowCaptions = true;
+
     static float CapAlpha(Cap c, float t) => Mathf.Clamp01((t - c.t0) / 0.22f) * Mathf.Clamp01((c.t1 - t) / 0.22f);
 
     static void UpdateCaptions(float t)
@@ -269,6 +272,7 @@ public static class FilmMaker
         Cap? low = null, key = null, big = null, sub = null;
         foreach (var c in caps)
         {
+            if (!ShowCaptions) break;
             if (t < c.t0 || t > c.t1) continue;
             if (c.kind == 0) low = c; else if (c.kind == 1) key = c; else if (c.kind == 2) big = c; else sub = c;
         }

@@ -14,6 +14,7 @@ using UnityEngine;
 public static class UiLayoutTest
 {
     const BindingFlags Any = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.Static;
+    static readonly string[] OfferNames = { "버스 정류장 믹스테이프", "공원 벤치의 테이프", "Harbor Blues (복사본)" };
     static readonly (int w, int h)[] Sizes = { (1920, 1080), (1280, 720), (1366, 768), (2560, 1080), (1280, 1024), (1024, 768), (800, 600), (1000, 400) }; // 마지막: 에디터의 작은 게임 창(2026-10-17 사용자 화면)
 
     class Scenario { public string name; public Action setup, teardown; }
@@ -331,16 +332,17 @@ public static class UiLayoutTest
                 if (!shop) throw new Exception("가게 없음");
                 shop.gameObject.SetActive(true);
                 var w = W;
-                w.tapes.RemoveAll(t => t.title.StartsWith("시험 ")); // 해상도마다 다시 띄운다: 쌓이지 않게
-                w.tapes.Add(new CassetteTape { title = "시험 주운 테이프 A", playable = false, charges = 1 });
-                w.tapes.Add(new CassetteTape { title = "시험 주운 테이프 B", playable = false, charges = 2 });
-                w.tapes.Add(new CassetteTape { title = "시험 Harbor Blues", musicId = "harbor_blues", playable = true, charges = 0 });
+                // 실제 같은 이름(포트폴리오 사진에도 쓴다). 해상도마다 다시 띄운다: 쌓이지 않게
+                w.tapes.RemoveAll(t => System.Array.IndexOf(OfferNames, t.title) >= 0);
+                w.tapes.Add(new CassetteTape { title = OfferNames[0], playable = false, charges = 1 });
+                w.tapes.Add(new CassetteTape { title = OfferNames[1], playable = false, charges = 2 });
+                w.tapes.Add(new CassetteTape { title = OfferNames[2], musicId = "harbor_blues", playable = true, charges = 0 });
                 typeof(TapeShop).GetField("walkman", Any).SetValue(shop, w);
                 foreach (var it in shop.stock) it.traded = false;
                 typeof(TapeShop).GetMethod("Open", Any).Invoke(shop, null);
                 shop.Choose(0);
                 if (!shop.Offering) throw new Exception("내줄 테이프 고르기로 넘어가지 않음");
-                int a = shop.Candidates.FindIndex(t => t.title == "시험 주운 테이프 A"), b = shop.Candidates.FindIndex(t => t.title == "시험 주운 테이프 B");
+                int a = shop.Candidates.FindIndex(t => t.title == OfferNames[0]), b = shop.Candidates.FindIndex(t => t.title == OfferNames[1]);
                 shop.Offer.Clear();
                 shop.ToggleOffer(a); shop.ToggleOffer(b);
                 if (!shop.OfferEnough) throw new Exception($"1회 + 2회가 모자라다고 나옴({shop.OfferValue})");
