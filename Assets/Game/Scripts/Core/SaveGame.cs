@@ -31,7 +31,11 @@ public static class SaveGame
         public List<string> traded = new(); // "가게 이름|목록 번호"
     }
 
-    static string FilePath => Path.Combine(Application.persistentDataPath, "save.json");
+    /// <summary>
+    /// 저장 파일. 에디터와 빌드는 같은 폴더(LocalLow/회사/제품)를 쓰므로 에디터는 따로 둔다
+    /// (2026-10-19: 에디터에서 2장까지 간 저장이 빌드의 '이어하기'에 그대로 나왔다)
+    /// </summary>
+    public static string FilePath => Path.Combine(Application.persistentDataPath, Application.isEditor ? "save_editor.json" : "save.json");
 
     public static bool HasSave => File.Exists(FilePath);
 
@@ -66,6 +70,15 @@ public static class SaveGame
         foreach (var s in UnityEngine.Object.FindObjectsByType<TapeShop>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             for (int i = 0; i < s.stock.Count; i++) if (s.stock[i].traded) d.traded.Add($"{s.shopName}|{i}");
         try { File.WriteAllText(FilePath, JsonUtility.ToJson(d, true)); }
+        catch (Exception e) { Debug.LogWarning("저장하지 못했다: " + e.Message); }
+    }
+
+    /// <summary>타이틀 '새 게임': 예전 저장을 지우고 첫 장면부터 새로 기록한다(프롤로그에는 저장 지점이 없어, 예전 저장이 남아 '이어하기'가 엉뚱한 장으로 갔다)</summary>
+    public static void StartNew(string firstScene)
+    {
+        Enabled = true;
+        pending = null;
+        try { File.WriteAllText(FilePath, JsonUtility.ToJson(new Data { scene = firstScene, checkpoint = "start", savedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm") }, true)); }
         catch (Exception e) { Debug.LogWarning("저장하지 못했다: " + e.Message); }
     }
 

@@ -22,7 +22,7 @@ public static class SaveTest
         ("c1_zone3", "zone3Start", "Docks", 300f),
     };
 
-    static string SavePath => Path.Combine(Application.persistentDataPath, "save.json");
+    static string SavePath => SaveGame.FilePath;
 
     public static void Begin(string logPath)
     {

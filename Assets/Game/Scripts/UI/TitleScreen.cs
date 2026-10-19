@@ -232,7 +232,7 @@ public class TitleScreen : MonoBehaviour
         if (whir && whir.clip) whir.Play();
         yield return new WaitForSecondsRealtime(2.4f);
         if (cont && SaveGame.Continue()) yield break;
-        SaveGame.Enabled = true; // 타이틀에서 시작한 게임만 진행을 저장한다
+        SaveGame.StartNew(firstScene); // 타이틀에서 시작한 게임만 진행을 저장한다(예전 저장은 새 게임으로 덮는다)
         SceneLoader.Load(firstScene);
     }
 

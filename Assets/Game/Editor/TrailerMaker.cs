@@ -51,7 +51,8 @@ public static class TrailerMaker
     static string musicName = "title-2"; static float musicStart = 13f; // 32초쯤 잠잠했다 34초부터 커진다 → 몽타주 시작(20.7초)에 맞춘다
     static float musicFadeIn = 2.5f, musicGain = 0.8f;
     static bool playVariant; static int cueIndex;
-    static string OutFile => playVariant ? "REWIND_gameplay.mp4" : "REWIND_trailer.mp4";
+    static bool youtube;
+    static string OutFile => youtube ? "REWIND_youtube.mp4" : playVariant ? "REWIND_gameplay.mp4" : "REWIND_trailer.mp4";
     public static string Status = "";
 
     // ---------------- 컷 구성 ----------------
@@ -355,8 +356,12 @@ public static class TrailerMaker
     }
 
     /// <summary>20초쯤의 플레이 영상(1장)</summary>
+    /// <summary>유튜브 올리기용: 플레이 영상과 같은 구성을 고화질로(QA/trailer/REWIND_youtube.mp4)</summary>
+    public static void MakeYouTube() { MakePlay(false); youtube = true; }
+
     public static void MakePlay(bool previewOnly)
     {
+        youtube = false;
         playVariant = true; musicStart = 34f; musicFadeIn = 0.4f; musicGain = 0.55f; // 34초부터 곡이 커진다 · 게임 소리가 묻히지 않게 조금 작게
         Start(previewOnly, BuildPlay());
     }
@@ -633,7 +638,7 @@ public static class TrailerMaker
     {
         string path = Path.Combine(Out, OutFile);
         if (File.Exists(path)) File.Delete(path);
-        var v = new VideoTrackAttributes { frameRate = new MediaRational(Fps), width = W, height = H, includeAlpha = false, bitRateMode = playVariant ? VideoBitrateMode.Medium : VideoBitrateMode.High }; // 플레이 영상은 발표 자료에 넣는다(영상 20MB 제한)
+        var v = new VideoTrackAttributes { frameRate = new MediaRational(Fps), width = W, height = H, includeAlpha = false, bitRateMode = playVariant && !youtube ? VideoBitrateMode.Medium : VideoBitrateMode.High }; // 발표 자료용 플레이 영상은 20MB 제한이라 낮춘다, 유튜브용은 높게
         var au = new AudioTrackAttributes { sampleRate = new MediaRational(Rate), channelCount = 2, language = "ko" };
         encoder = new MediaEncoder(path, v, au);
         audio = MixAudio(); audioCursor = 0;
