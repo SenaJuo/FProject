@@ -59,9 +59,19 @@ public class TitleScreen : MonoBehaviour
 
     State state;
     float t, startT;
+
+    /// <summary>촬영용(편집기 도구가 켠다): 메뉴 · 조작 안내를 그리지 않는다. 게임에서는 늘 false</summary>
+    public static bool HideMenu;
     int selected;
     Vector2 lastMouse;
     bool mouseArmed, mouseSynced;
+
+    /// <summary>
+    /// 설정 창이 열려 있던 마지막 프레임, 그 창을 닫은 클릭을 뗄 때까지 막는지(2026-10-20: 설정의 '뒤로'를 누르면
+    /// 같은 클릭이 창을 닫은 뒤 타이틀로 넘어와, 그 자리에 있던 카세트 건반 · 메뉴가 눌렸다. Enter도 마찬가지)
+    /// </summary>
+    int menuOpenFrame = -10; bool waitRelease;
+    bool JustClosedMenu => Time.frameCount <= menuOpenFrame + 1;
     AudioSource rain, music, whir;
     float musicBase = 0.45f, rainBase = 0.4f; // 타이틀 전용 곡이 앞에, 빗소리는 그 뒤에 깔린다
     Texture2D grain, vignette, glow, dot, streak;
@@ -175,7 +185,9 @@ public class TitleScreen : MonoBehaviour
         }
         if (whir) whir.volume = 0.8f * GameSettings.Gain(GameSettings.Channel.Sfx) * (state == State.Starting ? 1f - Mathf.Clamp01((t - startT - 1.3f) / 0.6f) : 1f);
 
-        if (state == State.Starting || state == State.Rewinding || PauseMenu.IsOpen) { hover = held = DeckKey.None; return; }
+        if (PauseMenu.IsOpen) { menuOpenFrame = Time.frameCount; waitRelease = true; }
+        if (waitRelease && Mouse.current != null && !Mouse.current.leftButton.isPressed && !JustClosedMenu) waitRelease = false;
+        if (state == State.Starting || state == State.Rewinding || PauseMenu.IsOpen || JustClosedMenu) { hover = held = DeckKey.None; return; }
         UpdateDeckInput();
 
         var kb = Keyboard.current;
@@ -358,7 +370,7 @@ public class TitleScreen : MonoBehaviour
         if (mouse == null || state != State.Menu) { hover = DeckKey.None; return; }
         Vector2 p = mouse.position.ReadValue();
         hover = KeyAt(new Vector2(p.x, Screen.height - p.y));
-        if (mouse.leftButton.wasPressedThisFrame && hover != DeckKey.None) { held = hover; PressKey(hover); }
+        if (mouse.leftButton.wasPressedThisFrame && hover != DeckKey.None && !waitRelease) { held = hover; PressKey(hover); }
         if (!mouse.leftButton.isPressed) held = DeckKey.None;
     }
 
@@ -543,6 +555,7 @@ public class TitleScreen : MonoBehaviour
 
         float menuAlpha = Mathf.Clamp01((t - 2.6f) / 1.0f) * uiAlpha;
         if (state == State.Intro) menuAlpha = Mathf.Min(menuAlpha, Mathf.Clamp01((t - 2.6f) / 1.0f));
+        if (HideMenu) menuAlpha = 0f;
         if (menuAlpha > 0.01f)
         {
             if (!mouseSynced && e.type == EventType.Repaint) { lastMouse = e.mousePosition; mouseSynced = true; }
@@ -553,7 +566,7 @@ public class TitleScreen : MonoBehaviour
             for (int i = 0; i < items.Length; i++)
             {
                 var r = new Rect(x, y + i * 58f * s, 360f * s, 48f * s);
-                bool interactive = state == State.Menu && !PauseMenu.IsOpen;
+                bool interactive = state == State.Menu && !PauseMenu.IsOpen && !JustClosedMenu && !waitRelease;
                 if (interactive && mouseMoved && r.Contains(e.mousePosition)) Select(i);
                 // 마우스를 움직인 뒤의 클릭만 받는다(게임에서 연타하던 공격 클릭이 '종료'를 누르지 않게)
                 if (interactive && mouseArmed && e.type == EventType.MouseDown && e.button == 0 && r.Contains(e.mousePosition))
