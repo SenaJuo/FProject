@@ -1076,8 +1076,7 @@ public class Chapter1Director : MonoBehaviour
         bool hasCompanyTape = walkman && walkman.tapes.Exists(t => !t.playable);
         StoryState.Say("가게 주인 (안쪽에서)", hasCompanyTape
             ? "…주머니에 그 상표 없는 테이프. 그 회사 물건이야. 어디서 났는지는 안 물을게. 조심해."
-            : "잘 들어. 끝까지 들으면 그만큼 돌려받는 법이니까.", 4.4f);
-        Tutorial.Show("listen");
+            : "다 쓴 테이프 있으면 가져와. 새 걸로 바꿔 주지.", 4.4f); // 예전 '끝까지 들으면 돌려받는다'(듣고 모으기)는 10-14 규칙 변경으로 맞지 않아 뺐다
     }
 
     // ---------- 연출 도구 ----------

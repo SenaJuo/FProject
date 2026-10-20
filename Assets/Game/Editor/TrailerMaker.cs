@@ -50,6 +50,8 @@ public static class TrailerMaker
     static bool preview;
     static string musicName = "title-2"; static float musicStart = 13f; // 32초쯤 잠잠했다 34초부터 커진다 → 몽타주 시작(20.7초)에 맞춘다
     static float musicFadeIn = 2.5f, musicGain = 0.8f;
+    /// <summary>플레이 영상(발표 자료) 곡: 2026-10-20 "좀 어두운 걸로" → 소개 영상과 같은 VARCO 곡. 맞고 되감는 동안 곡이 가라앉고, 받아치는 순간(21.95초) 다시 터진다(곡 111.13초)</summary>
+    static string MusicRes => playVariant ? FilmMaker.IntroMusic : $"Music/Title/{musicName}";
     static bool playVariant; static int cueIndex;
     static bool youtube;
     static string OutFile => youtube ? "REWIND_youtube.mp4" : playVariant ? "REWIND_gameplay.mp4" : "REWIND_trailer.mp4";
@@ -362,7 +364,7 @@ public static class TrailerMaker
     public static void MakePlay(bool previewOnly)
     {
         youtube = false;
-        playVariant = true; musicStart = 34f; musicFadeIn = 0.4f; musicGain = 0.55f; // 34초부터 곡이 커진다 · 게임 소리가 묻히지 않게 조금 작게
+        playVariant = true; musicStart = 111.13f - 21.95f; musicFadeIn = 0.4f; musicGain = 0.55f; // 게임 소리가 묻히지 않게 조금 작게
         Start(previewOnly, BuildPlay());
     }
 
@@ -673,7 +675,7 @@ public static class TrailerMaker
         float total = shots.Sum(s => s.seconds);
         int len = Mathf.CeilToInt(total * Rate) * 2;
         var mix = new float[len];
-        var music = Load($"Music/Title/{musicName}");
+        var music = Load(MusicRes);
         if (music != null)
         {
             int start = Mathf.RoundToInt(musicStart * Rate) * 2;
@@ -707,7 +709,7 @@ public static class TrailerMaker
     /// 음악은 미리 '불러올 때 풀기 · PCM'으로 바꿔 두고, 끝나면 .meta를 git으로 되돌린다</summary>
     static float[] Load(string resource)
     {
-        var clip = Resources.Load<AudioClip>(resource);
+        var clip = resource.StartsWith("Assets/") ? AssetDatabase.LoadAssetAtPath<AudioClip>(resource) : Resources.Load<AudioClip>(resource);
         if (!clip) { Debug.LogWarning("[트레일러] 소리 없음 " + resource); return null; }
         var data = new float[clip.samples * clip.channels];
         if (!clip.GetData(data, 0)) { Debug.LogWarning("[트레일러] 소리 못 읽음 " + resource + " " + clip.loadState); return null; }
@@ -731,9 +733,9 @@ public static class TrailerMaker
     static void Preload()
     {
         pending = new List<AudioClip>();
-        foreach (var n in new[] { $"Music/Title/{musicName}" }.Concat(shots.Where(x => !string.IsNullOrEmpty(x.sfx)).Select(x => "Sfx/" + x.sfx)))
+        foreach (var n in new[] { MusicRes }.Concat(shots.Where(x => !string.IsNullOrEmpty(x.sfx)).Select(x => "Sfx/" + x.sfx)))
         {
-            var c = Resources.Load<AudioClip>(n); if (!c) continue;
+            var c = n.StartsWith("Assets/") ? AssetDatabase.LoadAssetAtPath<AudioClip>(n) : Resources.Load<AudioClip>(n); if (!c) continue;
             c.LoadAudioData(); pending.Add(c);
         }
     }

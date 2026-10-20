@@ -45,6 +45,25 @@ static class FilmAutorun
             EditorApplication.isPlaying = true;
             return;
         }
+        if (mode == "build")
+        {
+            // Windows 빌드(C:\Users\MBC-501-12\Builds\REWIND\REWIND.exe) → 결과를 기록
+            var scenes = new System.Collections.Generic.List<string>();
+            foreach (var sc in EditorBuildSettings.scenes) if (sc.enabled) scenes.Add(sc.path);
+            var o = new BuildPlayerOptions { scenes = scenes.ToArray(), locationPathName = @"C:\Users\MBC-501-12\Builds\REWIND\REWIND.exe", target = BuildTarget.StandaloneWindows64, options = BuildOptions.None };
+            var r = BuildPipeline.BuildPlayer(o);
+            Note($"빌드 끝: {r.summary.result} {r.summary.totalSize / 1048576}MB 오류 {r.summary.totalErrors} 장면 {scenes.Count}");
+            return;
+        }
+        if (mode == "uitest")
+        {
+            // UI 글자 검사(해상도 8종 × 화면 전부) → QA/ui/report.txt
+            SessionState.SetString(UiKey, "1");
+            EditorSceneManager.OpenScene("Assets/Game/Scenes/Chapter1.unity");
+            Note("UI 글자 검사");
+            EditorApplication.isPlaying = true;
+            return;
+        }
         if (mode == "titlebug")
         {
             // 타이틀 설정 창을 닫는 클릭이 카세트 건반을 누르지 않는지(2026-10-20 버그) → QA/trailer/autorun.log
@@ -71,9 +90,11 @@ static class FilmAutorun
             Note("음악 분석 끝");
             return;
         }
+        var known = new[] { "intro", "intro_preview", "film", "film_preview", "play", "play_preview" };
+        if (Array.IndexOf(known, mode.Split(':')[0]) < 0) { Note("모르는 명령: " + mode); return; } // 모르는 명령으로 녹화가 시작되지 않게
         Note("시작: " + mode);
         // 곡 · 소리를 통째로 미리 풀어 둔다(스트리밍이면 GetData가 0을 준다)
-        foreach (var path in new[] { mode.StartsWith("intro") ? FilmMaker.IntroMusic : "Assets/Game/Resources/Music/night_drive-2.mp3", "Assets/Game/Art/Trailer/TapeRewindReal.mp3" })
+        foreach (var path in new[] { mode.StartsWith("intro") || mode.StartsWith("play") ? FilmMaker.IntroMusic : "Assets/Game/Resources/Music/night_drive-2.mp3", "Assets/Game/Art/Trailer/TapeRewindReal.mp3" })
         {
             var imp = AssetImporter.GetAtPath(path) as AudioImporter; if (imp == null) continue;
             var s = imp.defaultSampleSettings; s.loadType = AudioClipLoadType.DecompressOnLoad; s.compressionFormat = AudioCompressionFormat.PCM; s.preloadAudioData = true;
@@ -156,8 +177,33 @@ static class FilmAutorun
         }
     }
 
+    const string UiKey = "FilmAutorun.uitest";
+    static DateTime uiStart;
+    static void UiWatch()
+    {
+        var rep = @"C:\Users\MBC-501-12\OneDrive\Desktop\0930Project\QA\ui\report.txt";
+        if (!EditorApplication.isPlaying) { EditorApplication.update -= UiWatch; return; }
+        if (File.Exists(rep) && File.GetLastWriteTime(rep) > uiStart && File.ReadAllText(rep).Contains("끝"))
+        {
+            EditorApplication.update -= UiWatch; SessionState.EraseString(UiKey);
+            Note("UI 글자 검사 끝: " + File.ReadAllLines(rep)[0]);
+            EditorApplication.isPlaying = false;
+        }
+    }
+
     static void OnPlayMode(PlayModeStateChange st)
     {
+        if (SessionState.GetString(UiKey, "") != "")
+        {
+            if (st == PlayModeStateChange.EnteredPlayMode)
+            {
+                Application.runInBackground = true; uiStart = DateTime.Now;
+                EditorApplication.delayCall += () => UiLayoutTest.Begin();
+                EditorApplication.update -= UiWatch; EditorApplication.update += UiWatch;
+            }
+            else if (st == PlayModeStateChange.EnteredEditMode) { SessionState.EraseString(UiKey); Note("플레이 멈춤"); }
+            return;
+        }
         if (SessionState.GetString(BugKey, "") != "")
         {
             if (st == PlayModeStateChange.EnteredPlayMode)
@@ -199,7 +245,8 @@ static class FilmAutorun
                     var parts = mode.Split(':'); FilmMaker.From = parts.Length > 1 ? parts[1] : ""; mode = parts[0];
                     bool prev = mode.EndsWith("_preview");
                     FilmMaker.ShowCaptions = true;
-                    if (mode.StartsWith("intro")) FilmMaker.MakeIntro(prev); else FilmMaker.Make(prev);
+                    if (mode.StartsWith("play")) { TrailerMaker.MakePlay(prev); status = () => TrailerMaker.Status; } // 발표 자료용 플레이 영상
+                    else { if (mode.StartsWith("intro")) FilmMaker.MakeIntro(prev); else FilmMaker.Make(prev); status = () => FilmMaker.Status; }
                     EditorApplication.update -= Watch; EditorApplication.update += Watch;
                 }
                 catch (Exception e) { Note("실패: " + e); Stop(); }
@@ -214,9 +261,10 @@ static class FilmAutorun
     }
 
     static string last = "";
+    static Func<string> status = () => FilmMaker.Status;
     static void Watch()
     {
-        var s = FilmMaker.Status;
+        var s = status();
         if (s != last) { last = s; Note("상태: " + s); }
         if (s.Contains("끝") || s.StartsWith("중단")) { EditorApplication.update -= Watch; Stop(); }
     }
