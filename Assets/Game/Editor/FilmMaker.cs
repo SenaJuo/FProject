@@ -32,7 +32,10 @@ public static class FilmMaker
     public const string IntroMusic = "Assets/Game/Art/Trailer/RewindToDarkness.mp3";
     const float IntroBeat = 60f / 95.2f, IntroTrackAt = 63.225f; // 영상 3.2초 = 곡 63.225초(박) → 되감은 뒤 받아치는 박(DropT)이 곡의 111.13초
     static string MusicPath => intro ? IntroMusic : "Music/night_drive-2";
-    const float Bpm = 139.38f, MusicStartT = 3.2f;
+    const float Bpm = 139.38f;
+    /// <summary>소개 영상 맨 앞의 타이틀 화면 길이(2026-10-21: 타이틀 → 카세트 건반 → REW 되감기 → 본편)</summary>
+    const float TitlePre = 11.6f;
+    static float MusicStartT => (intro ? TitlePre : 0f) + 3.2f;
     static bool intro;
     // 트레일러 3.2초 = 곡 82.83초(박). 소개 영상은 32박 앞에서 들어와 앞부분이 길다(죽음 · 되감기 · 다시 터지는 박은 곡의 같은 자리)
     static float MusicTrackAt => intro ? IntroTrackAt : 82.83f;
@@ -252,7 +255,23 @@ public static class FilmMaker
         { var c = Add(scene, t0, t1, name); c.game = true; c.gYaw = yaw; c.gPitch = pitch; c.gDist = dist; c.gDrift = drift; return c; }
 
         // ---- 도입: 카세트 플레이어 → 밤 항구 → 걸어오는 레이 ----
-        var c0 = Add("Prologue", 0f, MusicStartT, "walkman");
+        // ---- 맨 앞: 게임 타이틀 화면(게임 화면 그대로) — STOP · PLAY · FF로 카세트 건반을 눌러 보이고, REW로 화면이 처음까지 되감기면 본편 ----
+        var t0 = Game("Title", 0f, TitlePre, "title", 0f, 0f, 0f, 0f);
+        t0.setup = () =>
+        {
+            var ts = UnityEngine.Object.FindAnyObjectByType<TitleScreen>(); if (!ts) return;
+            TitleScreen.HideMenu = false;
+            // 장면을 불러 두는 동안 흐른 시간을 지우고 처음부터(로고가 떠오르는 것부터 보이게)
+            typeof(TitleScreen).GetField("t", Any).SetValue(ts, 0f);
+            var sf = typeof(TitleScreen).GetField("state", Any); sf.SetValue(ts, Enum.Parse(sf.FieldType, "Intro"));
+        };
+        void Deck(float at, int key) => t0.At(at, () => { var ts = UnityEngine.Object.FindAnyObjectByType<TitleScreen>(); if (ts) ts.PressKeyNow(key); });
+        Deck(4.8f, 3); // STOP: 음이 내려가며 멈춘다
+        Deck(6.0f, 0); // PLAY
+        Deck(7.2f, 2); // FF: 빨리 감기
+        Deck(8.8f, 1); // REW: 화면 · 음악이 처음까지 되감긴다(2.6초)
+
+        var c0 = Add("Prologue", TitlePre, MusicStartT, "walkman");
         c0.rig = false; c0.fov = 30f; c0.aperture = 2.8f; c0.fill = 0f; c0.fadeIn = 1.0f; c0.shake = 0.15f;
         c0.setup = () =>
         {
@@ -495,7 +514,7 @@ public static class FilmMaker
         void Feature(float at, string n, string a, string b, float len = 2.8f) => l.Add(new Cap { t0 = at + 0.1f, t1 = at + 0.1f + len, kind = 4, n = n, a = a, b = b, col = Color.white });
         Color amber = new(1f, 0.72f, 0.35f);
 
-        Low(0.5f, MusicStartT - 0.15f, "친구가 남긴 카세트 플레이어", "되감기 버튼을 누르면 시간이 거꾸로 흐른다", amber);
+        Low(TitlePre + 0.5f, MusicStartT - 0.15f, "친구가 남긴 카세트 플레이어", "되감기 버튼을 누르면 시간이 거꾸로 흐른다", amber);
         Low(B(0) + 0.25f, B(8) - 0.2f, "전직 형사 레이", "친구 대니를 죽인 조직을 쫓는 3인칭 누아르 액션", amber);
         Low(B(8) + 0.2f, B(16) - 0.2f, "죽으면 되감는다", "단, 테이프에 든 횟수만큼만", amber);
 
@@ -622,7 +641,7 @@ public static class FilmMaker
     const string RealRewind = "Assets/Game/Art/Trailer/TapeRewindReal.mp3"; // VARCO Sound: 테이프가 빠르게 감기며 높아지는 회전음 → 4.6초에 '탁' 멈춤
     static List<(float t, string sfx, float gain)> SfxList() => new()
     {
-        (2.78f, "World/ButtonClick", 0.9f),
+        ((intro ? TitlePre : 0f) + 2.78f, "World/ButtonClick", 0.9f),
         (intro ? B(176) + 0.69f : B(49.6f), "World/SniperShot", 0.75f),
         (DeathT - 0.04f, "World/Gunshot", 0.9f),
         (DropT, "Hit/impact_heavy-1", 0.7f),
