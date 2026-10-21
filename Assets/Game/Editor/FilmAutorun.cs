@@ -90,11 +90,11 @@ static class FilmAutorun
             Note("음악 분석 끝");
             return;
         }
-        var known = new[] { "intro", "intro_preview", "film", "film_preview", "play", "play_preview" };
+        var known = new[] { "intro", "intro_preview", "film", "film_preview", "play", "play_preview", "titlegif" };
         if (Array.IndexOf(known, mode.Split(':')[0]) < 0) { Note("모르는 명령: " + mode); return; } // 모르는 명령으로 녹화가 시작되지 않게
         Note("시작: " + mode);
         // 곡 · 소리를 통째로 미리 풀어 둔다(스트리밍이면 GetData가 0을 준다)
-        foreach (var path in new[] { mode.StartsWith("intro") || mode.StartsWith("play") ? FilmMaker.IntroMusic : "Assets/Game/Resources/Music/night_drive-2.mp3", "Assets/Game/Art/Trailer/TapeRewindReal.mp3" })
+        foreach (var path in new[] { mode.StartsWith("intro") || mode.StartsWith("play") || mode == "titlegif" ? FilmMaker.IntroMusic : "Assets/Game/Resources/Music/night_drive-2.mp3", "Assets/Game/Art/Trailer/TapeRewindReal.mp3" })
         {
             var imp = AssetImporter.GetAtPath(path) as AudioImporter; if (imp == null) continue;
             var s = imp.defaultSampleSettings; s.loadType = AudioClipLoadType.DecompressOnLoad; s.compressionFormat = AudioCompressionFormat.PCM; s.preloadAudioData = true;
@@ -245,7 +245,8 @@ static class FilmAutorun
                     var parts = mode.Split(':'); FilmMaker.From = parts.Length > 1 ? parts[1] : ""; mode = parts[0];
                     bool prev = mode.EndsWith("_preview");
                     FilmMaker.ShowCaptions = true;
-                    if (mode.StartsWith("play")) { TrailerMaker.MakePlay(prev); status = () => TrailerMaker.Status; } // 발표 자료용 플레이 영상
+                    if (mode == "titlegif") { FilmMaker.TitleGif = new GifWriter(640, 360, 10f); FilmMaker.MakeIntro(true); status = () => FilmMaker.Status; } // 타이틀 장면 움짤
+                    else if (mode.StartsWith("play")) { TrailerMaker.MakePlay(prev); status = () => TrailerMaker.Status; } // 발표 자료용 플레이 영상
                     else { if (mode.StartsWith("intro")) FilmMaker.MakeIntro(prev); else FilmMaker.Make(prev); status = () => FilmMaker.Status; }
                     EditorApplication.update -= Watch; EditorApplication.update += Watch;
                 }

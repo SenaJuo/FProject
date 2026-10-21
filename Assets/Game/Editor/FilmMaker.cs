@@ -655,6 +655,9 @@ public static class FilmMaker
 
     // ======================== 시작 ========================
 
+    /// <summary>켜 두면 소개 영상 맨 앞 타이틀 장면만 찍어 움짤로 저장하고 멈춘다(QA/trailer/REWIND_title.gif)</summary>
+    public static GifWriter TitleGif;
+
     /// <summary>미리보기를 이 이름의 컷부터(빈 값이면 처음부터)</summary>
     public static string From = "";
 
@@ -778,7 +781,7 @@ public static class FilmMaker
         frame = -FrameOf(c.preroll); cueIndex = 0; c.framed = false; c.camSet = false; lastFrame = -1;
         c.cues.Sort((a, b) => a.at.CompareTo(b.at));
         if (c.black) { stage = 2; return; }
-        if (c.cont) { c.setup?.Invoke(); stage = 2; return; }
+        if (c.cont) { c.setup?.Invoke(); cutStartFrame = Time.frameCount; stage = 2; return; }
         StopCapture();
         if (SceneManager.GetActiveScene().name != c.scene) { SceneManager.LoadScene(c.scene); settleUntil = Time.realtimeSinceStartup + 4.5f; }
         else settleUntil = Time.realtimeSinceStartup + 0.5f;
@@ -810,6 +813,7 @@ public static class FilmMaker
             Prepare();
             cut.setup?.Invoke();
             Time.captureFramerate = Fps;
+            cutStartFrame = Time.frameCount; // 이 프레임까지 뜬 게임 화면은 컷 준비 전 모습
             if (!audioOn && !preview) { AudioRenderer.Start(); audioOn = true; }
             stage = 2;
             return;
@@ -836,6 +840,12 @@ public static class FilmMaker
         }
         else if (audioOn) DiscardGameAudio();
         frame++;
+        if (frame >= total && TitleGif != null && cut.name == "title")
+        {
+            string gp = Path.Combine(Out, "REWIND_title.gif");
+            TitleGif.Save(gp); Debug.Log($"[필름] 타이틀 움짤 {TitleGif.Count}장 → {gp}"); TitleGif = null;
+            Finish(); return;
+        }
         if (frame >= total)
         {
             // 컷 끝 바로 앞에 건 신호가 프레임 반올림으로 빠지지 않게(소개 영상에서 '총에 맞음'이 실행되지 않았다)
@@ -934,6 +944,7 @@ public static class FilmMaker
             scenePx[i] = new Color32((byte)Mathf.Min(255, u.r + s.r * k / 255), (byte)Mathf.Min(255, u.g + s.g * k / 255), (byte)Mathf.Min(255, u.b + s.b * k / 255), 255);
         }
         frameTex.SetPixels32(scenePx);
+        if (TitleGif != null && c.name == "title" && frame % 3 == 0) TitleGif.Add(scenePx, W, H); // 타이틀 움짤(초당 10장)
         if (!preview) { encoder.AddFrame(frameTex); PushAudio(!c.black && audioOn); }
     }
 
@@ -966,7 +977,7 @@ public static class FilmMaker
     }
 
     /// <summary>게임 화면 컷: 게임 카메라 각도만 정하고(레이 기준), 방금 그려진 게임 창(HUD 포함)을 그대로 쓴다</summary>
-    static EditorWindow gameView; static int directCount, missCount;
+    static EditorWindow gameView; static int directCount, missCount, cutStartFrame = -1;
     static void GameShot(Cut c, float t)
     {
         var p = Player();
@@ -983,7 +994,9 @@ public static class FilmMaker
         if (gameView) gameView.Repaint();
         var shot = FilmGrabber.Last;
         if (!shot || FilmGrabber.LastFrame < Time.frameCount - 2) directCount++; // 새로 뜬 게 없으면 지난 프레임을 그대로
+        if (shot && FilmGrabber.LastFrame <= cutStartFrame && !c.cont) shot = null; // 준비(장면 손질) 전에 뜬 화면은 쓰지 않는다(타이틀 첫 장에 메뉴가 뜬 화면이 끼었다)
         if (shot && shot.width == W && shot.height == H) scenePx = shot.GetPixels32();
+        else if (!shot) { if (scenePx == null || scenePx.Length != W * H) scenePx = new Color32[W * H]; else System.Array.Clear(scenePx, 0, scenePx.Length); }
         else { if (scenePx == null || scenePx.Length != W * H) scenePx = new Color32[W * H]; missCount++; if (missCount % 30 == 1) Debug.LogWarning($"[필름] 게임 창 크기 {(shot ? shot.width + "x" + shot.height : "없음")}"); }
         if (frame % 60 == 0) Debug.Log($"[필름] 게임 화면 {c.name} 프레임 {frame}: 프레임 끝 캡처 {FilmGrabber.LastFrame}/{Time.frameCount}, 지난 프레임 다시 씀 {directCount}, 못 찍음 {missCount}");
     }
