@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -11,6 +11,7 @@ using UnityEngine;
 ///  밀대 값(0~1)은 귀에 들리는 크기에 맞춰 제곱해서 쓴다(50% ≈ 소리 세기 1/4 ≈ -12dB: 절반쯤 작게 들린다).
 /// 화면: 화면 모드 · 해상도 · 화질(QualitySettings 0 낮음 / 1 높음) · 프레임 제한
 /// 조작: 마우스 감도(배율) · 상하 반전
+/// 언어: 한국어 · English(화면 탭)
 /// </summary>
 public static class GameSettings
 {
@@ -200,6 +201,21 @@ public static class GameSettings
         SetInvertY(false);
     }
 
+    // ---------- 언어 ----------
+
+    /// <summary>글자를 영어로 보여 준다(2026-10-21). 한국어 글자를 그릴 때 Loc.T가 영어로 바꾼다</summary>
+    public static bool English { get { Load(); return english; } }
+    static bool english;
+    public static readonly string[] LanguageNames = { "한국어", "English" };
+
+    public static void SetEnglish(bool on)
+    {
+        if (English == on) return;
+        english = on;
+        PlayerPrefs.SetInt("language", on ? 1 : 0);
+        Changed?.Invoke();
+    }
+
     // ---------- 저장 ----------
 
     /// <summary>디스크에 쓴다(설정 창을 닫을 때)</summary>
@@ -216,6 +232,7 @@ public static class GameSettings
         Frame = Mathf.Clamp(PlayerPrefs.GetInt("display.frame", 0), 0, FrameNames.Length - 1);
         MouseSensitivity = Mathf.Clamp(PlayerPrefs.GetFloat("input.mouse", 1f), MouseMin, MouseMax);
         InvertY = PlayerPrefs.GetInt("input.invertY", 0) == 1;
+        english = PlayerPrefs.GetInt("language", 0) == 1;
         ApplyDisplay(); // 화면 모드·해상도는 유니티가 스스로 기억한다
     }
 }

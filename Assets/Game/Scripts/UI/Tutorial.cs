@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -265,6 +265,179 @@ public static class Tutorial
             },
         },
     };
+
+    // ---------- 영어 설명(2026-10-21: 설정 → 언어 English). 같은 id · 같은 쪽 수 · 같은 그림 ----------
+
+    /// <summary>지금 언어에 맞는 설명(영어면 같은 id의 영어 설명)</summary>
+    public static Entry Local(Entry e) => e != null && Loc.English && CatalogEn.TryGetValue(e.id, out var en) ? en : e;
+
+    static string Ability(TapeGenre g) => $"{Loc.En(TapeAbility.Name(g))} ({TapeAbility.Seconds(g):0}s)";
+
+    static readonly Dictionary<string, Entry> CatalogEn = new()
+    {
+        ["rewind"] = new Entry
+        {
+            id = "rewind", category = "Cassette Player", title = "Rewind",
+            pages = new[]
+            {
+                new Page("Turn back time",
+                    $"Hold {H("R")} and time around you runs backward. Let go and it stops at the next {H("5-second")} mark, then moves forward again from there.\n\n" +
+                    $"Each {H("rewind")} turns back {H("5 seconds")} and uses one of the {H("rewinds left")} on the tape in your cassette player.",
+                    "rewind_1"),
+                new Page("Tapes and rewinds",
+                    $"Every tape holds a set number of rewinds (up to {H("3")}). Listening {H("does not refill them")}.\n\n" +
+                    $"When they run out, the tape's {H("music keeps playing")}, and rewinding uses another tape that still has some left. " +
+                    $"Trade spent tapes for new ones at a {H("tape shop")}.",
+                    "rewind_2"),
+                new Page("When you go down",
+                    $"If you fall while a tape still has rewinds left, the {H("REWIND")} screen appears.\n\n" +
+                    $"Hold {H("R")} to go back to before you fell. For {H("1.5 seconds")} after the rewind you can't be hit. " +
+                    $"Press {H("Space")} to save your rewinds and restart from the {H("last checkpoint")} instead.",
+                    "rewind_3"),
+            },
+        },
+        ["genre"] = new Entry
+        {
+            id = "genre", category = "Cassette Player", title = "Genre Tapes",
+            pages = new[]
+            {
+                new Page("Rewind, or use the ability?",
+                    $"With a genre tape inserted, press {H("R")}: time slows for a moment and you choose.\n\n" +
+                    $"{H("Q")} — Rewind\n{H("E")} — the tape's {H("genre ability")} (uses one rewind)\n\n" +
+                    $"Select a tape in the {H("I")} inventory to see its genre and ability."),
+                new Page($"City Pop — {Ability(TapeGenre.CityPop)}",
+                    $"Time around you slows to {H("one quarter")}, while {H("Ray moves at full speed")}.\n\n" +
+                    $"Take out several enemies while they're all but frozen. Ray leaves a neon trail behind him."),
+                new Page($"Jazz — {Ability(TapeGenre.Jazz)}",
+                    $"Your roll's {H("invincibility lasts twice as long")}, and you roll a little farther.\n\n" +
+                    $"Perfect Dodges come {H("more easily")}, and Counters deal {H("1.5x")} damage."),
+                new Page($"Soul — {Ability(TapeGenre.Soul)}",
+                    $"Your punches deal {H("1.5x")} damage.\n\n" +
+                    $"Riot shields {H("can't block")} them — hit a shield cop head-on and it still lands."),
+                new Page($"Ambient — {Ability(TapeGenre.Ambient)}",
+                    $"Damage you take is cut in {H("half")}.\n\n" +
+                    $"While it lasts, every enemy you drop restores {H("8")} HP."),
+            },
+        },
+        ["combat"] = new Entry
+        {
+            id = "combat", category = "Combat", title = "Hand-to-Hand",
+            pages = new[]
+            {
+                new Page("Combo",
+                    $"Tap {H("Left click")} to chain {H("jab → cross → roundhouse kick")}.\n\n" +
+                    $"The final {H("roundhouse")} hits hardest and sends enemies staggering.",
+                    "combat_1"),
+                new Page("Dodge",
+                    $"Press {H("Right click")} to {H("roll")} in the direction you're holding (backward if none). " +
+                    $"You {H("can't be hit")} while rolling.\n\n" +
+                    $"Hold {H("Shift")} to run, press {H("Space")} to jump.",
+                    "combat_2"),
+            },
+        },
+        ["aim"] = new Entry
+        {
+            id = "aim", category = "Combat", title = "Red Laser",
+            pages = new[]
+            {
+                new Page("Enemies with guns",
+                    $"When a gunman lines you up with a {H("red laser")}, he fires about a second later.\n\n" +
+                    $"When you see the laser, {H("Right click")} to roll or duck {H("behind a wall or car")}. Bullets don't pass through cover. " +
+                    $"If you're hit, rewind with {H("R")} and try again."),
+            },
+        },
+        ["shield"] = new Entry
+        {
+            id = "shield", category = "Combat", title = "Shield Cops",
+            pages = new[]
+            {
+                new Page("Enemies with shields",
+                    $"Shield cops block punches from the {H("front")} (a metal clang, no damage).\n\n" +
+                    $"The {H("third hit, the roundhouse")}, knocks the shield aside and leaves them {H("open")} for a moment. " +
+                    $"Or circle around to their {H("side or back")}."),
+            },
+        },
+        ["takedown"] = new Entry
+        {
+            id = "takedown", category = "Stealth", title = "Takedown",
+            pages = new[]
+            {
+                new Page("One move from behind",
+                    $"Get right {H("behind")} an enemy who {H("hasn't spotted you")} and {H("Q: Takedown")} appears.\n\n" +
+                    $"Press {H("Q")} to drop them in one move. It's silent, so {H("nearby enemies won't come running")}. " +
+                    $"You can take down a flashlight patrol before their suspicion bar fills, or a rooftop sniper while he's looking through the scope."),
+            },
+        },
+        ["perfect"] = new Entry
+        {
+            id = "perfect", category = "Combat", title = "Perfect Dodge",
+            pages = new[]
+            {
+                new Page("Roll just before the punch lands",
+                    $"Roll with {H("Right click")} {H("just before")} a punch lands: time slows and that enemy is left {H("wide open")} for a second or so. Shields drop too.\n\n" +
+                    $"{H("Left click")} right then to lunge at them with a {H("Counter")} (a powerful roundhouse).\n\n" +
+                    $"A {H("red !!")} overhead means a {H("Heavy blow")}. Don't trade hits — dodge it. Block a shield cop head-on twice and they shove you back — circle around or make an opening with a Perfect Dodge."),
+            },
+        },
+        ["memory"] = new Entry
+        {
+            id = "memory", category = "Cassette Player", title = "Rewind Memory",
+            pages = new[]
+            {
+                new Page("Only Ray remembers erased time",
+                    $"When you rewind, the world goes back knowing nothing, but {H("Ray remembers the erased seconds.")}\n\n" +
+                    $"A {H("patrol that spotted Ray")} then will show its flashlight {H("cone on the ground")} for a while. It turns redder the more suspicious they get. This time, slip past the light.\n\n" +
+                    $"An {H("enemy that hit Ray")} then shows a {H("timing bar")} overhead for their next {RewindMemory.ForeseenAttacks} attacks. " +
+                    $"When the bar shrinks and {H("NOW!")} appears, roll with {H("Right click")} for a Perfect Dodge (you can roll a little earlier than usual)."),
+            },
+        },
+        ["sniper"] = new Entry
+        {
+            id = "sniper", category = "Combat", title = "Snipers",
+            pages = new[]
+            {
+                new Page("A gun aimed from afar",
+                    $"Rooftop snipers aim with a {H("thick red laser")} even from far away, and about 2 seconds later fire {H("one painful shot")}.\n\n" +
+                    $"When you see the laser, hide behind something taller than a person, like {H("a stall tarp, a truck or pallets")}. " +
+                    $"If you're hit, rewind with {H("R")} and get back behind cover. Climb the alley's {H("iron stairs")} to the roof and hit him up close to break his aim."),
+            },
+        },
+        ["stealth"] = new Entry
+        {
+            id = "stealth", category = "Stealth", title = "Flashlights and Hiding",
+            pages = new[]
+            {
+                new Page("Getting past unseen",
+                    $"Patrolling thugs only see {H("what's ahead in their flashlight beam")}. Step into it and the {H("?")} overhead fills up; " +
+                    $"when it's full, a {H("!")} appears and every thug nearby comes running.\n\n" +
+                    $"You can't be seen {H("behind bushes, buildings or cars")}. Get right up close and they'll notice you even from behind. " +
+                    $"If you're spotted, rewind with {H("R")} to before it happened."),
+            },
+        },
+        ["heal"] = new Entry
+        {
+            id = "heal", category = "Healing", title = "Medkits",
+            pages = new[]
+            {
+                new Page("Medkits",
+                    $"Pick up {H("medkits")} from the {H("red first-aid boxes")} left beside tapes (up to {H("5")}).\n\n" +
+                    $"Press {H("1")} to restore {H("25")} HP. Rewinding doesn't add or remove medkits. " +
+                    $"Reaching a {H("checkpoint")} (tape shop or zone start) restores {H("all")} your HP."),
+            },
+        },
+        ["shop"] = new Entry
+        {
+            id = "shop", category = "Tape Shop", title = "Saving and Trading",
+            pages = new[]
+            {
+                new Page("Tape shops",
+                    $"{H("Tape shops")} along the way are {H("checkpoints")}. Stopping by {H("restores all your HP")}, and if you fall with no rewinds left you restart at the last shop you visited or the {H("zone start")}.\n\n" +
+                    $"Press {H("F")} at a shop to pick the {H("tape you get")} from the shelf, then the {H("tape you give")}. " +
+                    $"The price is {H("1 spent tape")}, or rewind tapes with {H("3 or more rewinds left in total")}. " +
+                    $"The tape you get comes with a full {H("3")} rewinds. Each tape on the shelf can be traded only once."),
+            },
+        },
+    };
 }
 
 /// <summary>설명 알림과 팝업을 그리는 화면(IMGUI, HUD와 같은 방식). 처음 Tutorial.Show 때 스스로 생긴다.</summary>
@@ -416,6 +589,7 @@ public class TutorialUI : MonoBehaviour
 
     void DrawToast(Tutorial.Entry e, float s)
     {
+        e = Tutorial.Local(e);
         float t = Time.unscaledTime - toastStart;
         // 왼쪽에서 미끄러져 들어오고, 끝날 무렵 흐려진다
         float slide = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(t / 0.35f));
@@ -442,12 +616,13 @@ public class TutorialUI : MonoBehaviour
         UiTheme.Panel(r, Tint(new Color(0.13f, 0.13f, 0.14f), alpha), s);
         UiTheme.Outline(r, Tint(UiTheme.Hair, alpha));
         // 분류마다 다른 표시: 카세트 플레이어 = 되감기 기호, 그 밖 = 마름모
-        string glyph = category == "카세트 플레이어" ? "◀◀" : "◆";
+        string glyph = category is "카세트 플레이어" or "Cassette Player" ? "◀◀" : "◆"; // 영어 설명이면 분류도 영어
         Label(r, glyph, glyphStyle, Tint(Paper, alpha));
     }
 
     void DrawPopup(Tutorial.Entry e, float s)
     {
+        e = Tutorial.Local(e);
         Fill(new Rect(0, 0, Screen.width, Screen.height), new Color(0.01f, 0.01f, 0.02f, 0.66f));
         float w = 1160 * s, h = 680 * s;
         var win = new Rect((Screen.width - w) / 2f, (Screen.height - h) / 2f, w, h);

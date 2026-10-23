@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
@@ -105,6 +105,8 @@ public class Takedown : MonoBehaviour
     {
         // 보스는 목을 조를 수 없다(도망칠 때 잠시 꺼져 있어도 — 때려서 막아야 한다)
         if (e.GetComponent<BossCleaner>()) return false;
+        // 2장 증거물 담당: 휴게실에서 재워 버리면 경보 때 번호를 누를 사람이 없다(보관실 안에 눌러앉은 뒤에는 된다)
+        if (e.TryGetComponent(out EvidenceClerk clerk) && clerk.Current != EvidenceClerk.State.Inside) return false;
         var sight = e.GetComponent<PatrolSight>();
         if (sight) return !sight.Alerted && sight.Suspicion < 0.95f;
         return !e.IsActive || e.holdPosition;

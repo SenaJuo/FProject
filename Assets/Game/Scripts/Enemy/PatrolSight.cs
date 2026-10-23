@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.AI;
@@ -120,6 +120,9 @@ public class PatrolSight : MonoBehaviour, IRewindable
         if (!Alerted) BeginPatrol();
         else SetLight(true); // 쓰러진 뒤에서 살아 있던 때로 감기면 다시 켠다(아직 쓰러져 있으면 Update가 끈다)
     }
+
+    /// <summary>처음 순찰 상태로(4장 매복: 되감아 숨은 자리로 돌아갔을 때)</summary>
+    public void Rearm() => ResetPatrol();
 
     void ResetPatrol()
     {

@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 /// <summary>
@@ -103,6 +103,9 @@ public class CombatZone : MonoBehaviour, IRewindable
         if (started || !other.TryGetComponent(out PlayerController _)) return; // 태그 대신 실제 플레이어 몸통인지 확인
         Begin();
     }
+
+    /// <summary>트리거 없이 싸움을 시작한다(4장 매복: 들켰거나, 몰래 다 쓰러뜨려 정리됐을 때)</summary>
+    public void Engage() => Begin();
 
     void Begin()
     {

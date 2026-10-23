@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using Unity.Cinemachine;
 using UnityEngine;
@@ -66,6 +66,8 @@ public class Chapter2Director : MonoBehaviour
     /// <summary>레이가 본 보관실 비밀번호(되감아도 레이는 기억한다 — 되감지 않는 값)</summary>
     public bool CodeKnown { get; private set; }
     bool keyFound, deskSeen, indoors;
+    /// <summary>2층 복도 남쪽 벽의 비상벨(2026-10-23): 일부러 눌러 경보를 울린다 — 담당이 뛰어와 번호를 누르는 걸 보고 되감는다</summary>
+    StoryInteractable alarmBell;
 
     void Awake()
     {
@@ -114,12 +116,13 @@ public class Chapter2Director : MonoBehaviour
         CombatZone.Entered += OnZoneEntered;
         if (clerk)
         {
-            clerk.Keying += OnClerkKeying;
+            clerk.GetComponent<Health>().floor = 1; // 휴게실에서 때려눕히면 경보 때 번호를 누를 사람이 없다(보관실 안에서 덤빌 때 푼다)
             clerk.Entered += OnClerkEntered;
             clerk.Refused += () => StoryState.Say("증거물 담당", "어? 왜 안 열려… 됐다, 내일 하지 뭐.", 3f);
             clerk.SawRay += () => { if (CanBeCaught()) StartCoroutine(CaughtRoutine(clerk.transform)); };
         }
         if (shopApproach) shopApproach.Entered += OnShopApproach;
+        if (clerk) MakeAlarmBell(new Vector3(329.5f, 5.55f, 16.13f)); // 번호판(x 333)과 안내 범위가 겹치지 않게 서쪽으로
         TapeShop.Opened += OnShopOpened;
         TapeShop.Traded += OnTraded;
         PatrolSight.Spotted += OnSpotted;
@@ -260,32 +263,20 @@ public class Chapter2Director : MonoBehaviour
         StoryState.Waypoint = stairsTop;
         yield return new WaitUntil(() => Reached(floor2Trigger));
         CurrentPhase = Phase.Floor2;
-        if (clerk) clerk.Called = true; // 휴게실의 담당이 잠시 뒤 보관실로 온다(되감아도 같은 시각에 다시 나선다)
-        StoryState.Say(Ray, "…증거물 보관실. 비밀번호 문이군.", 2.6f);
         StoryState.Objective = "증거물 보관실에 들어간다";
         StoryState.Waypoint = keypadUse ? keypadUse.transform : null;
+        // 2026-10-23: 번호는 경보가 울려야만 보인다(담당은 평소 휴게실에서 안 나온다) — 들켜서 보고, 되감아서 쓴다
+        StoryState.Say(Ray, "…증거물 보관실. 비밀번호 문이군.", 2.6f);
+        yield return Wait(2.8f);
+        if (!CodeKnown && CurrentPhase == Phase.Floor2 && !Caught)
+            StoryState.Say(Ray, "담당은 휴게실에 눌러앉았다. …저 비상벨이 울리면 보관실부터 잠그러 뛰어오겠지.", 4f);
         yield return new WaitUntil(() => CurrentPhase == Phase.EvidenceRoom);
         yield return new WaitUntil(() => keyFound);
         yield return FromKey();
     }
 
-    void OnClerkKeying()
-    {
-        if (CurrentPhase != Phase.Floor2) return;
-        // 레이가 같은 층 근처에 있으면 번호를 본다
-        bool sees = Vector3.Distance(player.transform.position, clerk.keypadSpot.position) < 18f && Mathf.Abs(player.transform.position.y - clerk.keypadSpot.position.y) < 2f;
-        StoryState.Say("", "(삑 · 삑 · 삑 · 삑 — 0 · 4 · 1 · 7)", 2.6f);
-        if (sees && !CodeKnown) StartCoroutine(LearnCode());
-    }
-
-    IEnumerator LearnCode()
-    {
-        CodeKnown = true;
-        yield return Wait(2.8f);
-        StoryState.Say(Ray, "…0417. 외웠다.", 2.2f);
-    }
-
-    void OnClerkEntered() => StartCoroutine(SwingDoor(evidenceDoor, true, 0.5f, 1.2f));
+    Coroutine clerkDoor; // 담당이 연 문(열었다 닫힌다) — 되감으면 멈춘다(안 그러면 닫은 문이 다시 열렸다 닫혔다)
+    void OnClerkEntered() => clerkDoor = StartCoroutine(SwingDoor(evidenceDoor, true, 0.5f, 1.2f));
 
     const string EvidenceCode = "0417";
 
@@ -304,6 +295,13 @@ public class Chapter2Director : MonoBehaviour
     void OnKeypad()
     {
         if (CurrentPhase != Phase.Floor2 || KeypadPanel.IsOpen) return;
+        if (!CodeKnown)
+        {
+            // 번호를 모른 채 아무 숫자나 눌러 볼 일은 없다: 볼 방법을 일러 준다
+            if (!StoryState.LineVisible) StoryState.Say(Ray, "…번호를 모른다. 담당이 누르는 걸 봐야 해.", 2.6f);
+            if (alarmBell) StoryState.Waypoint = alarmBell.transform;
+            return;
+        }
         KeypadPanel.Open(EvidenceCode, () => StartCoroutine(EnterEvidence()));
     }
 
@@ -315,6 +313,7 @@ public class Chapter2Director : MonoBehaviour
         clerk.enabled = false; // 정해진 길 걷기는 끝
         StoryState.Objective = "증거물 담당을 쓰러뜨린다";
         StoryState.Waypoint = clerk.transform;
+        clerk.GetComponent<Health>().floor = 0;
         float until = StoryState.Now + 3f;
         while (StoryState.Now < until && !ai.Health.IsDead && !ai.IsActive) yield return null;
         if (!ai.Health.IsDead && !ai.IsActive)
@@ -748,7 +747,51 @@ public class Chapter2Director : MonoBehaviour
 
     // ---------- 들켰다: 시간이 멈추고 되감는다 ----------
 
-    void OnSpotted(PatrolSight s) { if (CanBeCaught()) StartCoroutine(CaughtRoutine(s.transform)); }
+    void OnSpotted(PatrolSight s) { if (CanBeCaught()) StartCoroutine(CurrentPhase == Phase.Floor2 && clerk ? AlarmRoutine(s.transform, false) : CaughtRoutine(s.transform)); }
+
+    /// <summary>비상벨: 붉은 상자(벽에 붙은 화재경보기 모양). 2층 단계에서만 누를 수 있다</summary>
+    void MakeAlarmBell(Vector3 at)
+    {
+        var box = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        box.name = "AlarmBell";
+        Destroy(box.GetComponent<Collider>());
+        box.transform.SetPositionAndRotation(at, Quaternion.identity);
+        box.transform.localScale = new Vector3(0.24f, 0.24f, 0.07f);
+        var mr = box.GetComponent<MeshRenderer>();
+        mr.sharedMaterial = new Material(Shader.Find("Universal Render Pipeline/Lit")) { name = "AlarmBell" };
+        mr.sharedMaterial.SetColor("_BaseColor", new Color(0.75f, 0.06f, 0.05f));
+        var knob = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
+        knob.name = "AlarmBellButton";
+        Destroy(knob.GetComponent<Collider>());
+        knob.transform.SetParent(box.transform, false);
+        knob.transform.localPosition = new Vector3(0f, 0f, 0.55f);
+        knob.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+        knob.transform.localScale = new Vector3(0.38f, 0.25f, 0.38f);
+        var knobMat = new Material(mr.sharedMaterial) { name = "AlarmBellButton" }; // 기본 재질을 건드리지 않게 새로
+        knobMat.SetColor("_BaseColor", new Color(0.92f, 0.9f, 0.85f));
+        knob.GetComponent<MeshRenderer>().sharedMaterial = knobMat;
+        var glow = new GameObject("AlarmBellLight").AddComponent<Light>();
+        glow.transform.SetParent(box.transform, false);
+        glow.transform.localPosition = new Vector3(0f, 0f, 3f);
+        glow.type = LightType.Point;
+        glow.color = new Color(1f, 0.2f, 0.12f);
+        glow.range = 0.9f;
+        glow.intensity = 0.8f;
+        glow.shadows = LightShadows.None;
+
+        var use = new GameObject("AlarmBellUse");
+        use.transform.position = at + Vector3.forward * 0.6f + Vector3.down * 0.6f;
+        use.AddComponent<SphereCollider>().radius = 1.2f;
+        alarmBell = use.AddComponent<StoryInteractable>();
+        alarmBell.prompt = "비상벨을 누른다";
+        alarmBell.oneShot = false;
+        alarmBell.Used += () =>
+        {
+            if (CurrentPhase != Phase.Floor2 || !CanBeCaught()) { StoryInteractable.Refuse(); return; }
+            ProceduralSfx.PlayAt(ProceduralSfx.ButtonClick, at, 0.8f, 0.8f, 0.7f);
+            StartCoroutine(AlarmRoutine(null, true));
+        };
+    }
     void OnSearchlight(Searchlight s) { if (CanBeCaught()) StartCoroutine(CaughtRoutine(null)); }
 
     bool entering;
@@ -786,6 +829,84 @@ public class Chapter2Director : MonoBehaviour
             StoryState.ControlLocked = false;
             yield return FadeTo(0f, 0.8f);
         }
+        Caught = false;
+    }
+
+    /// <summary>
+    /// 2층에서 들켰다(2026-10-23): 비상벨이 울리고 담당이 보관실로 뛰어와 번호를 누른다 — 레이는 그 번호를 본다.
+    /// 그다음에야 시간이 멈추고 되감기를 기다린다. 되감으면 경보도, 담당이 나온 일도 없던 일이 되고 번호만 레이에게 남는다.
+    /// 되감을 수 없으면 붙잡혀 1층부터(번호는 그래도 기억한다)
+    /// </summary>
+    IEnumerator AlarmRoutine(Transform by, bool bell)
+    {
+        Caught = true;
+        StoryState.HoldTime = true; // 들킨 순간에서 기록을 멈춘다: 되감으면 경보가 울리기 전으로
+        var hp = player.GetComponent<Health>();
+        hp.Invulnerable = true;
+        StoryState.ControlLocked = true;
+        StoryState.Say("경찰", bell ? "비상벨?! 2층이다!" : "거기 누구야! — 2층에 침입자다!", 1.8f);
+        if (alarm) alarm.TurnOn();
+        // 2층 경찰이 모두 레이 쪽으로 몰려온다(연출 동안 레이는 다치지 않는다)
+        foreach (var s in FindObjectsByType<PatrolSight>(FindObjectsSortMode.None))
+            if (s.transform.position.y > 2f && !s.Enemy.Health.IsDead) s.Alert(false);
+        yield return Wait(1.0f);
+
+        // 보관실 문 앞: 담당이 뛰어와 번호를 누른다
+        StoryState.CutsceneActive = true;
+        clerk.Rush();
+        Vector3 pad = clerk.keypadSpot.position;
+        Place(dynamicA, pad - clerk.keypadSpot.forward * 1.6f + clerk.keypadSpot.right * 0.9f + Vector3.up * 1.7f, pad + clerk.keypadSpot.forward * 0.8f + Vector3.up * 1.3f, 40f);
+        Shot(dynamicA, 0f);
+        StoryState.Say("증거물 담당", "보관실부터 잠가!", 1.4f);
+        yield return Wait(0.8f);
+        StoryState.Say("", "(삑 · 삑 · 삑 · 삑 — 0 · 4 · 1 · 7)", 2.2f);
+        bool learned = !CodeKnown;
+        CodeKnown = true;
+        yield return Wait(2.2f);
+        if (learned) StoryState.Say(Ray, "…0417.", 1.4f);
+        yield return Wait(1.2f);
+        gameplayRig.SnapBehindTarget();
+        Shot(gameplayCamera, 0f);
+        StoryState.CutsceneActive = false;
+        StoryState.SkipRequested = false;
+
+        // 이제 붙잡힌다
+        StoryState.Say("경찰", "꼼짝 마!", 1.4f);
+        Time.timeScale = 0.05f;
+        StoryState.ControlLocked = false;
+        yield return StoryState.Sleep(0.5f);
+        bool canRewind = walkman && walkman.CurrentCharges > 0 && TimeRewind.RecordedSeconds >= 2f;
+        if (canRewind)
+        {
+            StoryState.AskRewind("R 을 길게 눌러 되감는다");
+            yield return new WaitUntil(() => walkman.Rewinding);
+            StoryState.HoldTime = false;
+            StoryState.Prompt = null;
+            if (alarm) alarm.TurnOff();
+            yield return new WaitUntil(() => !walkman.Rewinding);
+            Time.timeScale = 1f;
+            if (clerkDoor != null) StopCoroutine(clerkDoor);
+            StartCoroutine(SwingDoor(evidenceDoor, false, 0.01f, 0f));
+            StoryState.Say(Ray, "…경보가 울리기 전. 번호는 내가 안다.", 2.6f);
+        }
+        else
+        {
+            StoryState.HoldTime = false;
+            Time.timeScale = 1f;
+            StoryState.ControlLocked = true;
+            StoryState.Say(Ray, "…여기까지인가. 그래도 번호는 봤다.", 2.4f);
+            yield return FadeTo(1f, 0.8f);
+            if (alarm) alarm.TurnOff();
+            if (clerkDoor != null) StopCoroutine(clerkDoor);
+            StartCoroutine(SwingDoor(evidenceDoor, false, 0.01f, 0f));
+            if (GameManager.Instance) GameManager.Instance.RespawnNow(); // 담당은 휴게실로, 경찰도 제자리로
+            gameplayRig.SnapBehindTarget();
+            yield return Wait(1.0f);
+            StoryState.ControlLocked = false;
+            yield return FadeTo(0f, 0.8f);
+        }
+        hp.Invulnerable = false;
+        if (CurrentPhase == Phase.Floor2 && keypadUse) StoryState.Waypoint = keypadUse.transform; // 이제 번호를 안다: 다시 번호판으로(비상벨을 가리키던 길잡이)
         Caught = false;
     }
 

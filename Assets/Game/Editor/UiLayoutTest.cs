@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
@@ -90,6 +90,11 @@ public static class UiLayoutTest
     {
         EditorApplication.update -= Tick;
         report.Insert(0, $"문제 {problems}건  ({string.Join(", ", problemKinds.Select(k => $"{k.Key} {k.Value}"))})");
+        if (Loc.English && Loc.Misses.Count > 0) // 영어로 볼 때 번역을 못 찾은 글자
+        {
+            report.Add($"번역 없음 {Loc.Misses.Count}개");
+            foreach (var m in Loc.Misses) report.Add("  " + m.Replace("\n", "⏎"));
+        }
         report.Add("끝");
         Write();
         // 게임 창은 원래대로(자유 비율)

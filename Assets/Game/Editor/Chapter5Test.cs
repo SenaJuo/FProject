@@ -1,11 +1,12 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
 /// <summary>
 /// 5장 + 종장 시험(플레이 중, Chapter5 장면). choice: 1 = 되감기 엔딩, 2 = 부수기 엔딩.
-///  주차장 싸움 → 엘리베이터 → 연구소 실험체 → 격벽 → 홀: 0번(절반에서 경비) → 마스터 테이프 → 방송 → 선택 → 엔딩 → 크레딧.
+///  주차장 싸움 → 엘리베이터 → 연구소 실험체 → 격벽 → 홀: 0번(절반에서 경비) → 마스터 테이프
+///  (2026-10-23: 유리장에 손대면 회장이 번호를 눌러 소각 → 되감기 → 본 번호 1996으로 연다) → 방송 → 선택 → 엔딩 → 크레딧.
 /// </summary>
 public static class Chapter5Test
 {
@@ -99,10 +100,33 @@ public static class Chapter5Test
                 else if (Waited(12f)) End($"0번 뒤 마스터 테이프 단계로 넘어가지 않음({d.CurrentPhase})");
                 break;
             case 11:
+            {
+                var w = p.GetComponent<Walkman>();
+                if (StoryState.RewindAsked && Waited(0.5f))
+                {
+                    Note($"유리장: {Line}, 번호 앎 {d.CaseCodeKnown}(기대 True), 테이프 높이 {d.masterTape.position.y:0.00}, 되감기 {w.RewindSteps(1)}");
+                    Shot("case_burn");
+                    Next();
+                }
+                else if (Waited(15f)) End("유리장에 손댄 뒤 되감기를 묻지 않음");
+                break;
+            }
+            case 12:
+                if (!p.GetComponent<Walkman>().Rewinding && StoryState.Objective == "마스터 테이프를 꺼낸다" && Waited(1f))
+                {
+                    Note($"되감은 뒤: {Line}, 테이프 높이 {d.masterTape.position.y:0.00}");
+                    Fire(d.masterUse);
+                    Note($"   번호판 열림 {KeypadPanel.IsOpen}(기대 True)");
+                    KeypadPanel.Type("1996");
+                    Next();
+                }
+                else if (Waited(12f)) End($"되감은 뒤 유리장으로 돌아오지 않음(목표 '{StoryState.Objective}')");
+                break;
+            case 13:
                 if (d.CurrentPhase == Chapter5Director.Phase.Broadcast && !StoryState.CutsceneActive && Waited(0.5f)) { Note($"마스터 테이프: 목표 '{StoryState.Objective}'"); Tp(new Vector3(410f, 0.05f, 20.1f), 0f); Fire(d.consoleUse); Next(); }
                 else if (Waited(30f)) End("방송 단계로 넘어가지 않음");
                 break;
-            case 12:
+            case 14:
                 if (d.CurrentPhase == Chapter5Director.Phase.Choice && !string.IsNullOrEmpty(StoryState.Prompt) && Waited(0.5f))
                 {
                     Note($"선택: 안내 '{StoryState.Prompt}'");
@@ -112,11 +136,11 @@ public static class Chapter5Test
                 }
                 else if (Waited(60f)) End($"선택이 나오지 않음({d.CurrentPhase})");
                 break;
-            case 13:
+            case 15:
                 if ((d.CurrentPhase == Chapter5Director.Phase.EndingA || d.CurrentPhase == Chapter5Director.Phase.EndingB) && Waited(9f)) { Note($"엔딩: {d.CurrentPhase}, {Line}, 제목 '{StoryState.Title}'"); Shot("ending"); Next(); }
                 else if (Waited(20f)) End("엔딩으로 넘어가지 않음");
                 break;
-            case 14:
+            case 16:
                 if (d && d.CurrentPhase == Chapter5Director.Phase.End && Waited(1f)) { Note($"크레딧: {Line}"); Chapter5Director.ForcedChoice = 0; End("완료"); }
                 else if (Waited(40f)) End("크레딧으로 넘어가지 않음");
                 break;

@@ -21,18 +21,24 @@ public class AlarmLights : MonoBehaviour
 
     public bool On { get; private set; }
     float[] baseIntensity;
+    Color[] baseColor;
+    Material[] basePanel;
 
     public void TurnOn()
     {
         if (On) return;
         On = true;
         baseIntensity = new float[lights.Length];
+        baseColor = new Color[lights.Length];
         for (int i = 0; i < lights.Length; i++)
         {
             if (!lights[i]) continue;
             baseIntensity[i] = lights[i].intensity;
+            baseColor[i] = lights[i].color;
             lights[i].color = alarmColor;
         }
+        basePanel = new Material[panels.Length];
+        for (int i = 0; i < panels.Length; i++) if (panels[i]) basePanel[i] = panels[i].sharedMaterial;
         if (alarmPanel) foreach (var r in panels) if (r) r.sharedMaterial = alarmPanel;
         if (siren)
         {
@@ -40,6 +46,19 @@ public class AlarmLights : MonoBehaviour
             siren.loop = true;
             siren.Play();
         }
+    }
+
+    /// <summary>
+    /// 경보를 거둔다(2026-10-23: 2장 2층에서 들켜 울린 경보를 되감아 없던 일로 할 때). 탈출 때의 경보는 끄지 않는다
+    /// </summary>
+    public void TurnOff()
+    {
+        if (!On) return;
+        On = false;
+        for (int i = 0; i < lights.Length; i++)
+            if (lights[i]) { lights[i].intensity = baseIntensity[i]; lights[i].color = baseColor[i]; }
+        for (int i = 0; i < panels.Length; i++) if (panels[i] && basePanel[i]) panels[i].sharedMaterial = basePanel[i];
+        if (siren) siren.Stop();
     }
 
     void Update()

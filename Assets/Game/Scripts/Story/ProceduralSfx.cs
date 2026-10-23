@@ -19,6 +19,16 @@ public static class ProceduralSfx
         return Mathf.Clamp(crack + thump + tail, -1f, 1f);
     });
 
+    /// <summary>폭발(3장 문턱의 인계철선): 짧은 파열 + 땅을 울리는 낮은 쿵 + 길게 꼬리를 끄는 잔해 소리</summary>
+    public static AudioClip Explosion => Get("Explosion", 2.6f, (t, rng) =>
+    {
+        float noise = (float)(rng.NextDouble() * 2 - 1);
+        float blast = noise * Mathf.Exp(-t * 14f);
+        float boom = Mathf.Sin(2 * Mathf.PI * (38f + 30f * Mathf.Exp(-t * 6f)) * t) * Mathf.Exp(-t * 3.5f) * 1.1f;
+        float debris = noise * Mathf.Exp(-t * 1.6f) * 0.22f * (0.6f + 0.4f * Mathf.Sin(t * 37f));
+        return Mathf.Clamp(blast + boom + debris, -1f, 1f);
+    });
+
     public static AudioClip DoorOpen => Get("DoorOpen", 1.1f, (t, rng) =>
     {
         // 손잡이 걸쇠 '딸깍' 두 번 + 경첩이 도는 짧은 마찰음

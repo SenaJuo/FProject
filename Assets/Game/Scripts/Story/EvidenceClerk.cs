@@ -1,11 +1,12 @@
-using System;
+﻿using System;
 using UnityEngine;
 using UnityEngine.AI;
 
 /// <summary>
 /// 2장 경찰서 2층의 증거물 담당 경찰(정해진 대로 움직이는 사람).
-/// 부르면(Called) 잠시 뒤 휴게실에서 나와 보관실 비밀번호를 누르고 들어가 눌러앉는다.
-/// 되감으면 위치·진행이 함께 되감긴다 — 하지만 레이는 본 비밀번호를 기억한다(감독이 따로 기억한다).
+/// 평소에는 휴게실에서 나오지 않는다. 2층에 침입자 경보가 울리면(Rush) 보관실로 뛰어와 비밀번호를 누르고 들어가 문을 잠근다
+/// (2026-10-23: 숨어서 보기만 하면 되던 번호를 "들켜야만 볼 수 있는" 번호로 — 보고 나서 되감아야 쓸 수 있다).
+/// 되감으면 위치·진행·부름이 함께 되감긴다 — 하지만 레이는 본 비밀번호를 기억한다(감독이 따로 기억한다).
 /// 레이가 먼저 들어가 안에서 잠갔으면, 번호를 눌러도 안 열려 투덜대며 돌아간다.
 /// 걷는 동안 바로 앞의 레이를 보면 알린다(SawRay).
 /// </summary>
@@ -19,7 +20,7 @@ public class EvidenceClerk : MonoBehaviour, IRewindable
     public float keyingTime = 2.4f;
     public float sightDistance = 7f;
 
-    /// <summary>감독이 부른다(되감지 않는다: 한 번 부르면 같은 시각에 다시 나선다)</summary>
+    /// <summary>경보로 불려 나왔다(되감으면 경보 전으로 함께 돌아간다)</summary>
     [NonSerialized] public bool Called;
     /// <summary>레이가 먼저 들어가 안에서 잠갔다(되감지 않는다)</summary>
     [NonSerialized] public bool LockedFromInside;
@@ -85,6 +86,18 @@ public class EvidenceClerk : MonoBehaviour, IRewindable
         }
     }
 
+    /// <summary>경보: 보관실 문 앞으로 뛰어와(장면이 바뀌는 사이) 곧바로 번호를 누른다</summary>
+    public void Rush()
+    {
+        Called = true;
+        Warp(keypadSpot);
+        Face(keypadSpot.forward);
+        SetVisible(true);
+        Current = State.Keying;
+        keyT = 0f;
+        keyedThisRun = false;
+    }
+
     void LookForRay()
     {
         if (!player || SawRay == null) return;
@@ -129,7 +142,7 @@ public class EvidenceClerk : MonoBehaviour, IRewindable
 
     void ResetClerk()
     {
-        // 부름(Called)은 그대로: 2층에서 붙잡혀 처음부터 다시 해도 담당은 다시 나선다(전에는 끄는 바람에 영영 안 와서 번호를 볼 길이 없었다)
+        Called = false; // 경보는 없던 일: 다시 휴게실에 눌러앉는다
         LockedFromInside = false;
         Current = State.Waiting;
         t = keyT = 0f;
@@ -140,9 +153,9 @@ public class EvidenceClerk : MonoBehaviour, IRewindable
         if (ai && !ai.Health.IsDead) { ai.Deactivate(); ai.damage = 0; } // 보관실에서 싸우다 쓰러졌으면 다시 얌전한 담당으로
     }
 
-    struct Snapshot { public State state; public float t, keyT; public Vector3 pos; public Quaternion rot; }
+    struct Snapshot { public State state; public float t, keyT; public Vector3 pos; public Quaternion rot; public bool called; }
 
-    public object CaptureState() => new Snapshot { state = Current, t = t, keyT = keyT, pos = transform.position, rot = transform.rotation };
+    public object CaptureState() => new Snapshot { state = Current, t = t, keyT = keyT, pos = transform.position, rot = transform.rotation, called = Called };
 
     public void RestoreState(object state, bool preview)
     {
@@ -151,6 +164,7 @@ public class EvidenceClerk : MonoBehaviour, IRewindable
         transform.rotation = s.rot;
         if (preview) return;
         Current = s.state;
+        Called = s.called;
         t = s.t;
         keyT = s.keyT;
         keyedThisRun = keyT > 0.4f;

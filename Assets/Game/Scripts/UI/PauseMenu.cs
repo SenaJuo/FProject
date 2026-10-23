@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
 using UnityEngine.SceneManagement;
@@ -43,10 +43,10 @@ public class PauseMenu : MonoBehaviour
     static readonly string[][] RowNames =
     {
         GameSettings.Names,
-        new[] { "화면 모드", "해상도", "화질", "프레임 제한" },
+        new[] { "화면 모드", "해상도", "화질", "프레임 제한", "언어 · Language" },
         new[] { "마우스 감도", "상하 반전" },
     };
-    const int MaxRows = 4; // 가장 줄이 많은 탭(화면)
+    const int MaxRows = 5; // 가장 줄이 많은 탭(화면)
     static readonly string[] OnOff = { "끔", "켬" };
     Tab tab;
     int RowCount => RowNames[(int)tab].Length;
@@ -356,7 +356,8 @@ public class PauseMenu : MonoBehaviour
             0 => GameSettings.WindowModeNames[GameSettings.WindowMode],
             1 => GameSettings.ResolutionName(GameSettings.ResolutionIndex),
             2 => GameSettings.QualityNames[GameSettings.Quality],
-            _ => GameSettings.FrameNames[GameSettings.Frame],
+            3 => GameSettings.FrameNames[GameSettings.Frame],
+            _ => GameSettings.LanguageNames[GameSettings.English ? 1 : 0],
         };
     }
 
@@ -371,7 +372,8 @@ public class PauseMenu : MonoBehaviour
             case 0: GameSettings.SetWindowMode(Wrap(GameSettings.WindowMode + dir, GameSettings.WindowModeNames.Length)); break;
             case 1: GameSettings.SetResolution(Wrap(GameSettings.ResolutionIndex + dir, Mathf.Max(1, GameSettings.Resolutions.Count))); break;
             case 2: GameSettings.SetQuality(Wrap(GameSettings.Quality + dir, GameSettings.QualityNames.Length)); break;
-            default: GameSettings.SetFrame(Wrap(GameSettings.Frame + dir, GameSettings.FrameNames.Length)); break;
+            case 3: GameSettings.SetFrame(Wrap(GameSettings.Frame + dir, GameSettings.FrameNames.Length)); break;
+            default: GameSettings.SetEnglish(!GameSettings.English); break;
         }
     }
 
@@ -477,7 +479,7 @@ public class PauseMenu : MonoBehaviour
 
     void DrawOptions(float s, bool mouseMoved)
     {
-        var win = Window(860, 680, s, "설정");
+        var win = Window(860, 752, s, "설정"); // 화면 탭 5줄(언어 줄 2026-10-21)
         var e = Event.current;
 
         // 탭: [소리] [화면] [조작]
@@ -593,8 +595,9 @@ public class PauseMenu : MonoBehaviour
             int col = i / half, row = i % half;
             var r = new Rect(win.x + 50 * s + col * (colW + 20 * s), win.y + 118 * s + row * 58 * s, colW, 50 * s);
             Row(r, i, mouseMoved, s);
-            Label(new Rect(r.x + 20 * s, r.y, 170 * s, r.height), tutorials[i].category, smallLeft, Dim);
-            Label(new Rect(r.x + 190 * s, r.y, r.width - 200 * s, r.height), tutorials[i].title, itemLeft, i == selected ? Lit : Paper);
+            var tut = Tutorial.Local(tutorials[i]);
+            Label(new Rect(r.x + 20 * s, r.y, 170 * s, r.height), tut.category, smallLeft, Dim);
+            Label(new Rect(r.x + 190 * s, r.y, r.width - 200 * s, r.height), tut.title, itemLeft, i == selected ? Lit : Paper);
         }
         var back = new Rect(win.x + (win.width - 260 * s) / 2f, win.yMax - 112 * s, 260 * s, 56 * s);
         Row(back, tutorials.Length, mouseMoved, s);

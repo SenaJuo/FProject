@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 /// <summary>프로토타입용 임시 IMGUI HUD — 레이아웃이 확정되면 UI Toolkit/uGUI로 교체한다.</summary>
 public class HUD : MonoBehaviour
@@ -183,8 +183,8 @@ public class HUD : MonoBehaviour
         choiceKey ??= new GUIStyle(GUI.skin.label) { fontStyle = FontStyle.Bold };
         choiceKey.fontSize = normal.fontSize;
         keyMeasure.text = "Q"; float kw = choiceKey.CalcSize(keyMeasure).x;
-        measure.text = left; float lw = normal.CalcSize(measure).x;
-        measure.text = right; float rw = normal.CalcSize(measure).x;
+        measure.text = Loc.T(left); float lw = normal.CalcSize(measure).x;
+        measure.text = Loc.T(right); float rw = normal.CalcSize(measure).x;
         // 왼쪽: [Q 되감기]가 캐릭터 왼쪽에서 끝나게
         float lx = cx - off - lw - gap - kw;
         ShadowLabel(new Rect(lx, y, kw + 6 * s, h), "Q", choiceKey, UiTheme.Amber);
@@ -249,7 +249,8 @@ public class HUD : MonoBehaviour
         normalCentre.richText = true;
         // 왼쪽 아래 카세트와 오른쪽 아래 알림을 피해 가운데 칸에만 쓴다(넘치면 두 줄 → 그래도 넘치면 UIText가 줄인다)
         float side = StoryState.CutsceneActive ? 340 * s : 480 * s; // 컷신: 오른쪽 아래 "Space 건너뛰기"(약 330)를 피한다 // 카세트 위 "+ 테이프 N개"(x 340~450)에서도 떨어지게
-                ShadowLabel(new Rect(side, y, Screen.width - side * 2f, 100 * s), text, normalCentre); // 위에서부터 쓴다: 보통 한두 줄, 좁은 화면은 세 줄까지
+        // 위에서부터 쓴다: 보통 한두 줄, 좁은 화면은 세 줄까지. 화면 아래 끝은 넘지 않게(영어 대사는 길어 컷신 띠 밖으로 나갔다, 2026-10-21)
+        ShadowLabel(new Rect(side, y, Screen.width - side * 2f, Mathf.Min(100 * s, Screen.height - y - 4 * s)), text, normalCentre);
     }
 
     void DrawStoryOverlay(float s)
@@ -479,7 +480,7 @@ public class HUD : MonoBehaviour
             string name = tape.title;
             var nameRect = new Rect(label.x + 8 * k, label.y + 2 * k, label.width - 16 * k, label.height - 4 * k);
             labelInk.fontSize = Mathf.RoundToInt(21 * k);
-            measure.text = name;
+            measure.text = Loc.T(name);
             bool oneLine = labelInk.CalcSize(measure).x <= nameRect.width;
             if (!oneLine) labelInk.fontSize = Mathf.RoundToInt(17 * k);
             labelInk.wordWrap = !oneLine;
@@ -936,9 +937,9 @@ public class HUD : MonoBehaviour
     /// <summary>키 모양 + 할 일(화면 가운데 줄): [F] 철조망 문을 밀어 연다</summary>
     void KeyPrompt(float y, string key, string label, float s)
     {
-        measure.text = label;
+        measure.text = Loc.T(label);
         float lw = normal.CalcSize(measure).x, kh = 30 * s, gap = 12 * s;
-        keyMeasure.text = key; float kw = Mathf.Max(kh, keyStyle.CalcSize(keyMeasure).x + 14 * s);
+        keyMeasure.text = Loc.T(key); float kw = Mathf.Max(kh, keyStyle.CalcSize(keyMeasure).x + 14 * s);
         float x = (Screen.width - (kw + gap + lw)) / 2f;
         var cap = UiTheme.KeyCap(new Vector2(x, y + 2 * s), kh, key, keyStyle, s);
         ShadowLabel(new Rect(cap.xMax + gap, y, lw + 8 * s, 34 * s), label, normal);

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Text.RegularExpressions;
 using UnityEngine;
 
@@ -50,7 +50,7 @@ public static class UIText
     static readonly Dictionary<string, string> plainCache = new();
 
     /// <summary>칸에 맞는 글자 크기(원래 크기보다 커지지는 않는다)</summary>
-    public static int FitSize(Rect r, string text, GUIStyle style) { var f = Fit(r, text, style); return f.size; }
+    public static int FitSize(Rect r, string text, GUIStyle style) { var f = Fit(r, Loc.T(text), style); return f.size; }
 
     struct Fitted { public int size; public bool fits, single; public string text; }
 
@@ -186,6 +186,7 @@ public static class UIText
     /// <summary>GUI.Label과 같지만 넘치면 줄여서 그린다</summary>
     public static void Label(Rect r, string text, GUIStyle style)
     {
+        text = Loc.T(text); // 영어로 보기(설정 → 화면 → 언어)
         Ink(style, style.normal.textColor);
         var f = Fit(r, text, style);
         int keep = style.fontSize; bool wrap = style.wordWrap; var clip = style.clipping;
@@ -198,6 +199,7 @@ public static class UIText
     /// <summary>그림자를 따로 그릴 때(검사에 넣지 않는다)</summary>
     public static void ShadowOnly(Rect r, string text, GUIStyle style)
     {
+        text = Loc.T(text);
         Ink(style, style.normal.textColor);
         var f = Fit(r, text, style);
         int keep = style.fontSize; bool wrap = style.wordWrap; var clip = style.clipping;
@@ -212,6 +214,7 @@ public static class UIText
     /// <summary>그림자 + 본문: 두 번 모두 같은 크기로. 그림자는 서식 색을 뺀다(색 글자가 두 번 찍혀 보이지 않게)</summary>
     public static void Shadowed(Rect r, string text, GUIStyle style, Color ink, Color paper, float offset = 2f, string shadowText = null)
     {
+        text = Loc.T(text); shadowText = Loc.T(shadowText);
         var f = Fit(r, text, style);
         int keep = style.fontSize; bool wrap = style.wordWrap; var clip = style.clipping;
         Set(style, f.size, !f.single, TextClipping.Overflow);

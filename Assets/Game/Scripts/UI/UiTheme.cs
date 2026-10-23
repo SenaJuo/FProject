@@ -215,7 +215,7 @@ public static class UiTheme
     /// <summary>키 모양(밝은 둥근 칸 + 어두운 글자). 칸 폭은 글자에 맞춘다. 반환: 그린 칸</summary>
     public static Rect KeyCap(Vector2 at, float height, string key, GUIStyle style, float s)
     {
-        keyContent.text = key;
+        keyContent.text = Loc.T(key);
         float w = Mathf.Max(height, style.CalcSize(keyContent).x + 14f * s);
         var r = new Rect(at.x, at.y, w, height);
         Panel(r, new Color(0.93f, 0.90f, 0.84f, 0.95f), s);

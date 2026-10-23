@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -87,6 +87,22 @@ public class RewindMemory : MonoBehaviour
         if (sights.Count == 0 && hitters.Count == 0) return;
         if (!instance) instance = new GameObject("RewindMemory").AddComponent<RewindMemory>(); // 장면마다 새로(장면을 떠나면 함께 사라진다)
         instance.Remember(sights, hitters);
+    }
+
+    /// <summary>
+    /// 이야기가 알려 주는 기억(2026-10-23, 4장 매복): 지워진 시간에 숨어 있던 놈들의 자리와 시야를 바닥에 보여 준다.
+    /// 들키거나 쓰러뜨리면 사라진다
+    /// </summary>
+    public static void ShowSights(IEnumerable<PatrolSight> sights, float seconds)
+    {
+        if (!instance) instance = new GameObject("RewindMemory").AddComponent<RewindMemory>();
+        foreach (var s in sights)
+        {
+            if (!s || s.Enemy.Health.IsDead) continue;
+            var cone = instance.cones.Find(c => c.sight == s);
+            if (cone == null) instance.cones.Add(cone = instance.MakeCone(s));
+            cone.until = Time.time + seconds;
+        }
     }
 
     void Awake() => block = new MaterialPropertyBlock();

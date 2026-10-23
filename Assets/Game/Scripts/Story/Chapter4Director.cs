@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using Unity.Cinemachine;
 using UnityEngine;
@@ -6,6 +6,8 @@ using UnityEngine;
 /// <summary>
 /// 4장 「송신소」 감독 — 산 위 한결 FM 송신소에서 옛 파트너와 결판.
 ///  구역 1 산길: 국도변 노점(저장) → 굽잇길 매복(정리반) → 송신소 정문(저장)
+///         매복(2026-10-23): 처음 올라서면 숨어 있던 넷이 한꺼번에 일어나 겨눈다 — 그 순간 시간이 멈추고 고른다(R 되감기 / Space 싸움).
+///         되감으면 레이만 그 자리를 안다: 바닥에 놈들의 시야가 보이고, 아직 눈치채지 못했으니 돌아 들어가 하나씩 몰래 제압할 수 있다(들키면 그냥 싸움)
 ///  구역 2 송신소 마당: 파트너와 결투 → 송신탑 발판의 저격수에게 맞아 쓰러진다
 ///         → 분노로 1분 가까이 되감긴다(프롤로그처럼 — 레이만 기억) → 저격수를 먼저 처리
 ///         → 파트너가 눈치채고 본부에 보고("또 일어났다") → 결투 → 무너진 파트너의 자백 → 입막음 저격.
@@ -41,6 +43,13 @@ public class Chapter4Director : MonoBehaviour
     public Phase CurrentPhase { get; private set; }
     /// <summary>레이가 본 저격(되감아도 레이는 기억한다)</summary>
     public bool KnowsSniper { get; private set; }
+    /// <summary>레이가 겪은 매복(되감아도 레이는 기억한다)</summary>
+    public bool KnowsAmbush { get; private set; }
+    bool ambushArmed, ambushSprung, ambushRevealed, springing, ambushDone, ambushLineSaid;
+    int seenGeneration;
+    Bounds ambushArea; // 꺼 둔 충돌체의 bounds는 비어 있으므로 끄기 전에 적어 둔다
+    Vector3[] ambushHome;
+    Quaternion[] ambushRot;
 
     Walkman walkman;
     bool shopGreeted, partnerAt60, partnerAt40, inYardFight;
@@ -76,10 +85,21 @@ public class Chapter4Director : MonoBehaviour
         TapeShop.Traded += OnTraded;
         CombatZone.Entered += OnZoneEntered;
         GameManager.PlayerRespawned += OnRespawned;
+        PatrolSight.Spotted += OnAmbushSpotted;
 
         var resume = SaveGame.TakePending(gameObject.scene.name);
         if (resume != null) SaveGame.ApplyInventory(resume, walkman);
         string cp = resume?.checkpoint;
+        if (cp == CpGate || cp == CpRoad)
+        {
+            // 매복은 이미 정리했다(저장은 정리한 뒤에만 된다): 다시 불러와도 되살아난 넷이 그 자리에서 다시 터지지 않게 치운다
+            ambushDone = true;
+            if (zoneAmbush)
+            {
+                zoneAmbush.GetComponent<Collider>().enabled = false;
+                foreach (var e in zoneAmbush.enemies) if (e) e.gameObject.SetActive(false);
+            }
+        }
         if (cp == CpGate) { main = StartCoroutine(Resume(gateSave, true)); return; }
         if (cp == CpRoad) { main = StartCoroutine(Resume(roadSave, false)); return; }
         if (cp == CpShop) { main = StartCoroutine(Resume(shopSave, false)); return; }
@@ -93,11 +113,145 @@ public class Chapter4Director : MonoBehaviour
         TapeShop.Traded -= OnTraded;
         CombatZone.Entered -= OnZoneEntered;
         GameManager.PlayerRespawned -= OnRespawned;
+        PatrolSight.Spotted -= OnAmbushSpotted;
     }
 
     void Update()
     {
         if (rainAudio) rainAudio.volume = 0.5f * GameSettings.Gain(GameSettings.Channel.Sfx);
+        if (!ambushArmed || !zoneAmbush) return;
+        var list = zoneAmbush.enemies;
+        // 아직 터지기 전: 넷은 숨어 있다. 되감기는 적을 늘 보이게 되돌리므로(EnemyAI) 다시 숨긴다
+        if (!KnowsAmbush && !ambushSprung)
+            foreach (var e in list) if (e && e.gameObject.activeSelf && !e.Health.IsDead) e.gameObject.SetActive(false);
+        // 되감기가 끝났다: 싸움이 시작되기 전으로 돌아갔으면 다시 숨은 자리에(시야도 다시)
+        if (TimeRewind.Generation != seenGeneration && walkman && !walkman.Rewinding)
+        {
+            seenGeneration = TimeRewind.Generation;
+            if (KnowsAmbush && !springing && !zoneAmbush.Started && !zoneAmbush.IsCleared) ambushRevealed = false;
+        }
+        // 매복: 처음엔 굽잇길 평지에 올라서면 터진다
+        if (!KnowsAmbush && !ambushSprung && CurrentPhase == Phase.Road && !player.IsDead && ambushArea.Contains(player.transform.position))
+            StartCoroutine(SpringAmbush());
+        // 겪고 나서 되감았다(또는 다시 시작했다): 놈들은 아직 숨어 있고, 레이는 자리를 안다
+        if (KnowsAmbush && !ambushRevealed && !springing && !player.IsDead && walkman && !walkman.Rewinding) RevealAmbush();
+        // 몰래 다 쓰러뜨렸다: 구역을 정리한 것으로
+        if (ambushRevealed && !zoneAmbush.IsCleared && System.Array.TrueForAll(list, e => !e || e.Health.IsDead)) zoneAmbush.Engage();
+    }
+
+    /// <summary>굽잇길 매복을 건다: 넷은 숨어 있다(보이지 않는다). 구역 트리거 대신 감독이 들어섬을 본다</summary>
+    void ArmAmbush()
+    {
+        if (!zoneAmbush || zoneAmbush.IsCleared || ambushArmed || ambushDone) return;
+        ambushArmed = true;
+        var col = zoneAmbush.GetComponent<Collider>();
+        ambushArea = col.bounds;
+        col.enabled = false;
+        var list = zoneAmbush.enemies;
+        ambushHome = new Vector3[list.Length];
+        ambushRot = new Quaternion[list.Length];
+        for (int i = 0; i < list.Length; i++)
+        {
+            if (!list[i]) continue;
+            ambushHome[i] = list[i].transform.position;
+            ambushRot[i] = list[i].transform.rotation;
+            // 시야는 처음부터 붙여 둔다: 되감기 기록에 들어가 있어야 "들킨 뒤 되감기"로 들키기 전으로 돌아간다
+            if (!list[i].GetComponent<PatrolSight>())
+            {
+                var sight = list[i].gameObject.AddComponent<PatrolSight>();
+                sight.viewDistance = 13f;
+                sight.viewAngle = 34f;
+                sight.alertRadius = 30f; // 하나가 소리치면 넷 모두
+                sight.spottedLine = "어떻게 알고…! 쏴!";
+            }
+            if (!KnowsAmbush) list[i].gameObject.SetActive(false);
+        }
+    }
+
+    /// <summary>
+    /// 처음: 넷이 한꺼번에 일어선다 — 총구가 다 레이를 향한 순간 시간이 멈춘다. 레이만 그 자리를 본다.
+    /// R = 올라서기 전으로 되감는다(놈들은 아직 모른다 → 몰래 정리), Space = 그대로 싸운다(2026-10-23: 무조건 쓰러지던 것을 고를 수 있게).
+    /// 되감기 횟수가 없으면 그대로 싸운다
+    /// </summary>
+    IEnumerator SpringAmbush()
+    {
+        ambushSprung = true;
+        springing = true;
+        KnowsAmbush = true;
+        StoryState.HoldTime = true; // 올라선 순간에서 기록을 멈춘다: 되감으면 올라서기 전으로
+        StoryState.ControlLocked = true; // 일어서는 동안 R·공격을 받지 않는다(고르는 안내가 뜰 때 푼다)
+        var hp = player.GetComponent<Health>();
+        hp.Invulnerable = true;
+        var list = zoneAmbush.enemies;
+        foreach (var e in list) if (e && !e.Health.IsDead) { e.gameObject.SetActive(true); e.Deactivate(); FacePlayer(e); }
+        StoryState.Say("정리반", "지금이다! 쏴!", 1.4f);
+        Time.timeScale = 0.3f; // 사방에서 일어서는 게 보이게
+        yield return StoryState.Sleep(0.5f);
+        foreach (var e in list) if (e && !e.Health.IsDead) e.Activate(); // 총 든 놈은 붉은 조준선을 겨눈다
+        yield return StoryState.Sleep(0.35f);
+        Time.timeScale = 0.03f;
+        StoryState.Say(Ray, "…매복이다. 넷.", 2f);
+        yield return StoryState.Sleep(0.4f);
+
+        bool rewound = false;
+        StoryState.ControlLocked = false;
+        if (walkman && walkman.CurrentCharges > 0 && TimeRewind.RecordedSeconds >= 2f)
+        {
+            StoryState.AskRewind("R 되감는다   ·   Space 그대로 싸운다");
+            var jump = UnityEngine.InputSystem.InputSystem.actions.FindAction("Player/Jump", true);
+            while (!walkman.Rewinding && !jump.WasPressedThisFrame()) yield return null;
+            rewound = walkman.Rewinding;
+        }
+        StoryState.HoldTime = false;
+        StoryState.Prompt = null;
+        hp.Invulnerable = false;
+        if (rewound)
+        {
+            yield return new WaitUntil(() => !walkman.Rewinding);
+            Time.timeScale = 1f;
+            springing = false; // 되감아 일어섰다: Update가 자리를 드러낸다
+            yield break;
+        }
+        // 그대로 싸운다(또는 되감을 수 없다)
+        StoryState.RewindAsked = false;
+        Time.timeScale = 1f;
+        ambushRevealed = true;
+        springing = false;
+        zoneAmbush.Engage();
+    }
+
+    void FacePlayer(EnemyAI e)
+    {
+        Vector3 to = player.transform.position - e.transform.position; to.y = 0f;
+        if (to.sqrMagnitude > 0.01f) e.transform.rotation = Quaternion.LookRotation(to);
+    }
+
+    /// <summary>되감은 뒤: 넷을 제자리에(아직 모른다), 바닥에 시야를 보여 준다</summary>
+    void RevealAmbush()
+    {
+        ambushRevealed = true;
+        if (!zoneAmbush || zoneAmbush.IsCleared) return;
+        var sights = new List<PatrolSight>();
+        var list = zoneAmbush.enemies;
+        for (int i = 0; i < list.Length; i++)
+        {
+            var e = list[i];
+            if (!e || e.Health.IsDead) continue;
+            e.gameObject.SetActive(true);
+            e.Deactivate();
+            if (ambushHome != null) e.PlaceAt(ambushHome[i], ambushRot[i]);
+            var sight = e.GetComponent<PatrolSight>();
+            if (sight) { sight.Rearm(); sights.Add(sight); }
+        }
+        RewindMemory.ShowSights(sights, 600f);
+        if (!ambushLineSaid) StoryState.Say(Ray, "…넷. 양옆에 총 든 놈 둘, 길 가운데 둘. 아직 내가 온 줄 모른다.", 4f);
+        ambushLineSaid = true;
+    }
+
+    void OnAmbushSpotted(PatrolSight s)
+    {
+        if (springing || !zoneAmbush || zoneAmbush.Started || System.Array.IndexOf(zoneAmbush.enemies, s.Enemy) < 0) return;
+        zoneAmbush.Engage(); // 들켰다: 그냥 싸움(넷 다 깨어난다)
     }
 
     // ---------- 구역 1: 산길 ----------
@@ -121,6 +275,7 @@ public class Chapter4Director : MonoBehaviour
     IEnumerator FromRoad()
     {
         CurrentPhase = Phase.Road;
+        ArmAmbush();
         StoryState.Objective = "산길을 올라 송신소로 간다";
         StoryState.Waypoint = gateTrigger ? gateTrigger.transform : null;
         bool saved = false;
@@ -135,7 +290,7 @@ public class Chapter4Director : MonoBehaviour
 
     void OnZoneEntered(CombatZone zone)
     {
-        if (zone == zoneAmbush) StoryState.Say("정리반", "올라온다! 길 막아!", 2f);
+        if (zone == zoneAmbush) { if (!System.Array.TrueForAll(zone.enemies, e => !e || e.Health.IsDead)) StoryState.Say("정리반", "올라온다! 길 막아!", 2f); } // 몰래 다 쓰러뜨려 정리된 경우는 소리칠 사람이 없다
         else if (zone == zoneSniper) StoryState.Say(Ray, "…거기 있는 거 안다.", 1.8f);
     }
 
@@ -384,6 +539,7 @@ public class Chapter4Director : MonoBehaviour
     /// <summary>송신소에서 쓰러져 저장 지점(정문)부터 다시: 결투도 처음부터(레이가 아는 것은 그대로)</summary>
     void OnRespawned()
     {
+        if (CurrentPhase == Phase.Road && KnowsAmbush && zoneAmbush && !zoneAmbush.IsCleared) ambushRevealed = false; // 다시 숨은 자리에(시야도 다시 보인다)
         if (CurrentPhase is not (Phase.Duel1 or Phase.Duel2 or Phase.Hunt or Phase.Gate)) return;
         if (main != null) StopCoroutine(main);
         StoryState.CutsceneActive = false;

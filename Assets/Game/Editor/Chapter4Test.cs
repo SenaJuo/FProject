@@ -1,10 +1,11 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEditor;
 using UnityEngine;
 
 /// <summary>
 /// 4장 시험(플레이 중, Chapter4 장면):
-///  ① 시작 → 굽잇길 매복(정리반 넷) → 정문 ② 마당: 파트너와 결투 → 60%에서 저격 → 1분 되감기(정문으로)
+///  ① 시작 → 굽잇길 매복(정리반 넷): 처음엔 숨어 있다가 한꺼번에 일어나 겨눈다(시간이 멈추고 R/Space) → 되감기 → 넷의 시야가 보이고 아직 모른다
+///     → 몰래 다 쓰러뜨려 정리(2026-10-23) → 정문 ② 마당: 파트너와 결투 → 60%에서 저격 → 1분 되감기(정문으로)
 ///  ③ 저격수 처리 → 파트너의 보고 → 결투 → 40%에서 자백 → 입막음 → 4장 끝.
 /// </summary>
 public static class Chapter4Test
@@ -42,21 +43,40 @@ public static class Chapter4Test
         switch (step)
         {
             case 0:
-                if (d.CurrentPhase == Chapter4Director.Phase.Road && Waited(1f)) { Note($"시작: 목표 '{StoryState.Objective}'"); Shot("start"); Tp(new Vector3(0f, 10.1f, -36f), 0f); Next(); }
+                if (d.CurrentPhase == Chapter4Director.Phase.Road && Waited(1f)) { Note($"시작: 목표 '{StoryState.Objective}'"); Shot("start"); foreach (var t in p.GetComponent<Walkman>().tapes) t.charges = Mathf.Max(t.charges, 2); Tp(new Vector3(0f, 10.1f, -36f), 0f); Next(); }
                 else if (Waited(15f)) End("산길 단계로 넘어가지 않음");
                 break;
             case 1:
-                if (Waited(1.5f)) { Note($"매복: {Line}, 적 {Alive(d.zoneAmbush)}명"); Shot("ambush"); KillAll(d.zoneAmbush); Next(); }
+            {
+                var w = p.GetComponent<Walkman>();
+                if (StoryState.RewindAsked && Waited(0.5f))
+                {
+                    Shot("ambush_spring");
+                    Note($"매복이 터짐: {Line}, 안내 '{StoryState.Prompt}', 앎 {d.KnowsAmbush}(기대 True), 쓰러짐 {p.IsDead}(기대 False) → 되감기 {w.RewindSteps(1)}");
+                    Next();
+                }
+                else if (Waited(6f)) End($"매복에서 되감기를 묻지 않음(앎 {d.KnowsAmbush})");
                 break;
+            }
             case 2:
-                if (d.zoneAmbush.IsCleared && Waited(1f)) { Note($"매복 정리: {Line}"); Tp(new Vector3(0f, 20.1f, 23f), 0f); Next(); }
-                else if (Waited(6f)) End("매복이 정리되지 않음");
+                if (!p.IsDead && RewindMemory.SightCount > 0 && Waited(1f))
+                {
+                    Note($"되감은 뒤: {Line}, 보이는 시야 {RewindMemory.SightCount}(기대 {Alive(d.zoneAmbush)}), 싸움 시작 {d.zoneAmbush.Started}(기대 False)");
+                    Shot("ambush_known");
+                    foreach (var e in d.zoneAmbush.enemies) if (e && !e.Health.IsDead) { e.GetComponent<PatrolSight>()?.Silence(); e.Health.TakeDamage(99999, e.transform.position - e.transform.forward); }
+                    Next();
+                }
+                else if (Waited(10f)) End($"되감은 뒤 매복 자리가 드러나지 않음(시야 {RewindMemory.SightCount})");
                 break;
             case 3:
+                if (d.zoneAmbush.IsCleared && Waited(1f)) { Note($"매복 정리(몰래): {Line}"); Tp(new Vector3(0f, 20.1f, 23f), 0f); Next(); }
+                else if (Waited(6f)) End("매복이 정리되지 않음");
+                break;
+            case 4:
                 if (d.CurrentPhase == Chapter4Director.Phase.Gate && Waited(0.5f)) { Tp(new Vector3(0f, 20.1f, 38f), 0f); Next(); }
                 else if (Waited(8f)) End("정문에 닿지 않음");
                 break;
-            case 4:
+            case 5:
                 if (d.CurrentPhase == Chapter4Director.Phase.Duel1 && Waited(1f))
                 {
                     var h = d.partner.Health;
@@ -67,11 +87,11 @@ public static class Chapter4Test
                 }
                 else if (Waited(30f)) End("결투가 시작되지 않음");
                 break;
-            case 5:
+            case 6:
                 if (d.CurrentPhase == Chapter4Director.Phase.Shot && Waited(1.2f)) { var rd = p.GetComponentInChildren<Ragdoll>(); Note($"저격: {Line}, 쓰러짐(래그돌) {rd && rd.IsActive}, 머리 높이 {p.GetComponentInChildren<Animator>().GetBoneTransform(HumanBodyBones.Head).position.y - p.transform.position.y:0.0}m"); Shot("shot"); Next(); }
                 else if (Waited(10f)) End($"저격 장면이 나오지 않음({d.CurrentPhase})");
                 break;
-            case 6:
+            case 7:
                 if (d.CurrentPhase == Chapter4Director.Phase.Hunt && !StoryState.CutsceneActive && Waited(1f))
                 {
                     Note($"1분 되감기 뒤: 위치 ({p.transform.position.x:0},{p.transform.position.y:0},{p.transform.position.z:0}), 앎 {d.KnowsSniper}, 목표 '{StoryState.Objective}', 파트너 {d.partner.Health.Current}/{d.partner.Health.Max}");
@@ -81,7 +101,7 @@ public static class Chapter4Test
                 }
                 else if (Waited(40f)) End($"1분 되감기 뒤 저격수 단계로 넘어가지 않음({d.CurrentPhase})");
                 break;
-            case 7:
+            case 8:
                 if (Waited(1.5f))
                 {
                     Note($"저격수: 활성 {d.sniper.IsActive}, {Line}");
@@ -89,7 +109,7 @@ public static class Chapter4Test
                     Next();
                 }
                 break;
-            case 8:
+            case 9:
                 if (d.CurrentPhase == Chapter4Director.Phase.Duel2 && Waited(1f))
                 {
                     var h = d.partner.Health;
@@ -100,11 +120,11 @@ public static class Chapter4Test
                 }
                 else if (Waited(40f)) End($"결투 2가 시작되지 않음({d.CurrentPhase})");
                 break;
-            case 9:
+            case 10:
                 if (d.CurrentPhase == Chapter4Director.Phase.Confess && Waited(8f)) { Note($"자백: {Line}"); Shot("confess"); Next(); }
                 else if (Waited(12f)) End("자백 장면이 나오지 않음");
                 break;
-            case 10:
+            case 11:
                 if (d.CurrentPhase == Chapter4Director.Phase.End && Waited(0.5f)) { Note($"끝: 파트너 쓰러짐 {d.partner.Health.IsDead}, {Line}"); End("완료"); }
                 else if (Waited(30f)) End("4장 끝으로 넘어가지 않음");
                 break;

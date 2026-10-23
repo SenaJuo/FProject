@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using Unity.Cinemachine;
 using UnityEngine;
@@ -53,6 +53,10 @@ public class Chapter3Director : MonoBehaviour
     public bool Caught { get; private set; }
     /// <summary>레이가 본 그 죽음(되감아도 레이는 기억한다 — 되감지 않는 값)</summary>
     public bool KnowsCollapse { get; private set; }
+    /// <summary>펜트하우스 문턱의 인계철선을 밟아 봤다(되감아도 레이는 기억한다 — 2026-10-23)</summary>
+    public bool KnowsWire { get; private set; }
+    public Tripwire WireTrap { get; private set; }
+    bool wireTold;
 
     Walkman walkman;
     bool doorUsed, switched, liftUsed, shopGreeted, partnerBroken;
@@ -96,6 +100,9 @@ public class Chapter3Director : MonoBehaviour
 
         foreach (var s in subjects) if (s) s.SetActive(false);
         if (partner) partner.gameObject.SetActive(false);
+        // 펜트하우스 남쪽 문(x 330~334, z 126) 문턱의 철선 — 파트너가 걸어 뒀다. 폭약은 문 안쪽 오른편 구석
+        WireTrap = Tripwire.Create(new Vector3(330.05f, 0.13f, 125.8f), new Vector3(333.95f, 0.13f, 125.8f), new Vector3(333.8f, 0.3f, 126.32f));
+        WireTrap.Tripped += () => { KnowsWire = true; WireTrap.Known = true; };
 
         var resume = SaveGame.TakePending(gameObject.scene.name);
         if (resume != null) SaveGame.ApplyInventory(resume, walkman);
@@ -148,6 +155,12 @@ public class Chapter3Director : MonoBehaviour
 
     void Update()
     {
+        // 철선을 밟고 되감아(또는 다시 시작해) 일어섰다: 레이만 안다
+        if (KnowsWire && !wireTold && WireTrap && WireTrap.Armed && !player.IsDead && walkman && !walkman.Rewinding)
+        {
+            wireTold = true;
+            StoryState.Say(Ray, "…문턱에 철선. 저걸 밟았던 거다.", 2.8f);
+        }
         if (rainAudio) rainAudio.volume = (indoors ? 0.06f : 0.45f) * GameSettings.Gain(GameSettings.Channel.Sfx);
     }
 
@@ -403,6 +416,14 @@ public class Chapter3Director : MonoBehaviour
         StoryState.Say(Ray, "…꼭대기. 금고실은 저 펜트하우스 안이다.", 2.6f);
         StoryState.Objective = "옥상의 정리반을 뚫고 금고실로 간다";
         StoryState.Waypoint = vaultTrigger ? vaultTrigger.transform : null;
+        yield return new WaitUntil(() => !zoneRoof || zoneRoof.IsCleared || Reached(vaultTrigger));
+        // 옥상을 정리했다: 쓰러지면 펜트하우스 앞에서 다시(철선에 걸려도 옥상 싸움을 다시 하지 않게). 파일 저장은 하지 않는다
+        if (GameManager.Instance && (!zoneRoof || zoneRoof.IsCleared))
+        {
+            var front = new GameObject("PenthouseFront").transform;
+            front.SetPositionAndRotation(new Vector3(332f, 0.05f, 121f), Quaternion.identity);
+            GameManager.Instance.SetCheckpoint(front);
+        }
         yield return new WaitUntil(() => (!zoneRoof || zoneRoof.IsCleared) && Reached(vaultTrigger));
         yield return Vault();
     }
@@ -432,6 +453,19 @@ public class Chapter3Director : MonoBehaviour
             partner.Deactivate();
         }
         if (vaultShot && partner) { Place(dynamicA, vaultShot.position, partner.transform.position + Vector3.up * 1.5f, 36f); Shot(dynamicA, 0.8f); }
+        string[,] wireLines = KnowsWire
+            ? new[,]
+            {
+                { Partner, "…문턱 철선을 봤나. 7년 전엔 그런 눈이 없었는데.", "3.4" },
+                { Ray, "한 번 밟아 봤거든.", "2.0" },
+            }
+            : new string[0, 3];
+        for (int i = 0; i < wireLines.GetLength(0); i++)
+        {
+            float t = float.Parse(wireLines[i, 2], System.Globalization.CultureInfo.InvariantCulture);
+            StoryState.Say(wireLines[i, 0], wireLines[i, 1], t);
+            yield return Wait(t + 0.2f);
+        }
         string[,] lines =
         {
             { "", "(활짝 열린 금고 — 텅 빈 선반. 테이프 하나 놓였던 자국만 남았다)", "3.4" },
