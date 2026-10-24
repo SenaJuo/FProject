@@ -20,7 +20,11 @@ public class PauseMenu : MonoBehaviour
     static Color Paper => UiTheme.Paper;
     static Color Dim => UiTheme.Dim;
 
+#if UNITY_WEBGL && !UNITY_EDITOR
+    static readonly string[] MainItems = { "계속하기", "설정", "조작법", "튜토리얼", "타이틀로" }; // 웹: 브라우저 탭은 게임이 닫을 수 없다
+#else
     static readonly string[] MainItems = { "계속하기", "설정", "조작법", "튜토리얼", "타이틀로", "게임 종료" };
+#endif
     const int ControlsItem = 2, TutorialsItem = 3, TitleItem = 4, QuitItem = 5;
     static Tutorial.Entry[] tutorialList;
     static Tutorial.Entry[] tutorials => tutorialList ??= System.Linq.Enumerable.ToArray(Tutorial.All); // 튜토리얼 목록(분류 순) + 맨 끝 "뒤로"

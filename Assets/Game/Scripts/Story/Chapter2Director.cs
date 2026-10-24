@@ -770,14 +770,7 @@ public class Chapter2Director : MonoBehaviour
         var knobMat = new Material(mr.sharedMaterial) { name = "AlarmBellButton" }; // 기본 재질을 건드리지 않게 새로
         knobMat.SetColor("_BaseColor", new Color(0.92f, 0.9f, 0.85f));
         knob.GetComponent<MeshRenderer>().sharedMaterial = knobMat;
-        var glow = new GameObject("AlarmBellLight").AddComponent<Light>();
-        glow.transform.SetParent(box.transform, false);
-        glow.transform.localPosition = new Vector3(0f, 0f, 3f);
-        glow.type = LightType.Point;
-        glow.color = new Color(1f, 0.2f, 0.12f);
-        glow.range = 0.9f;
-        glow.intensity = 0.8f;
-        glow.shadows = LightShadows.None;
+        // (붉은 점광원은 뺐다: 벽에 큰 붉은 번짐이 생겨 벨보다 눈에 띄었다)
 
         var use = new GameObject("AlarmBellUse");
         use.transform.position = at + Vector3.forward * 0.6f + Vector3.down * 0.6f;

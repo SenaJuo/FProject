@@ -93,7 +93,7 @@ public class Tripwire : MonoBehaviour, IRewindable
         Destroy(quad.GetComponent<Collider>());
         quad.transform.SetPositionAndRotation(new Vector3(transform.position.x, Mathf.Min(a.y, b.y) - 0.1f, transform.position.z),
             Quaternion.LookRotation(Vector3.down, (b - a).normalized));
-        quad.transform.localScale = new Vector3(0.7f, (b - a).magnitude + 0.3f, 1f);
+        quad.transform.localScale = new Vector3(0.6f, (b - a).magnitude + 0.2f, 1f);
         quad.transform.SetParent(transform, true);
         strip = quad.GetComponent<MeshRenderer>();
         strip.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
@@ -101,7 +101,9 @@ public class Tripwire : MonoBehaviour, IRewindable
         var memory = Resources.Load<Material>("Materials/RewindMemory");
         if (memory) strip.sharedMaterial = memory;
         var block = new MaterialPropertyBlock();
-        block.SetColor("_BaseColor", new Color(1f, 0.62f, 0.25f, 0.32f));
+        // 가운데만 빛나고 가장자리는 스러진다: 고른 색 사각형은 어두운 바닥에서 판자처럼 보였다
+        block.SetColor("_BaseColor", new Color(1f, 0.62f, 0.25f, 0.42f));
+        block.SetTexture("_BaseMap", SoftStrip());
         strip.SetPropertyBlock(block);
 
         // 건드리는 판정: 철선을 따라 발목 높이까지만(뛰어 넘으면 닿지 않는다)
@@ -138,6 +140,28 @@ public class Tripwire : MonoBehaviour, IRewindable
         Armed = true;
         Cut = false;
         Refresh();
+    }
+
+    static Texture2D softStrip;
+
+    /// <summary>띠 무늬: 폭(u)은 가운데가 진하고 양옆으로 스러지며, 길이(v)는 양 끝에서 스러진다(흰색 + 알파)</summary>
+    static Texture2D SoftStrip()
+    {
+        if (softStrip) return softStrip;
+        const int n = 32;
+        softStrip = new Texture2D(n, n, TextureFormat.RGBA32, false) { name = "TripwireSoftStrip", wrapMode = TextureWrapMode.Clamp };
+        var px = new Color32[n * n];
+        for (int y = 0; y < n; y++)
+        for (int x = 0; x < n; x++)
+        {
+            float u = (x + 0.5f) / n, v = (y + 0.5f) / n;
+            float across = Mathf.Pow(Mathf.Sin(u * Mathf.PI), 2f);
+            float along = Mathf.SmoothStep(0f, 1f, Mathf.Min(v, 1f - v) / 0.12f);
+            px[y * n + x] = new Color32(255, 255, 255, (byte)(255 * across * along));
+        }
+        softStrip.SetPixels32(px);
+        softStrip.Apply(false, true);
+        return softStrip;
     }
 
     void Refresh()

@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -13,6 +13,18 @@ public class SceneLoader : MonoBehaviour
 
     /// <summary>장면을 불러오는 중(일시정지 메뉴 등은 열리지 않는다)</summary>
     public static bool Busy { get; private set; }
+
+    /// <summary>이 빌드에 들어 있는 장면인가(빌드에서 뺀 장면의 저장으로 '이어하기'를 하지 않게)</summary>
+    public static bool Has(string scene) => Application.CanStreamedLevelBeLoaded(scene);
+
+    /// <summary>불러오는 동안 화면을 덮는 색(엔딩 A는 하얗게 감긴 뒤라 흰색으로 덮는다)</summary>
+    static Color cover = Color.black;
+
+    public static void Load(string scene, Color coverColor)
+    {
+        cover = coverColor;
+        Load(scene);
+    }
 
     public static void Load(string scene)
     {
@@ -41,6 +53,7 @@ public class SceneLoader : MonoBehaviour
         Time.timeScale = 1f;
         yield return null; // 새 장면의 첫 프레임까지 덮는다(장면이 스스로 페이드인한다)
         Busy = false;
+        cover = Color.black;
     }
 
     void OnGUI()
@@ -49,7 +62,7 @@ public class SceneLoader : MonoBehaviour
         if (!Busy) return;
         GUI.depth = -100; // 모든 화면 위에
         var keep = GUI.color;
-        GUI.color = Color.black;
+        GUI.color = cover;
         GUI.DrawTexture(new Rect(0, 0, Screen.width, Screen.height), Texture2D.whiteTexture);
         GUI.color = keep;
     }

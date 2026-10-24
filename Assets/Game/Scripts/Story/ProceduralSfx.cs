@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 /// <summary>
@@ -27,6 +27,39 @@ public static class ProceduralSfx
         float boom = Mathf.Sin(2 * Mathf.PI * (38f + 30f * Mathf.Exp(-t * 6f)) * t) * Mathf.Exp(-t * 3.5f) * 1.1f;
         float debris = noise * Mathf.Exp(-t * 1.6f) * 0.22f * (0.6f + 0.4f * Mathf.Sin(t * 37f));
         return Mathf.Clamp(blast + boom + debris, -1f, 1f);
+    });
+
+    /// <summary>책상 위 휴대폰 진동(엔딩 A): 윙— 윙— 두 번(나무 책상이 함께 떤다)</summary>
+    public static AudioClip PhoneBuzz => Get("PhoneBuzz", 1.4f, (t, rng) =>
+    {
+        bool on = (t > 0.02f && t < 0.42f) || (t > 0.62f && t < 1.02f);
+        if (!on) return 0f;
+        float env = Mathf.Min(1f, Mathf.Min(Mathf.Repeat(t, 0.6f) * 40f, 1f));
+        float motor = Mathf.Sin(2 * Mathf.PI * 172f * t) * 0.55f + Mathf.Sin(2 * Mathf.PI * 344f * t) * 0.2f;
+        float rattle = (float)(rng.NextDouble() * 2 - 1) * 0.18f * (0.5f + 0.5f * Mathf.Sin(2 * Mathf.PI * 86f * t));
+        return Mathf.Clamp((motor + rattle) * env * 0.8f, -1f, 1f);
+    });
+
+    /// <summary>나무 현관문 노크 세 번(엔딩 A)</summary>
+    public static AudioClip Knock => Get("Knock", 1.2f, (t, rng) =>
+    {
+        float v = 0f;
+        foreach (float at in new[] { 0.02f, 0.3f, 0.58f })
+        {
+            float k = t - at;
+            if (k < 0f || k > 0.25f) continue;
+            v += Mathf.Sin(2 * Mathf.PI * 118f * k) * Mathf.Exp(-k * 32f) + (float)(rng.NextDouble() * 2 - 1) * 0.35f * Mathf.Exp(-k * 90f);
+        }
+        return Mathf.Clamp(v * 0.8f, -1f, 1f);
+    });
+
+    /// <summary>오래된 라디오의 잡음(반복, 엔딩 B 뉴스 밑에 깐다)</summary>
+    public static AudioClip RadioHiss => Get("RadioHiss", 3f, (t, rng) =>
+    {
+        float hiss = (float)(rng.NextDouble() * 2 - 1) * 0.07f;
+        float crackle = rng.NextDouble() < 0.0015 ? (float)(rng.NextDouble() * 2 - 1) * 0.5f : 0f;
+        float hum = Mathf.Sin(2 * Mathf.PI * 60f * t) * 0.02f;
+        return Mathf.Clamp(hiss + crackle + hum, -1f, 1f);
     });
 
     public static AudioClip DoorOpen => Get("DoorOpen", 1.1f, (t, rng) =>

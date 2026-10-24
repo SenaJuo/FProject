@@ -6,7 +6,7 @@ using UnityEngine;
 /// <summary>
 /// 5장 + 종장 시험(플레이 중, Chapter5 장면). choice: 1 = 되감기 엔딩, 2 = 부수기 엔딩.
 ///  주차장 싸움 → 엘리베이터 → 연구소 실험체 → 격벽 → 홀: 0번(절반에서 경비) → 마스터 테이프
-///  (2026-10-23: 유리장에 손대면 회장이 번호를 눌러 소각 → 되감기 → 본 번호 1996으로 연다) → 방송 → 선택 → 엔딩 → 크레딧.
+///  (2026-10-23: 유리장에 손대면 회장이 번호를 눌러 소각 → 되감기 → 본 번호 1996으로 연다) → 방송 → 선택 → 엔딩 장면(EndingStage) → 천천히 어두워지고 타이틀.
 /// </summary>
 public static class Chapter5Test
 {
@@ -23,7 +23,7 @@ public static class Chapter5Test
         if (!EditorApplication.isPlaying) throw new System.InvalidOperationException("플레이 중에만");
         Application.runInBackground = true;
         log = logPath; dir = shotDir; System.IO.Directory.CreateDirectory(dir);
-        lines.Clear(); step = 0; shots = 0; choice = endingChoice;
+        lines.Clear(); step = 0; shots = 0; choice = endingChoice; lastBeat = null;
         Chapter5Director.ForcedChoice = 0;
         t0 = since = Time.realtimeSinceStartup;
         EditorApplication.update -= Tick;
@@ -42,7 +42,7 @@ public static class Chapter5Test
     {
         if (!EditorApplication.isPlaying) { End("플레이가 멈춤"); return; }
         EditorApplication.QueuePlayerLoopUpdate();
-        if (!d && step < 20) { d = Object.FindAnyObjectByType<Chapter5Director>(); p = Object.FindAnyObjectByType<PlayerController>(); if (!d) return; }
+        if (!d && step < 16) { d = Object.FindAnyObjectByType<Chapter5Director>(); p = Object.FindAnyObjectByType<PlayerController>(); if (!d) return; }
         switch (step)
         {
             case 0:
@@ -137,15 +137,22 @@ public static class Chapter5Test
                 else if (Waited(60f)) End($"선택이 나오지 않음({d.CurrentPhase})");
                 break;
             case 15:
-                if ((d.CurrentPhase == Chapter5Director.Phase.EndingA || d.CurrentPhase == Chapter5Director.Phase.EndingB) && Waited(9f)) { Note($"엔딩: {d.CurrentPhase}, {Line}, 제목 '{StoryState.Title}'"); Shot("ending"); Next(); }
+                // 2026-10-23: 엔딩은 다른 장면(A = 프롤로그, B = 1장)을 무대로 찍는다(EndingStage)
+                if (EndingStage.Playing != EndingStage.Kind.None && Waited(0.5f)) { Note($"엔딩 시작: {EndingStage.Playing}(기대 {(choice == 1 ? "Rewind" : "Break")})"); Next(); }
                 else if (Waited(20f)) End("엔딩으로 넘어가지 않음");
                 break;
             case 16:
-                if (d && d.CurrentPhase == Chapter5Director.Phase.End && Waited(1f)) { Note($"크레딧: {Line}"); Chapter5Director.ForcedChoice = 0; End("완료"); }
-                else if (Waited(40f)) End("크레딧으로 넘어가지 않음");
+            {
+                string scene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+                if (EndingStage.Beat != lastBeat) { lastBeat = EndingStage.Beat; Note($"엔딩 장면 {lastBeat} ({scene}): {Line}"); if (lastBeat is "danny" or "tape") Shot("ending_" + lastBeat); }
+                if (EndingStage.Finished && scene == "Title" && Waited(1f)) { Chapter5Director.ForcedChoice = 0; End("완료 — 엔딩 뒤 타이틀로 돌아옴"); }
+                else if (Waited(120f)) End($"엔딩이 끝나지 않음(장면 {EndingStage.Beat})");
                 break;
+            }
         }
     }
+
+    static string lastBeat;
 
     static int Alive(CombatZone z)
     {

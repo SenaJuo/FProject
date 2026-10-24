@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.InputSystem.Controls;
@@ -29,7 +29,7 @@ public class TitleScreen : MonoBehaviour
 
     public string firstScene = "Prologue";
     [Tooltip("타이틀 테이프에 든 곡들(Resources 경로). 한 곡이 끝나거나 FF로 끝을 넘기면 다음 곡")]
-    public string[] musicTracks = { "Music/Title/title-1", "Music/Title/title-2", "Music/Title/title-3" }; // VARCO Sound로 만든 타이틀 전용 곡(누아르 재즈 · 피아노와 첼로 · 되감기 피아노)
+    public string[] musicTracks = { "Title/title-1", "Title/title-2", "Title/title-3" }; // VARCO Sound로 만든 타이틀 전용 곡(누아르 재즈 · 피아노와 첼로 · 되감기 피아노)
 
     [Header("카세트 건반(그림 속 자리, 0~1, 왼쪽 위가 0)")]
     public Rect keyPlay = new(0.557f, 0.613f, 0.066f, 0.078f);
@@ -89,6 +89,9 @@ public class TitleScreen : MonoBehaviour
     void Start()
     {
         if (SaveGame.HasSave) items = new[] { ContinueItem, NewGameItem, OptionsItem, QuitItem };
+#if UNITY_WEBGL && !UNITY_EDITOR
+        items = System.Array.FindAll(items, i => i != QuitItem); // 웹: 브라우저 탭은 게임이 닫을 수 없다
+#endif
         Time.timeScale = 1f;
         AudioListener.pause = false;
         Cursor.lockState = CursorLockMode.None;
@@ -110,6 +113,7 @@ public class TitleScreen : MonoBehaviour
         radio.transform.SetParent(transform, false);
         music = radio.AddComponent<AudioSource>();
         music.loop = false; // 곡이 끝나면 다음 곡으로(Update)
+        foreach (var t in musicTracks) MusicLibrary.Prefetch(t); // 웹: 미리 받아 둔다
         LoadTrack(0);
         music.spatialBlend = 0f;
         music.volume = 0f;
@@ -320,8 +324,8 @@ public class TitleScreen : MonoBehaviour
     {
         if (musicTracks == null || musicTracks.Length == 0) return;
         track = ((index % musicTracks.Length) + musicTracks.Length) % musicTracks.Length;
-        music.clip = Resources.Load<AudioClip>(musicTracks[track]);
-        music.time = 0f;
+        music.clip = MusicLibrary.Get(musicTracks[track]);
+        if (music.clip) music.time = 0f;
     }
 
     /// <summary>테이프를 지금 자리에서 다시 돌린다(모터가 붙으며 음이 살짝 올라온다)</summary>
@@ -338,7 +342,17 @@ public class TitleScreen : MonoBehaviour
 
     void UpdateDeck(float dt)
     {
-        if (!music || !music.clip) return;
+        if (!music) return;
+        if (!music.clip)
+        {
+            // 웹: 곡을 받는 중 — 다 받으면 그때부터 튼다
+            var clip = MusicLibrary.Get(musicTracks[track]);
+            if (!clip) return;
+            music.clip = clip;
+            music.time = 0f;
+            if (playing && !musicHeld) music.Play();
+            return;
+        }
         if (winding != 0)
         {
             // 감는 동안 음악은 멈춘 채 위치만 빠르게 옮긴다(14배속)

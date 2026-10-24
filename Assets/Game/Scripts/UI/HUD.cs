@@ -802,11 +802,14 @@ public class HUD : MonoBehaviour
 
     void DrawWaypoint(Vector3 target, float s)
     {
-        Vector3 screen = cam.WorldToScreenPoint(target + Vector3.up * 2f);
-        if (screen.z < 0f) screen = new Vector3(Screen.width - screen.x, 0f, 0f); // 카메라 뒤쪽이면 화면 아래 가장자리에 고정한다
+        Vector3 point = target + Vector3.up * 2f;
+        Vector3 local = cam.transform.InverseTransformPoint(point);
+        Vector3 screen = cam.WorldToScreenPoint(point);
+        // 카메라 뒤 · 옆(카메라 면에 가까우면 화면 좌표가 크게 튄다)이면 화면 아래 가장자리, 목표 쪽에 고정한다
+        if (local.z < 0.5f) screen = new Vector3(Screen.width * (local.x < 0f ? 0.35f : 0.65f), 0f, 0f);
         float margin = 60 * s;
         var centre = new Vector2(Mathf.Clamp(screen.x, margin, Screen.width - margin),
-                                 Mathf.Clamp(Screen.height - screen.y, margin, Screen.height - margin * 2f));
+                                 Mathf.Clamp(Screen.height - screen.y, 130 * s, Screen.height - margin * 2f)); // 위쪽 체력 · 목표 글자를 가리지 않게
 
         float size = 16 * s;
         var matrix = GUI.matrix;

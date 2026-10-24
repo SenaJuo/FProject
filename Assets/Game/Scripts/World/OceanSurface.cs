@@ -124,7 +124,8 @@ public class OceanSurface : MonoBehaviour
             float3 b = baseVerts[i];
             float wx = origin.x + b.x, wz = math.max(origin.z + b.z, minZ); // 안벽 안쪽은 물을 접어 둔다
             float3 p = new(wx - origin.x, 0f, wz - origin.z);
-            float fade = fades[i];
+            // 접힌 정점은 출렁이지 않는다: 반지름마다 파도 높이가 달라 안벽 선을 따라 얇은 물 커튼(사선 줄무늬)이 섰다
+            float fade = origin.z + b.z < minZ ? 0f : fades[i];
             // 거스트너 파도의 위치와 노멀(GPU Gems 1, 1장): N = (-Σ D.x·k·A·cos, 1 - Σ Q·k·A·sin, -Σ D.y·k·A·cos)
             float3 n = new(0f, 1f, 0f);
             if (fade > 0f)

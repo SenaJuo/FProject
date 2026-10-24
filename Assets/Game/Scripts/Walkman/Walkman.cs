@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -291,11 +291,11 @@ public class Walkman : MonoBehaviour
             if (music.isPlaying) music.Pause();
             return;
         }
-        if (tape != loadedTape || tape.CurrentTrack != loadedTrack) // 곡이 바뀔 때만 찾는다
+        if (tape != loadedTape || tape.CurrentTrack != loadedTrack || loadedClip == null) // 곡이 바뀔 때만 찾는다(웹은 받는 동안 비어 있어 다시 묻는다)
         {
             loadedTape = tape;
             loadedTrack = tape.CurrentTrack;
-            loadedClip = Resources.Load<AudioClip>($"Music/{tape.musicId}-{loadedTrack + 1}");
+            loadedClip = MusicLibrary.Get($"{tape.musicId}-{loadedTrack + 1}");
         }
         var clip = loadedClip;
         if (clip == null) { if (music.isPlaying) music.Stop(); return; }

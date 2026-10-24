@@ -11,7 +11,7 @@ using UnityEngine.InputSystem;
 ///  구역 3 홀: 유리 너머 윗선이 지켜본다 → 실험체 0번(보스, 절반에서 특수경비) → 마스터 테이프 → 생방송에 대니의 녹음
 ///         마스터 테이프 유리장(2026-10-23): 잠겨 있다. 손대면 회장이 위층 패널에 번호를 눌러 소각로로 떨어뜨린다 —
 ///         되감아 그 번호(1996, 개국한 해)로 먼저 연다. 번호를 본 건 레이뿐이다
-///  종장: R 길게 = 처음까지 되감는다(대니는 산다, 방송은 사라진다) / F = 테이프를 부순다(진실은 남는다).
+///  종장: R 길게 = 마스터 테이프(원하는 만큼 감기는 테이프)로 일주일 전으로 되감는다(대니는 산다, 방송은 사라진다) / F = 테이프를 부순다(진실은 남는다).
 /// </summary>
 public class Chapter5Director : MonoBehaviour
 {
@@ -368,9 +368,9 @@ public class Chapter5Director : MonoBehaviour
         }
         string[,] lines =
         {
-            { "", "(릴이 멈춘다. 손바닥만 한 카세트 하나 — 라벨도 없다. 되감기 단추가 안쪽으로 눌린 채 걸려 있다)", "4.0" },
+            { "", "(릴이 멈춘다. 손바닥만 한 카세트 하나 — 라벨도 없다)", "3.2" },
             { "회장", "그걸 내려놔. 그게 뭘 할 수 있는지 알기나 해?", "3.0" },
-            { Ray, "알아. 처음까지 감는 테이프.", "2.4" },
+            { Ray, "알아. 원하는 만큼 되감는 테이프.", "2.6" },
             { "회장", "그럼 알겠군. 오늘 밤 우린 그걸로 지난 30년을 깨끗이 지울 참이었네.", "4.0" },
             { Ray, "…지우기 전에, 들려줄 게 있다.", "2.6" },
         };
@@ -432,7 +432,7 @@ public class Chapter5Director : MonoBehaviour
         Shot(dynamicA, 0.8f);
         string[,] lines =
         {
-            { "", "(손 안의 테이프. 되감기 단추가 걸려 있다. 끝까지 — 대니가 살아 있던 그날 밤보다 더 전까지)", "4.2" },
+            { "", "(손 안의 테이프. 원하는 만큼 감을 수 있다 — 대니가 살아 있던 그날 밤까지도)", "4.2" },
             { Ray, "…이걸 감으면 대니가 산다. 방금 나간 방송도, 저놈들이 잡혀갈 아침도 함께 사라진다.", "4.6" },
             { Ray, "부수면, 대니는 돌아오지 않는다. 대신 진실은 남는다.", "3.6" },
         };
@@ -443,7 +443,7 @@ public class Chapter5Director : MonoBehaviour
             yield return Wait(t + 0.2f);
         }
         StoryState.SkipRequested = false;
-        StoryState.Prompt = "R 길게: 처음까지 되감는다   ·   F: 테이프를 부순다";
+        StoryState.Prompt = "R 길게: 일주일 전으로 되감는다   ·   F: 테이프를 부순다";
         float held = 0f;
         int chosen = 0;
         while (chosen == 0)
@@ -465,82 +465,33 @@ public class Chapter5Director : MonoBehaviour
     /// <summary>시험용: 1 = 되감기, 2 = 부수기</summary>
     public static int ForcedChoice;
 
-    /// <summary>엔딩 A — 다시, A면: 처음까지 되감는다. 대니는 살고, 레이만 모든 걸 기억한다</summary>
+    /// <summary>엔딩 A — 다시, A면: 일주일 전 그 밤까지 되감는다. 하얗게 감긴 끝에서 일주일 전 그날 밤으로(EndingStage가 프롤로그 장면에서 찍는다)</summary>
     IEnumerator EndingRewind()
     {
         CurrentPhase = Phase.EndingA;
         if (rewindEffect) { rewindEffect.StartWhir(); rewindEffect.SetWeight(1f); }
-        StoryState.Say("", "(단추를 끝까지 누른다. 테이프가 비명처럼 감긴다)", 2.6f);
+        StoryState.Say("", "(단추를 누른 채, 일주일 전 그 밤까지 감는다. 테이프가 비명처럼 감긴다)", 2.8f);
         StoryState.FadeColor = Color.white;
         yield return FadeTo(1f, 3.2f);
         if (rewindEffect) { rewindEffect.StopWhir(); rewindEffect.SetWeight(0f); }
-        StoryState.FadeColor = Color.black;
         StoryState.Fade = 1f;
-        yield return StoryState.Sleep(1.6f);
-        string[,] lines =
-        {
-            { "", "(전화벨. 일주일 전, 그날 밤. 레이의 집)", "3.0" },
-            { "대니 (전화)", "…레이? 나야, 대니. 부탁 하나만 하자. 택배가 하나 갈 거야—", "3.6" },
-            { Ray, "대니.", "1.6" },
-            { "대니 (전화)", "…왜 그래, 목소리가.", "2.0" },
-            { Ray, "이번엔 받지 않아. 내가 지금 그리로 간다. 그리고 이번엔— 둘 다 산다.", "4.0" },
-        };
-        for (int i = 0; i < lines.GetLength(0); i++)
-        {
-            float t = float.Parse(lines[i, 2], System.Globalization.CultureInfo.InvariantCulture);
-            StoryState.Say(lines[i, 0], lines[i, 1], t);
-            yield return StoryState.Sleep(t + 0.3f);
-        }
-        StoryState.Title = "엔딩 A   다시, A면";
-        yield return StoryState.Sleep(4f);
-        yield return Credits();
+        yield return StoryState.Sleep(0.8f);
+        CurrentPhase = Phase.End;
+        EndingStage.Play(EndingStage.Kind.Rewind);
     }
 
-    /// <summary>엔딩 B — 끝난 테이프: 부순다. 대니는 돌아오지 않고, 진실은 남는다</summary>
+    /// <summary>엔딩 B — 끝난 테이프: 부순다. 대니는 돌아오지 않고, 진실은 남는다(EndingStage가 1장 부두에서 찍는다)</summary>
     IEnumerator EndingBreak()
     {
         CurrentPhase = Phase.EndingB;
         StoryState.Say("", "(테이프를 바닥에 내리친다. 플라스틱이 갈라지고, 갈색 테이프가 엉켜 쏟아진다)", 3f);
         ProceduralSfx.PlayAt(ProceduralSfx.PlasticHit, player.transform.position, 1.2f, 0f, 0.8f);
         yield return StoryState.Sleep(3.2f);
+        StoryState.FadeColor = Color.black;
         yield return FadeTo(1f, 2f);
-        string[,] lines =
-        {
-            { "", "(새벽. 라디오 뉴스)", "2.2" },
-            { "뉴스", "…한결 레코드 회장과 경찰청 차장, 국회의원 등 열두 명이 오늘 새벽 체포됐습니다. 지하 시설에서는 실종자 스물세 명이—", "5.2" },
-            { "", "(부두. 첫 배가 들어온다. 레이가 카세트 플레이어에 낡은 믹스테이프를 넣는다)", "3.6" },
-            { Ray, "…잘 가라, 대니. 네 B면은 내가 끝까지 들었다.", "3.6" },
-        };
-        for (int i = 0; i < lines.GetLength(0); i++)
-        {
-            float t = float.Parse(lines[i, 2], System.Globalization.CultureInfo.InvariantCulture);
-            StoryState.Say(lines[i, 0], lines[i, 1], t);
-            yield return StoryState.Sleep(t + 0.3f);
-        }
-        StoryState.Title = "엔딩 B   끝난 테이프";
-        yield return StoryState.Sleep(4f);
-        yield return Credits();
-    }
-
-    IEnumerator Credits()
-    {
+        yield return StoryState.Sleep(0.6f);
         CurrentPhase = Phase.End;
-        StoryState.Title = null;
-        string[] roll =
-        {
-            "REWIND",
-            "만든 이 — SenaJuo",
-            "3D · 소리 · 음악 — VARCO 3D · VARCO Sound",
-            "애니메이션 — Quaternius · Motifect · Blender",
-            "들어 주셔서 고맙습니다.",
-        };
-        foreach (var line in roll)
-        {
-            StoryState.Say("", line, 3f);
-            yield return StoryState.Sleep(3.2f);
-        }
-        if (SaveGame.Enabled) SaveGame.Delete(); // 끝까지 봤다: 다음엔 처음부터(시험·에디터 실행은 실제 저장을 건드리지 않는다)
-        SceneLoader.Load(PauseMenu.TitleScene);
+        EndingStage.Play(EndingStage.Kind.Break);
     }
 
     void OnRespawned()

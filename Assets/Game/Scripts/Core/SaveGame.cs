@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using UnityEngine;
@@ -43,7 +43,7 @@ public static class SaveGame
     /// </summary>
     public const int Version = 2;
 
-    public static bool HasSave => Read() != null;
+    public static bool HasSave => Read() is { } d && SceneLoader.Has(d.scene); // 이 빌드에 없는 장면의 저장(체험판)은 없는 것으로
 
     /// <summary>타이틀에서 시작했을 때만 저장한다(에디터에서 장면을 바로 틀거나 시험 도구가 돌 때 실제 저장을 덮어쓰지 않게)</summary>
     public static bool Enabled;
@@ -58,8 +58,9 @@ public static class SaveGame
     {
         try
         {
-            if (!File.Exists(FilePath)) return null;
-            var d = JsonUtility.FromJson<Data>(File.ReadAllText(FilePath));
+            string json = LoadText();
+            if (string.IsNullOrEmpty(json)) return null;
+            var d = JsonUtility.FromJson<Data>(json);
             return d != null && d.version >= Version && !string.IsNullOrEmpty(d.scene) ? d : null;
         }
         catch (Exception e) { Debug.LogWarning("저장 파일을 읽지 못했다: " + e.Message); return null; }
@@ -80,7 +81,7 @@ public static class SaveGame
             d.pickups.Add(new PickupState { name = p.name, taken = !p.HasTape, potions = p.gameObject.activeSelf ? p.potions : 0 });
         foreach (var s in UnityEngine.Object.FindObjectsByType<TapeShop>(FindObjectsInactive.Include, FindObjectsSortMode.None))
             for (int i = 0; i < s.stock.Count; i++) if (s.stock[i].traded) d.traded.Add($"{s.shopName}|{i}");
-        try { File.WriteAllText(FilePath, JsonUtility.ToJson(d, true)); }
+        try { StoreText(JsonUtility.ToJson(d, true)); }
         catch (Exception e) { Debug.LogWarning("저장하지 못했다: " + e.Message); }
     }
 
@@ -89,7 +90,7 @@ public static class SaveGame
     {
         Enabled = true;
         pending = null;
-        try { File.WriteAllText(FilePath, JsonUtility.ToJson(new Data { scene = firstScene, checkpoint = "start", savedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm") }, true)); }
+        try { StoreText(JsonUtility.ToJson(new Data { scene = firstScene, checkpoint = "start", savedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm") }, true)); }
         catch (Exception e) { Debug.LogWarning("저장하지 못했다: " + e.Message); }
     }
 
@@ -97,7 +98,7 @@ public static class SaveGame
     public static bool Continue()
     {
         var d = Read();
-        if (d == null || string.IsNullOrEmpty(d.scene)) return false;
+        if (d == null || string.IsNullOrEmpty(d.scene) || !SceneLoader.Has(d.scene)) return false;
         pending = d;
         Enabled = true;
         SceneLoader.Load(d.scene);
@@ -119,7 +120,7 @@ public static class SaveGame
         }
         pending = d;
         if (!Enabled) return;
-        try { File.WriteAllText(FilePath, JsonUtility.ToJson(d, true)); }
+        try { StoreText(JsonUtility.ToJson(d, true)); }
         catch (Exception e) { Debug.LogWarning("저장하지 못했다: " + e.Message); }
     }
 
@@ -158,6 +159,34 @@ public static class SaveGame
 
     public static void Delete()
     {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        PlayerPrefs.DeleteKey(WebKey);
+        PlayerPrefs.Save();
+#else
         try { if (File.Exists(FilePath)) File.Delete(FilePath); } catch { }
+#endif
+    }
+
+    // ---------- 저장 자리 ----------
+    // 웹(itch.io, 2026-10-24): 브라우저에서는 파일을 써도 바로 디스크(IndexedDB)에 남지 않는다 → PlayerPrefs에 둔다(Save가 곧바로 남긴다)
+    const string WebKey = "savegame";
+
+    static string LoadText()
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        return PlayerPrefs.GetString(WebKey, "");
+#else
+        return File.Exists(FilePath) ? File.ReadAllText(FilePath) : null;
+#endif
+    }
+
+    static void StoreText(string json)
+    {
+#if UNITY_WEBGL && !UNITY_EDITOR
+        PlayerPrefs.SetString(WebKey, json);
+        PlayerPrefs.Save();
+#else
+        File.WriteAllText(FilePath, json);
+#endif
     }
 }
