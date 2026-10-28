@@ -137,6 +137,12 @@ public static class GameSettings
         Screen.SetResolution(r.x, r.y, Screen.fullScreenMode);
     }
 
+    /// <summary>
+    /// 저장값이 없을 때 · 기본값으로: 웹은 낮음(Mobile — 렌더 80% · 추가 조명 그림자 없음), 그 밖은 높음.
+    /// 전에는 늘 높음(PC)을 강제해 웹에서도 PC 화질로 돌아 1장 공원(그리기 호출 약 1000 · 조명 47)에서 프레임이 크게 떨어졌다(2026-10-28)
+    /// </summary>
+    public static int DefaultQuality => Application.platform == RuntimePlatform.WebGLPlayer ? 0 : 1;
+
     public static void SetQuality(int level)
     {
         Quality = Mathf.Clamp(level, 0, QualityNames.Length - 1);
@@ -172,7 +178,7 @@ public static class GameSettings
     {
         var native = Screen.currentResolution;
         Screen.SetResolution(native.width, native.height, FullScreenMode.FullScreenWindow);
-        SetQuality(1);
+        SetQuality(DefaultQuality);
         SetFrame(0);
     }
 
@@ -228,7 +234,7 @@ public static class GameSettings
         resolutions = null;
         for (int i = 0; i < values.Length; i++) values[i] = Mathf.Clamp01(PlayerPrefs.GetFloat(Keys[i], Default));
         AudioListener.volume = Gain(Channel.Master);
-        Quality = Mathf.Clamp(PlayerPrefs.GetInt("display.quality", 1), 0, QualityNames.Length - 1);
+        Quality = Mathf.Clamp(PlayerPrefs.GetInt("display.quality", DefaultQuality), 0, QualityNames.Length - 1);
         Frame = Mathf.Clamp(PlayerPrefs.GetInt("display.frame", 0), 0, FrameNames.Length - 1);
         MouseSensitivity = Mathf.Clamp(PlayerPrefs.GetFloat("input.mouse", 1f), MouseMin, MouseMax);
         InvertY = PlayerPrefs.GetInt("input.invertY", 0) == 1;
