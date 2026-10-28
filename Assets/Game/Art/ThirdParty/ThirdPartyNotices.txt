@@ -83,6 +83,8 @@
 [2026-10-14] 글꼴
 - Noto Sans KR (Assets/Game/Resources/Fonts/NotoSansKR.ttf) — Google / Adobe, SIL Open Font License 1.1.
   게임 화면 글자(HUD · 메뉴 · 설명 창)에 쓴다. OFL은 게임에 넣어 배포하는 것을 허용한다(글꼴 자체를 따로 팔 수는 없다).
+  [2026-10-28] 가변 글꼴의 기본 굵기가 Thin(100)이라 글자가 흐렸다 → fontTools로 굵기 500(Medium)에 고정한 판으로 바꾸고,
+  고친 글꼴이므로 이름을 "REWIND Noto KR"로 바꿨다(OFL 허용, Noto는 예약 글꼴 이름 없음). 라이선스는 그대로 OFL 1.1.
   원문: https://openfontlicense.org
 
 [2026-10-16] 주인공 얼굴 손질

@@ -630,7 +630,10 @@ public class HUD : MonoBehaviour
         var button = new Rect(x, d.yMax - 56 * s, w, 42 * s);
         bool equipped = tape == walkman.Inserted;
         UiTheme.Button(button, !equipped, s, dim: equipped);
-        PlainLabel(new Rect(button.x, button.y + 9 * s, button.width, 26 * s), equipped ? "끼움" : "끼우기  F", normalCentre);
+        // 버튼 높이 전체에서 세로 가운데로: 위에서 9px 내린 위쪽 정렬이라 한글 줄 높이만큼 처져 아래 테두리에 걸쳤다
+        normalCentre.alignment = TextAnchor.MiddleCenter;
+        PlainLabel(button, equipped ? "끼움" : "끼우기  F", normalCentre);
+        normalCentre.alignment = TextAnchor.UpperCenter;
         var e = Event.current;
         if (!equipped && e.type == EventType.MouseDown && button.Contains(e.mousePosition))
         {
