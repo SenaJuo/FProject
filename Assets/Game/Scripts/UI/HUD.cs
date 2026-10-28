@@ -26,6 +26,8 @@ public class HUD : MonoBehaviour
 
     // 매 OnGUI마다 같은 글자를 새로 만들지 않게 값이 바뀔 때만 다시 만든다
     string hpText, potionText, objectiveText, subtitleText, subtitleSpeaker, subtitleLine, objectiveStory, objectiveFinal;
+    float objectiveBottom; // 이번 화면에 그린 목표 글자의 아래 끝(가운데 큰 알림이 그 아래에서 시작한다)
+    readonly GUIContent objectiveContent = new(), subtitleContent = new();
     int hpCurrent = -1, hpMax = -1, potionCount = -1, objectiveCleared = -2, objectiveRemaining = -2;
     ZoneGate objectiveGate;
     bool objectiveFighting, objectiveValid;
@@ -54,7 +56,7 @@ public class HUD : MonoBehaviour
             float bar = Screen.height * 0.11f;
             Fill(new Rect(0, 0, Screen.width, bar), Color.black);
             Fill(new Rect(0, Screen.height - bar, Screen.width, bar), Color.black);
-            DrawSubtitle(s, Screen.height - bar + 18 * s);
+            DrawSubtitle(s, Screen.height - bar + 18 * s, Screen.height - 4 * s);
             if (!string.IsNullOrEmpty(StoryState.Prompt)) DrawPrompt(StoryState.Prompt, s); // 컷신 속 선택(종장 R/F)도 보이게
             DrawStoryOverlay(s);
             return;
@@ -72,6 +74,7 @@ public class HUD : MonoBehaviour
 
     void DrawTopHud(GameManager gm, float s)
     {
+        objectiveBottom = 0f;
         // 플레이어 상태(좌상단): 작은 영문 표제 + 숫자 + 둥근 막대(낮으면 붉게) · 회복약은 키 모양 [1]과 함께
         float hx = 40 * s, hy = 32 * s, hw = 320 * s;
         float hpRatio = (float)health.Current / health.Max;
@@ -95,6 +98,8 @@ public class HUD : MonoBehaviour
             string objective = ObjectiveText(gm, gate, fighting);
             ShadowLabel(new Rect(Screen.width - 740 * s, 32 * s, 700 * s, 22 * s), "O B J E C T I V E", eyebrowRight, Gold);
             ShadowLabel(new Rect(Screen.width - 740 * s, 56 * s, 700 * s, 80 * s), objective, right);
+            objectiveContent.text = Loc.T(objective);
+            objectiveBottom = 56 * s + Mathf.Min(80 * s, right.CalcHeight(objectiveContent, 700 * s));
 
             Vector3? waypoint = StoryState.Objective != null
                 ? (StoryState.Waypoint ? StoryState.Waypoint.position : null)
@@ -126,7 +131,8 @@ public class HUD : MonoBehaviour
         // 중앙 메시지
         bool rewindUi = walkman && (walkman.PromptOpen || walkman.Rewinding);
         string centre = rewindUi ? null : player.IsDead ? "YOU DIED" : gm && gm.MessageVisible ? gm.Message : null;
-        if (centre != null) ShadowLabel(new Rect(0, Screen.height * 0.12f, Screen.width, 120 * s), centre, big);
+        // 오른쪽 위 목표 글자 아래에서 시작한다: 작은 게임 창(1000×400)에서 영어 목표와 맞닿았다(2026-10-28)
+        if (centre != null) ShadowLabel(new Rect(0, Mathf.Max(Screen.height * 0.12f, menu ? 0f : objectiveBottom + 6 * s), Screen.width, 120 * s), centre, big);
 
         // 조작법은 화면에 늘 띄우지 않는다(Esc 메뉴 → 조작법)
         if (gm) DrawNotices(gm, s);
@@ -134,7 +140,7 @@ public class HUD : MonoBehaviour
         // 보스 체력 막대(이름 포함, 화면 아래)가 있으면 자막을 그 위로 올린다(작은 화면에서 보스 이름과 겹쳤다)
         float subY = Screen.height * 0.78f;
         if (bossBarTop > 0f) subY = Mathf.Min(subY, bossBarTop - 104 * s);
-        if (!menu && !StoryState.Paused) DrawSubtitle(s, subY); // 가게 · 인벤토리 · 메뉴 위에 겹쳐 그려졌다 → 닫은 뒤에 보인다(이야기 시계가 멈춰 있어 대사는 그대로 남는다)
+        if (!menu && !StoryState.Paused) DrawSubtitle(s, subY, bossBarTop > 0f ? bossBarTop - 4 * s : -1f); // 가게 · 인벤토리 · 메뉴 위에 겹쳐 그려졌다 → 닫은 뒤에 보인다(이야기 시계가 멈춰 있어 대사는 그대로 남는다)
         if (!string.IsNullOrEmpty(StoryState.Prompt) && !(walkman && walkman.Rewinding)) DrawPrompt(StoryState.Prompt, s);
         DrawStoryOverlay(s);
     }
@@ -236,7 +242,8 @@ public class HUD : MonoBehaviour
 
     // ---------- 이야기 연출(자막·페이드·제목) ----------
 
-    void DrawSubtitle(float s, float y)
+    /// <summary>bottom > 0이면 그 아래로는 쓰지 않는다(보스 막대 · 컷신 띠 끝)</summary>
+    void DrawSubtitle(float s, float y, float bottom = -1f)
     {
         if (!StoryState.LineVisible) return;
         if (!ReferenceEquals(subtitleSpeaker, StoryState.Speaker) || !ReferenceEquals(subtitleLine, StoryState.Line))
@@ -249,8 +256,17 @@ public class HUD : MonoBehaviour
         normalCentre.richText = true;
         // 왼쪽 아래 카세트와 오른쪽 아래 알림을 피해 가운데 칸에만 쓴다(넘치면 두 줄 → 그래도 넘치면 UIText가 줄인다)
         float side = StoryState.CutsceneActive ? 340 * s : 480 * s; // 컷신: 오른쪽 아래 "Space 건너뛰기"(약 330)를 피한다 // 카세트 위 "+ 테이프 N개"(x 340~450)에서도 떨어지게
-        // 위에서부터 쓴다: 보통 한두 줄, 좁은 화면은 세 줄까지. 화면 아래 끝은 넘지 않게(영어 대사는 길어 컷신 띠 밖으로 나갔다, 2026-10-21)
-        ShadowLabel(new Rect(side, y, Screen.width - side * 2f, Mathf.Min(100 * s, Screen.height - y - 4 * s)), text, normalCentre);
+        // 위에서부터 쓴다: 보통 한두 줄, 좁은 화면은 네 줄까지. 화면 아래 끝은 넘지 않게(영어 대사는 길어 컷신 띠 밖으로 나갔다, 2026-10-21)
+        // 칸 높이 140: 100이면 세 줄이 겨우라 1280×720 영어의 긴 대사(80자 넘는 줄 약 100개)가 작아졌다(2026-10-28)
+        float w = Screen.width - side * 2f, h = 140 * s;
+        if (bottom > 0f)
+        {
+            // 아래가 막힌 자리(보스 막대 위 · 컷신 띠): 아래 끝을 고정하고 긴 대사만 위로 자란다. 짧은 대사는 원래 자리
+            subtitleContent.text = Loc.T(text);
+            y = Mathf.Min(y, bottom - Mathf.Min(h, normalCentre.CalcHeight(subtitleContent, w)));
+            h = bottom - y;
+        }
+        ShadowLabel(new Rect(side, y, w, Mathf.Min(h, Screen.height - y - 4 * s)), text, normalCentre);
     }
 
     void DrawStoryOverlay(float s)
@@ -332,12 +348,14 @@ public class HUD : MonoBehaviour
     {
         var list = gm.Notices;
         float now = StoryState.Now, y = Screen.height - 54 * s;
+        // 알림은 자막 칸(가운데, 양옆 480) 오른쪽에서만: 긴 알림이 자막 칸 안까지 들어와 자막을 네 줄로 늘리면 맞닿았다 → 넘치는 알림만 조금 작아진다(2026-10-28)
+        float left = Screen.width - 480 * s + 8 * s;
         for (int i = list.Count - 1; i >= 0; i--, y -= 34 * s)
         {
             var (text, from, until) = list[i];
             float a = Mathf.Clamp01((until - now) / 0.5f) * Mathf.Clamp01((now - from) / 0.15f);
             float slide = (1f - Mathf.Clamp01((now - from) / 0.2f)) * 40 * s;
-            var r = new Rect(0, y, Screen.width - 40 * s + slide, 30 * s);
+            var r = new Rect(left, y, Screen.width - 40 * s + slide - left, 30 * s);
             var c = GUI.color; GUI.color = new Color(1f, 1f, 1f, a);
             ShadowLabel(r, text, smallRight);
             GUI.color = c;
