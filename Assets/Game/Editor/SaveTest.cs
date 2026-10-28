@@ -14,13 +14,15 @@ public static class SaveTest
     static string log, backup;
     static int index, stage;
     static float since;
+    // behindZ는 Chapter1Director.Resume과 같은 값(맵을 줄일 때 감독만 98·225·250으로 바뀌어, 구역 3 앞쪽 적 셋을 '지나온 적'으로 셌다)
     static readonly (string id, string point, string phase, float behindZ)[] Cases =
     {
         ("c1_shop1", "shopSave", "Avenue", 70f),
-        ("c1_zone2", "zone2Start", "CheckpointScene", 128f),
-        ("c1_shop2", "shop2Save", "Harbor", 275f),
-        ("c1_zone3", "zone3Start", "Docks", 300f),
+        ("c1_zone2", "zone2Start", "CheckpointScene", 98f),
+        ("c1_shop2", "shop2Save", "Harbor", 225f),
+        ("c1_zone3", "zone3Start", "Docks", 250f),
     };
+    static int oldDirector; // 이어하기 전 감독: 비동기 로딩이 늦으면 4.5초가 지나도 옛 장면을 쟀다
 
     static string SavePath => SaveGame.FilePath;
 
@@ -51,11 +53,20 @@ public static class SaveTest
             d.traded.Add("심야 레코드|0");
             File.WriteAllText(SavePath, JsonUtility.ToJson(d, true));
             Note($"── 이어하기: {c.id}");
+            var before = Object.FindAnyObjectByType<Chapter1Director>();
+            oldDirector = before ? before.GetInstanceID() : 0;
             SaveGame.Continue();
             stage = 1; since = Time.realtimeSinceStartup;
             return;
         }
-        if (stage == 1 && t > 4.5f)
+        if (stage == 1)
+        {
+            var fresh = Object.FindAnyObjectByType<Chapter1Director>();
+            if (fresh && fresh.GetInstanceID() != oldDirector) { stage = 2; since = Time.realtimeSinceStartup; }
+            else if (t > 30f) { Note("   새 장면이 30초 안에 뜨지 않음"); stage = 2; since = Time.realtimeSinceStartup - 10f; }
+            return;
+        }
+        if (stage == 2 && t > 4.5f)
         {
             var dir = Object.FindAnyObjectByType<Chapter1Director>();
             var p = Object.FindAnyObjectByType<PlayerController>();

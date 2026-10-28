@@ -968,6 +968,8 @@ public class Chapter1Director : MonoBehaviour
 
         // 새벽: 3번 부두 끝 계선주에 앉아 테이프를 끼운다
         StoryState.Title = "새벽 5시 12분";
+        // 반장만 먼저 쓰러뜨리면 살아남은 부두 조직원이 멈춘 채 새벽 계선주 옆에 서 있었다: 어두운 동안 치운다
+        foreach (var e in new List<EnemyAI>(EnemyAI.All)) if (e && e != boss && !e.Health.IsDead) e.gameObject.SetActive(false);
         if (dawnSeat) player.Teleport(dawnSeat.position, dawnSeat.rotation);
         // 비가 그친다. 어둠 속에서 시작해, 녹음이 흐르는 동안 수평선이 붉게 밝아 온다(SkyCycle)
         if (rainAudio) rainAudio.volume *= 0.15f;
@@ -980,6 +982,8 @@ public class Chapter1Director : MonoBehaviour
         player.transform.rotation = Quaternion.LookRotation(new Vector3(0.3f, 0f, 1f));
         Place(dynamicB, seat + new Vector3(-2.2f, 1.2f, -3.0f), seat + new Vector3(3f, 2.2f, 30f), 46f);
         Shot(dynamicB, 0f);
+        // 새벽 하늘은 HarborSky로: 장면 하늘을 다른 밤 하늘로 바꿔 두면 안개·빛만 붉어지고 하늘은 밤으로 남았다(엔딩 B와 같은 방법, 복사본)
+        if (skyCycle && skyCycle.sky) { skyCycle.sky = new Material(skyCycle.sky); RenderSettings.skybox = skyCycle.sky; DynamicGI.UpdateEnvironment(); }
         if (skyCycle) skyCycle.Set(0.15f);
         yield return Wait(1.6f);
         StoryState.Title = null;
