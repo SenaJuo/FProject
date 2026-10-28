@@ -360,20 +360,29 @@ public class Chapter1Director : MonoBehaviour
         StoryState.Objective = "3번 부두로 간다";
         StoryState.Waypoint = pier;
         Arm(pierTrigger, true);
-        yield return new WaitUntil(() => Reached(pierTrigger));
+        // 반장 싸움은 소개 장면 뒤에 감독이 연다: 부두 구역(PierZone)에 먼저 들어가거나 반장을 먼저 때리면 감독 모르게 싸움이 시작돼
+        // 25%에서 테이프를 태우러 가는 장면 없이 반장이 쓰러지고, 그 뒤 트리거를 밟으면 쓰러진 반장이 소개 대사를 했다(2026-10-28 웹 빌드 제보)
+        var pierCol = pierZone ? pierZone.GetComponent<Collider>() : null;
+        if (pierCol) pierCol.enabled = false;
+        yield return new WaitUntil(() => Reached(pierTrigger) || BossProvoked());
         if (boss)
         {
-            // 부두 큰길 싸움 등에서 쫓아온 조직원이 남아 있으면 먼저 처리한다(조작이 잠긴 소개 장면 동안 얻어맞지 않게)
-            while (ChasersNearby())
+            // 부두 큰길 싸움 등에서 쫓아온 조직원이 남아 있으면 먼저 처리한다(조작이 잠긴 소개 장면 동안 얻어맞지 않게) — 반장을 건드렸으면 바로 소개로
+            while (ChasersNearby() && !BossProvoked())
             {
                 StoryState.Objective = "주변의 조직원을 처리한다";
                 StoryState.Waypoint = null;
-                yield return new WaitUntil(() => !ChasersNearby());
+                yield return new WaitUntil(() => !ChasersNearby() || BossProvoked());
             }
+            // 소개 장면 동안은 반장 무리를 세운다(먼저 건드려 깨어났어도)
+            boss.Deactivate();
+            foreach (var t in pierThugs) if (t && !t.Health.IsDead) t.Deactivate();
             yield return BossIntro();
             CurrentPhase = Phase.Boss;
             StoryState.Objective = "정리반 반장을 쓰러뜨린다";
             StoryState.Waypoint = null;
+            if (pierCol) pierCol.enabled = true;
+            if (pierZone) pierZone.Engage(); // 구역 진행(쓰러져 다시 시작할 때의 처리)도 여기서부터
             boss.Activate();
             foreach (var t in pierThugs) if (t && !t.Health.IsDead) t.Activate();
             yield return new WaitUntil(() => !boss || boss.Health.IsDead || (bossBrain && bossBrain.WantsToBurn));
@@ -702,6 +711,9 @@ public class Chapter1Director : MonoBehaviour
     }
 
     // ---------- 3번 부두: 반장 ----------
+
+    /// <summary>소개 장면 전에 반장이 깨어났거나 맞았다(레이가 먼저 건드렸다)</summary>
+    bool BossProvoked() => boss && !boss.Health.IsDead && (boss.IsActive || boss.Health.Current < boss.Health.Max);
 
     /// <summary>반장 무리 말고, 깨어나 레이를 쫓는 조직원이 가까이(35m) 있는가</summary>
     bool ChasersNearby()
