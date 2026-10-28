@@ -45,7 +45,12 @@ public static class PauseMenuTest
     static void Keys(params Key[] keys) => InputSystem.QueueStateEvent(Keyboard.current, new KeyboardState(keys));
 
     /// <summary>한 번 눌렀다 뗀다(다음 단계에서 뗀다)</summary>
-    static void Tap(Key key) => Keys(key);
+    static void Tap(Key key)
+    {
+        Keys(key);
+        // 좌우는 0.35초 누르고 있으면 연달아 바뀐다(PauseMenu): 단계 간격과 같아 가끔 한 칸 더 갔다 → 짧게 누르고 뗀다
+        if (key == Key.A || key == Key.D) next = Time.unscaledTime + 0.12f;
+    }
     static void Release() => Keys();
 
     static IEnumerator SleepProbe()
