@@ -138,10 +138,28 @@ public static class GameSettings
     }
 
     /// <summary>
-    /// 저장값이 없을 때 · 기본값으로: 웹은 낮음(Mobile — 렌더 80% · 추가 조명 그림자 없음), 그 밖은 높음.
-    /// 전에는 늘 높음(PC)을 강제해 웹에서도 PC 화질로 돌아 1장 공원(그리기 호출 약 1000 · 조명 47)에서 프레임이 크게 떨어졌다(2026-10-28)
+    /// 저장값이 없을 때 · 기본값으로: 웹은 낮음, 그 밖은 높음.
+    /// 전에는 늘 높음을 강제해 웹이 PC 화질 그대로 돌아 1장 공원(그리기 호출 약 1000 · 조명 47)에서 프레임이 크게 떨어졌다(2026-10-28)
     /// </summary>
-    public static int DefaultQuality => Application.platform == RuntimePlatform.WebGLPlayer ? 0 : 1;
+    public static int DefaultQuality => IsWeb ? 0 : 1;
+
+    static bool IsWeb => Application.platform == RuntimePlatform.WebGLPlayer;
+
+    /// <summary>
+    /// 웹의 낮음: 화질 단계(Mobile 렌더 설정)를 바꾸지 않고, 웹에서 제대로 그려지는 PC 렌더 설정에서 렌더 해상도 · 그림자 거리만 줄인다.
+    /// 웹에서 Mobile 렌더 설정으로 바꾸면 화면이 통째로 까맣게 나왔다(빌드가 그 설정용 셰이더를 빼 버린다, 2026-10-30 itch.io 제보).
+    /// 두 값은 셰이더 종류와 상관없어 바꿔도 안전하다. 처음 값은 기억했다가 높음에서 되돌린다(빌드에서는 자산 파일에 남지 않는다)
+    /// </summary>
+    static void ApplyWebQuality()
+    {
+        if (QualitySettings.GetQualityLevel() != 1 && QualitySettings.names.Length > 1) QualitySettings.SetQualityLevel(1, true);
+        if (!(UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset rp)) return;
+        if (webScale < 0f) { webScale = rp.renderScale; webShadow = rp.shadowDistance; }
+        bool low = Quality == 0;
+        rp.renderScale = low ? 0.75f : webScale;
+        rp.shadowDistance = low ? 50f : webShadow;
+    }
+    static float webScale = -1f, webShadow;
 
     public static void SetQuality(int level)
     {
@@ -160,7 +178,8 @@ public static class GameSettings
     /// <summary>화질·프레임 제한을 실제로 적용한다(화질을 바꾸면 그 단계의 수직동기화 값이 따라오므로 프레임은 그 뒤에)</summary>
     static void ApplyDisplay()
     {
-        if (QualitySettings.GetQualityLevel() != Quality && Quality < QualitySettings.names.Length) QualitySettings.SetQualityLevel(Quality, true);
+        if (IsWeb) ApplyWebQuality();
+        else if (QualitySettings.GetQualityLevel() != Quality && Quality < QualitySettings.names.Length) QualitySettings.SetQualityLevel(Quality, true);
         int fps = FrameRates[Frame];
         QualitySettings.vSyncCount = fps == 0 ? 1 : 0;
         // "모니터에 맞춤"은 수직동기화인데, 유니티 편집기에서 플레이하면 수직동기화가 무시돼 제한 없이 돌았다(CPU가 뜨거워짐, 2026-10-14)
