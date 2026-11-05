@@ -784,7 +784,30 @@ public static class PrologueBuilder
             AssetDatabase.SaveAssetIfDirty(mat);
         }
         TrimSmallShadows(); // 모든 장면 빌더가 저장 직전에 여기를 지난다
+        TierLightShadows();
         SeparateCoplanarTops();
+    }
+
+    /// <summary>
+    /// 추가 조명 그림자 등급(2026-11-05): 모두 '높음(1024)'이라 2048 그림자 판에 네 칸밖에 안 들어가, 1장(손전등 16 · 투광등 6 · 드럼통 불)처럼
+    /// 여러 개가 한꺼번에 보이면 URP가 모든 그림자 해상도를 낮췄다 → 스팟은 보통(512), 점광원(6면)은 낮음(256)
+    /// </summary>
+    internal static int TierLightShadows()
+    {
+        int n = 0;
+        foreach (var l in Object.FindObjectsByType<Light>(FindObjectsInactive.Include, FindObjectsSortMode.None))
+        {
+            if (l.type == LightType.Directional || l.shadows == LightShadows.None) continue;
+            var data = l.GetComponent<UnityEngine.Rendering.Universal.UniversalAdditionalLightData>() ?? l.gameObject.AddComponent<UnityEngine.Rendering.Universal.UniversalAdditionalLightData>();
+            int tier = l.type == LightType.Point ? UnityEngine.Rendering.Universal.UniversalAdditionalLightData.AdditionalLightsShadowResolutionTierLow
+                                                 : UnityEngine.Rendering.Universal.UniversalAdditionalLightData.AdditionalLightsShadowResolutionTierMedium;
+            if (data.additionalLightsShadowResolutionTier == tier) continue;
+            var so = new SerializedObject(data); // 속성은 읽기 전용이라 저장 필드로 바꾼다
+            so.FindProperty("m_AdditionalLightsShadowResolutionTier").intValue = tier;
+            so.ApplyModifiedPropertiesWithoutUndo();
+            n++;
+        }
+        return n;
     }
 
     /// <summary>얇은 판 바로 밑(2cm 안)에 다른 물체가 있는가: 판 위에서 아래로 쏴 판 자신은 빼고 본다(바닥면 안에서 쏘면 못 맞힌다)</summary>

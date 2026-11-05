@@ -139,7 +139,7 @@ public class EndingStage : MonoBehaviour
         Shot(wide, 0f);
         yield return FadeTo(0f, 2.6f); // 하얗게 감긴 끝에서 방이 떠오른다
         StoryState.FadeColor = Color.black;
-        StoryState.Title = "일주일 전";
+        StoryState.Title = "택배가 오기 전날 밤";
         yield return Wait(2.2f);
         StoryState.Title = null;
         Vector3 desk = d.deskWalkman ? d.deskWalkman.transform.position : player.transform.position + player.transform.forward;
@@ -221,15 +221,15 @@ public class EndingStage : MonoBehaviour
         Place(camA, rHead + new Vector3(0.42f, 0.02f, -0.35f), dHead + Vector3.down * 0.05f, 30f);
         Place(camB, dHead + new Vector3(-0.4f, 0.02f, 0.3f), rHead + Vector3.down * 0.05f, 30f);
         Shot(camA, 0f);
-        yield return Lines(("대니", "…레이? 이 시간에 웬일이야. 숨은 왜 그렇게 차?", 3.4f));
+        yield return Lines(("대니", "…레이? 진짜 왔네. 숨은 왜 그렇게 차?", 3.4f));
         Shot(camB, 0f);
         yield return Lines((Ray, "……살아 있네.", 2.4f));
         Shot(camA, 0f);
         yield return Lines(("대니", "뭐?", 1.4f));
         Shot(camB, 0f);
-        yield return Lines((Ray, "아니. 택배, 아직 안 부쳤지?", 2.6f));
+        yield return Lines((Ray, "아니. 그 택배— 안에 카세트 플레이어 들었지?", 2.6f));
         Shot(camA, 0f);
-        yield return Lines(("대니", "어… 내일 아침에 부치려고 했는데. 그걸 어떻게—", 3.2f));
+        yield return Lines(("대니", "…어떻게 알았어? 아직 아무한테도 말 안 했는데—", 3.2f));
         // 마지막: 둘이 한 화면에(옆에서)
         Place(camB, rayAt + new Vector3(2.2f, 1.3f, -1.8f), Vector3.Lerp(rHead, dHead, 0.5f) + Vector3.down * 0.2f, 38f); // 오른쪽에서: 왼쪽은 현관등이 대니 머리 뒤에서 번졌다
         Shot(camB, 0.8f);

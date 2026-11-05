@@ -146,7 +146,7 @@ public static class GameSettings
     static bool IsWeb => Application.platform == RuntimePlatform.WebGLPlayer;
 
     /// <summary>
-    /// 웹의 낮음: 화질 단계(Mobile 렌더 설정)를 바꾸지 않고, 웹에서 제대로 그려지는 PC 렌더 설정에서 렌더 해상도 · 그림자 거리만 줄인다.
+    /// 웹의 낮음: 화질 단계(Mobile 렌더 설정)를 바꾸지 않고, 웹에서 제대로 그려지는 PC 렌더 설정에서 렌더 해상도 · 그림자 거리 · 메시 단순화 시점만 바꾼다.
     /// 웹에서 Mobile 렌더 설정으로 바꾸면 화면이 통째로 까맣게 나왔다(빌드가 그 설정용 셰이더를 빼 버린다, 2026-10-30 itch.io 제보).
     /// 두 값은 셰이더 종류와 상관없어 바꿔도 안전하다. 처음 값은 기억했다가 높음에서 되돌린다(빌드에서는 자산 파일에 남지 않는다)
     /// </summary>
@@ -154,12 +154,14 @@ public static class GameSettings
     {
         if (QualitySettings.GetQualityLevel() != 1 && QualitySettings.names.Length > 1) QualitySettings.SetQualityLevel(1, true);
         if (!(UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset rp)) return;
-        if (webScale < 0f) { webScale = rp.renderScale; webShadow = rp.shadowDistance; }
+        if (webScale < 0f) { webScale = rp.renderScale; webShadow = rp.shadowDistance; webMeshLod = QualitySettings.meshLodThreshold; }
         bool low = Quality == 0;
         rp.renderScale = low ? 0.75f : webScale;
         rp.shadowDistance = low ? 50f : webShadow;
+        // 단순화 단계(Mesh LOD)를 더 일찍: 1장 공원 시작 화면 삼각형 422만 → 234만, 화면 차이는 보이지 않았다(2026-11-05, 생울타리 하나가 4만 3천)
+        QualitySettings.meshLodThreshold = low ? 3f : webMeshLod;
     }
-    static float webScale = -1f, webShadow;
+    static float webScale = -1f, webShadow, webMeshLod;
 
     public static void SetQuality(int level)
     {

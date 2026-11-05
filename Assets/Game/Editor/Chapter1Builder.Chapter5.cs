@@ -34,6 +34,7 @@ public static partial class Chapter1Builder
         public StoryInteractable liftUse, hallDoor, masterUse, consoleUse;
         public EnemyAI zero;
         public GameObject[] guards;
+        public GameObject burnGlow;
     }
 
     [MenuItem("Game/Build Chapter 5")]
@@ -111,6 +112,7 @@ public static partial class Chapter1Builder
         d.masterUse = b.masterUse;
         d.consoleUse = b.consoleUse;
         d.masterTape = b.masterTape;
+        d.burnGlow = b.burnGlow;
 
         P.SetupEnvironment(Ch5VolumePath);
         RenderSettings.ambientLight = new Color(0.4f, 0.41f, 0.48f);
@@ -128,6 +130,22 @@ public static partial class Chapter1Builder
     }
 
     /// <summary>싸우지 않는 사람(모델 + 서 있는 동작만)</summary>
+    internal static readonly Vector3 MasterShotPos = new(421.7f, 2.15f, 13.7f);
+
+    /// <summary>
+    /// 마스터 테이프 유리장(2026-11-05 검수: "유리장이 불투명한 검은 기둥이라 테이프가 떨어지는 게 안 보인다"):
+    /// 테이프를 덮는 유리 상자 + 받침대 윗면의 소각구 불빛(평소 꺼짐 — 감독이 소각 장면에서 켠다)
+    /// </summary>
+    internal static GameObject MasterCase(Transform g)
+    {
+        var glass = P.Box(g, "MasterGlass", new Vector3(420f, 1.72f, 15.6f), new Vector3(0.8f, 0.62f, 0.6f), Glass(), Vector2.one, collider: false);
+        glass.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        var glow = P.Box(g, "IncineratorGlow", new Vector3(420f, 1.405f, 15.6f), new Vector3(0.5f, 0.02f, 0.3f), P.Lit("IncineratorGlow", null, new Color(1f, 0.45f, 0.12f), 0.2f, emission: new Color(1f, 0.36f, 0.06f) * 2.2f), Vector2.one, collider: false);
+        glow.GetComponent<Renderer>().shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        glow.SetActive(false);
+        return glow;
+    }
+
     static GameObject StandingCharacter(Transform parent, string name, string character, Vector3 pos, float yaw)
     {
         var asset = AssetDatabase.LoadAssetAtPath<GameObject>(BaroqueCharacterSetup.CharacterRoot + $"/{character}/{character}_Model.prefab");
@@ -333,10 +351,12 @@ public static partial class Chapter1Builder
         var tape = TryProp("CassetteTape", g, new Vector3(420f, 1.42f, 15.6f), 180f);
         if (tape) { tape.transform.localScale = Vector3.one * 1.6f; b.masterTape = tape.transform; }
         else b.masterTape = P.Marker(g, "MasterTape", new Vector3(420f, 1.42f, 15.6f), 0f);
+        b.burnGlow = MasterCase(g);
         P.AddLight(g, "MasterSpot", new Vector3(420f, h - 0.4f, 16f), LightType.Spot, new Color(0.75f, 0.85f, 1f), 60f, 14f, 40f, Quaternion.Euler(90f, 0f, 0f));
         b.masterUse = P.Interactable(g, "MasterUse", new Vector3(420f, 1f, 14.6f), new Vector3(2.4f, 2f, 1.6f), "마스터 테이프를 꺼낸다");
-        var ms = P.Marker(triggers, "MasterShot", new Vector3(418.2f, 1.9f, 13.6f), 0f);
-        ms.rotation = Quaternion.LookRotation(new Vector3(420f, 1.4f, 15.6f) - ms.position);
+        // 옆 위에서 조금 넓게: 받침대를 정면 가까이 찍으면 화면이 까만 받침대 하나로 덮였다(2026-11-05)
+        var ms = P.Marker(triggers, "MasterShot", MasterShotPos, 0f);
+        ms.rotation = Quaternion.LookRotation(new Vector3(420f, 1.35f, 15.6f) - ms.position);
         b.masterShot = ms;
         // 방송 콘솔(서북쪽, 앉는 쪽이 남쪽)
         TryProp("MixingConsole", g, new Vector3(410f, 0f, 22.5f), 180f);
@@ -371,6 +391,7 @@ public static partial class Chapter1Builder
         zero.executeEvery = 3; // 처형기(되감으면 보인다)
         zero.executeDamage = 50;
         zero.GetComponent<UnityEngine.AI.NavMeshAgent>().speed = 7.6f;
+        zero.keyLight = 0.5f; // 흰 옷 · 1.18배 몸집이라 밝은 홀에서 얼굴 앞 조명(1.6)에 하얗게 날아갔다(2026-11-05)
         b.zero = zero;
         var g1 = ShieldCop(people, "Hall_Shield_W", new Vector3(409f, 0.02f, 12f), 90f);
         var g2 = ShieldCop(people, "Hall_Shield_E", new Vector3(431f, 0.02f, 12f), -90f);

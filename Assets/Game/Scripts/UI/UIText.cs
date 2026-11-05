@@ -101,7 +101,12 @@ public static class UIText
                 var sz = style.CalcSize(content);
                 f.fits = sz.x <= r.width + 1f && sz.y - style.padding.vertical <= r.height * 1.3f + 1f;
             }
-            else f.fits = style.CalcHeight(content, r.width) <= Mathf.Max(r.height, style.lineHeight) + 1f;
+            else
+            {
+                f.text = WrapWords(text, r.width - style.padding.horizontal - 2f, style);
+                content.text = f.text;
+                f.fits = style.CalcHeight(content, r.width) <= Mathf.Max(r.height, style.lineHeight) + 1f;
+            }
             if (f.fits || size <= MinSize) break;
             size = Mathf.Max(MinSize, Mathf.FloorToInt(size * 0.93f));
         }
@@ -119,6 +124,43 @@ public static class UIText
         if (style.fontSize != keepSize) style.fontSize = keepSize;
         if (style.wordWrap != keepWrap) style.wordWrap = keepWrap;
         return f;
+    }
+
+    static readonly GUIContent measure = new();
+    static readonly System.Text.StringBuilder wrapped = new();
+
+    /// <summary>
+    /// 띄어쓰기에서만 줄을 바꾼다(2026-11-05): 유니티 줄바꿈은 한글을 아무 글자 사이에서나 잘라 "흐릅니 / 다"처럼 낱말 가운데서 끊겼다.
+    /// 칸 폭(width)에 맞춰 낱말 단위로 미리 줄을 나눠 '\n'을 넣는다. 한 낱말이 칸보다 길면 그 낱말만 유니티에 맡긴다.
+    /// 폭은 서식 태그를 뺀 글자로 잰다(태그가 줄을 걸쳐도 그리는 쪽은 그대로 처리한다)
+    /// </summary>
+    static string WrapWords(string text, float width, GUIStyle style)
+    {
+        if (string.IsNullOrEmpty(text) || text.IndexOf(' ') < 0 || width <= 1f) return text;
+        bool keepWrap = style.wordWrap;
+        if (keepWrap) style.wordWrap = false;
+        wrapped.Clear();
+        var paragraphs = text.Split('\n');
+        for (int p = 0; p < paragraphs.Length; p++)
+        {
+            if (p > 0) wrapped.Append('\n');
+            var words = paragraphs[p].Split(' ');
+            int lineStart = wrapped.Length;
+            for (int w = 0; w < words.Length; w++)
+            {
+                if (w == 0) { wrapped.Append(words[w]); continue; }
+                measure.text = Plain(wrapped.ToString(lineStart, wrapped.Length - lineStart) + " " + words[w]);
+                if (style.CalcSize(measure).x - style.padding.horizontal > width)
+                {
+                    wrapped.Append('\n');
+                    lineStart = wrapped.Length;
+                    wrapped.Append(words[w]);
+                }
+                else wrapped.Append(' ').Append(words[w]);
+            }
+        }
+        if (keepWrap) style.wordWrap = true;
+        return wrapped.ToString();
     }
 
     /// <summary>style(이미 맞춘 크기)로 r 안에 그린 글자가 실제로 차지하는 영역</summary>

@@ -172,13 +172,18 @@ public class HUD : MonoBehaviour
     void DrawPrompt(string text, float s)
     {
         float w = 760 * s, h = 64 * s;
-        var r = new Rect((Screen.width - w) / 2f, Screen.height * RowPrompt, w, h);
+        // 컷신(종장 R/F 선택 등)에서는 아래 띠 바로 위: 화면 가운데에 두면 클로즈업한 레이의 가슴을 가렸다(2026-11-05)
+        float y = StoryState.CutsceneActive ? Screen.height * 0.89f - h - 14 * s : Screen.height * RowPrompt;
+        var r = new Rect((Screen.width - w) / 2f, y, w, h);
         float pulse = 0.75f + 0.25f * Mathf.Sin(Time.unscaledTime * 5f);
         UiTheme.Panel(r, new Color(0.04f, 0.04f, 0.05f, 0.78f), s);
         UiTheme.Outline(r, Tint(Gold, 0.35f * pulse));
         UiTheme.Fill(new Rect(r.x, r.y + h * 0.25f, 3 * s, h * 0.5f), Tint(Gold, pulse));
         normalCentre.richText = true;
         PlainLabel(new Rect(r.x, r.y + (h - 34 * s) / 2f, r.width, 34 * s), text, normalCentre, Paper);
+        // 길게 누르는 중: 상자 아래 끝에 차오르는 막대(짧게 누르면 반응이 없는 줄 알았다)
+        if (StoryState.PromptProgress > 0f)
+            UiTheme.Fill(new Rect(r.x + 8 * s, r.yMax - 5 * s, (r.width - 16 * s) * Mathf.Clamp01(StoryState.PromptProgress), 3 * s), Gold);
     }
 
     /// <summary>되감기/능력 고르기(2026-10-14 "상자 말고 캐릭터 기준 왼쪽 오른쪽에 글자만"):
@@ -266,7 +271,15 @@ public class HUD : MonoBehaviour
             y = Mathf.Min(y, bottom - Mathf.Min(h, normalCentre.CalcHeight(subtitleContent, w)));
             h = bottom - y;
         }
-        ShadowLabel(new Rect(side, y, w, Mathf.Min(h, Screen.height - y - 4 * s)), text, normalCentre);
+        h = Mathf.Min(h, Screen.height - y - 4 * s);
+        if (!StoryState.CutsceneActive)
+        {
+            // 플레이 중에는 글자 뒤에 옅은 어두운 판: 흰 옷 · 빛나는 0번 · 불빛 위에서 흰 자막이 묻혔다(2026-11-05). 컷신은 검은 띠 위라 필요 없다
+            subtitleContent.text = Loc.T(text);
+            float tw = Mathf.Min(w, normalCentre.CalcSize(subtitleContent).x), th = Mathf.Min(h, normalCentre.CalcHeight(subtitleContent, w));
+            UiTheme.Panel(new Rect(side + (w - tw) / 2f - 18 * s, y - 4 * s, tw + 36 * s, th + 8 * s), new Color(0f, 0f, 0f, 0.42f), s);
+        }
+        ShadowLabel(new Rect(side, y, w, h), text, normalCentre);
     }
 
     void DrawStoryOverlay(float s)

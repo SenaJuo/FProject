@@ -43,6 +43,8 @@ public class Chapter5Director : MonoBehaviour
     public GameObject[] guards = System.Array.Empty<GameObject>();
     public StoryInteractable masterUse, consoleUse;
     public Transform masterTape;
+    [Tooltip("유리장 받침대 윗면의 소각구 불빛(평소 꺼짐)")]
+    public GameObject burnGlow;
 
     public enum Phase { Opening, Garage, Lab, Hall, Boss, Master, Broadcast, Choice, EndingA, EndingB, End }
     public Phase CurrentPhase { get; private set; }
@@ -52,10 +54,12 @@ public class Chapter5Director : MonoBehaviour
     /// <summary>회장이 유리장 번호를 누르는 걸 봤다(되감아도 레이는 기억한다)</summary>
     public bool CaseCodeKnown { get; private set; }
     bool caseBurning, caseOpenedByCode;
+    bool introSeen;
+    Pose? zeroHome;
     const string CaseCode = "1996";
     readonly List<CinemachineCamera> cutsceneCameras = new();
 
-    const string CpStart = "c5_start", CpShop = "c5_shop", CpLab = "c5_lab", CpHall = "c5_hall";
+    const string CpStart = "c5_start", CpShop = "c5_shop", CpLab = "c5_lab", CpHall = "c5_hall", CpMaster = "c5_master";
 
     void Awake()
     {
@@ -80,7 +84,7 @@ public class Chapter5Director : MonoBehaviour
             masterUse.Used += OnMasterCase;
         }
         if (consoleUse) consoleUse.Used += () => { if (CurrentPhase == Phase.Broadcast) broadcast = true; else StoryInteractable.Refuse(); };
-        if (zero) zero.GetComponent<Health>().Damaged += OnZeroHit;
+        if (zero) { zero.GetComponent<Health>().Damaged += OnZeroHit; zeroHome = new Pose(zero.transform.position, zero.transform.rotation); }
         TapeShop.Opened += OnShopOpened;
         TapeShop.Traded += OnTraded;
         CombatZone.Entered += OnZoneEntered;
@@ -90,6 +94,7 @@ public class Chapter5Director : MonoBehaviour
         var resume = SaveGame.TakePending(gameObject.scene.name);
         if (resume != null) SaveGame.ApplyInventory(resume, walkman);
         string cp = resume?.checkpoint;
+        if (cp == CpMaster) { StartCoroutine(Resume(hallEntry, Phase.Master)); return; }
         if (cp == CpHall) { StartCoroutine(Resume(hallEntry, Phase.Hall)); return; }
         if (cp == CpLab) { StartCoroutine(Resume(labEntry, Phase.Lab)); return; }
         if (cp == CpShop) { StartCoroutine(Resume(shopSave, Phase.Garage)); return; }
@@ -117,7 +122,7 @@ public class Chapter5Director : MonoBehaviour
         StoryState.Title = null;
         yield return FadeTo(0f, 1.6f);
         StoryState.ControlLocked = false;
-        StoryState.Say("", "(머리 위 어딘가에서 생방송이 시작된다 — '한결 FM, 서른 번째 밤입니다')", 3.6f);
+        StoryState.Say("", "(머리 위 어딘가에서 생방송이 시작된다 — '한결 FM 개국 30주년 특집, 지금부터 생방송입니다')", 3.6f);
         yield return Wait(3.8f);
         StoryState.Say(Ray, "…윗선은 지금 저 아래 있다. 테이프와 함께.", 2.8f);
         yield return FromGarage();
@@ -191,6 +196,8 @@ public class Chapter5Director : MonoBehaviour
         zeroHalf = false;
         if (!zero) return;
         zero.gameObject.SetActive(true);
+        // 쓰러져 다시 할 때 0번도 처음 자리로(전에는 싸우던 자리에 선 채로 다시 시작했다)
+        if (zeroHome.HasValue) zero.PlaceAt(zeroHome.Value.position, zeroHome.Value.rotation);
         var h = zero.GetComponent<Health>();
         h.Revive();
         h.Invulnerable = true;
@@ -205,20 +212,23 @@ public class Chapter5Director : MonoBehaviour
         StoryState.Waypoint = null;
         var hp = player.GetComponent<Health>();
         hp.Invulnerable = true;
-        if (galleryShot) { Place(dynamicA, galleryShot.position, galleryShot.position + galleryShot.forward * 10f, 38f); Shot(dynamicA, 0.8f); }
-        string[,] lines =
+        // 쓰러져 다시 할 때는 15초 소개를 다시 보여 주지 않고 0번만 짧게(2026-11-05)
+        string[,] lines = introSeen ? new[,] { { "회장", "0번. 다시.", "1.6" } } : new[,]
         {
             { "", "(위쪽 유리 너머 — 정장 차림의 사람들. 와인 잔. 방송 모니터)", "3.0" },
             { "회장", "…저 사람이군. 1분을 넘게 감았다는.", "2.8" },
-            { "경찰청 차장", "죽은 줄 알았던 레이 형사. 파트너가 끝까지 못 막았군요.", "3.4" },
+            { "경찰청 차장", "끝까지 살아서 왔군요, 레이 형사. 파트너가 결국 못 막았네요.", "3.4" },
             { "국회의원", "상관없어요. 저 아이가 있으니까.", "2.6" },
             { "회장", "0번. 데려와. 살아 있으면 더 좋고.", "2.8" },
         };
+        int zeroLine = lines.GetLength(0) - 1; // 마지막 줄(회장이 0번을 부를 때) 0번을 비춘다
+        if (!introSeen && galleryShot) { Place(dynamicA, galleryShot.position, galleryShot.position + galleryShot.forward * 10f, 38f); Shot(dynamicA, 0.8f); }
+        introSeen = true;
         for (int i = 0; i < lines.GetLength(0); i++)
         {
             float t = float.Parse(lines[i, 2], System.Globalization.CultureInfo.InvariantCulture);
             StoryState.Say(lines[i, 0], lines[i, 1], t);
-            if (i == 4 && zero) { Place(dynamicA, zero.transform.position + zero.transform.forward * 3.4f + Vector3.up * 1.6f, zero.transform.position + Vector3.up * 1.5f, 36f); Shot(dynamicA, 0.6f); }
+            if (i == zeroLine && zero) { Place(dynamicA, zero.transform.position + zero.transform.forward * 3.4f + Vector3.up * 1.6f, zero.transform.position + Vector3.up * 1.5f, 36f); Shot(dynamicA, 0.6f); }
             yield return Wait(t + 0.2f);
         }
         gameplayRig.SnapBehindTarget();
@@ -233,6 +243,8 @@ public class Chapter5Director : MonoBehaviour
         // 0번이 쓰러진 순간부터 다시 기록한다: 유리장 소각을 되감다가 0번이 살아나 다시 덤비지 않게(되감기는 이 뒤로만 간다)
         TimeRewind.Clear();
         foreach (var g in guards) if (g && g.activeSelf && g.TryGetComponent(out EnemyAI e) && !e.Health.IsDead) g.SetActive(false); // 0번이 쓰러지면 남은 경비들은 달아난다
+        // 0번을 이긴 자리를 저장한다: 마스터 테이프 · 선택 앞에서 게임을 끄면 이어하기가 보스전부터였다(2026-11-05)
+        Checkpoint(hallEntry, CpMaster);
         yield return Wait(1.2f);
         StoryState.Say(Ray, "…미안하다. 너도 누군가였을 텐데.", 2.6f);
         yield return Wait(2.8f);
@@ -282,40 +294,43 @@ public class Chapter5Director : MonoBehaviour
         if (galleryShot) { Place(dynamicA, galleryShot.position, galleryShot.position + galleryShot.forward * 10f, 34f); Shot(dynamicA, 0.4f); }
         StoryState.Say("회장", "손대지 마! — 소각로 열어!", 1.8f);
         yield return Wait(1.6f);
-        StoryState.Say("", "(위층 패널 — 삑 · 삑 · 삑 · 삑 — 1 · 9 · 9 · 6)", 2.4f);
+        StoryState.Say("", "(위층 패널 — 삑 · 삑 · 삑 · 삑 — 1 · 9 · 9 · 6. 유리장 바닥의 잠금이 풀린다)", 2.4f);
         CaseCodeKnown = true;
         yield return Wait(2.2f);
 
-        // 유리장 바닥이 열리고 테이프가 불 속으로
+        // 유리장 바닥(소각구)이 열리고 테이프가 불빛 속으로 가라앉는다 — 유리 너머로 보이게 받침대 윗면까지만
         Vector3 home = masterTape ? masterTape.position : player.transform.position;
-        if (masterShot) { Place(dynamicA, masterShot.position, home + Vector3.down * 0.35f, 34f); Shot(dynamicA, 0.25f); }
+        Vector3 sunk = home + Vector3.down * 0.07f; // 불빛 판 위에 반쯤 걸친 채 타는 게 보이게(더 내리면 판 밑으로 사라졌다)
+        if (masterShot) { Place(dynamicA, masterShot.position, home + Vector3.down * 0.1f, 40f); Shot(dynamicA, 0.25f); }
+        if (burnGlow) burnGlow.SetActive(true);
         var fire = new GameObject("CaseFire").AddComponent<Light>();
         fire.type = LightType.Point;
         fire.color = new Color(1f, 0.45f, 0.12f);
-        fire.range = 6f;
+        fire.range = 4f;
         fire.shadows = LightShadows.None;
-        fire.transform.position = home + Vector3.down * 0.6f;
+        fire.transform.position = home + Vector3.down * 0.15f;
         for (float t = 0f; t < 1f; t += StoryState.DeltaTime / 0.5f)
         {
-            if (masterTape) masterTape.position = Vector3.Lerp(home, home + Vector3.down * 0.9f, t * t);
-            fire.intensity = Mathf.Lerp(0f, 18f, t);
+            if (masterTape) masterTape.position = Vector3.Lerp(home, sunk, t * t);
+            fire.intensity = Mathf.Lerp(0f, 8f, t);
             yield return null;
         }
-        if (masterTape) masterTape.position = home + Vector3.down * 0.9f; // 프레임이 길어 중간에서 끝나도 끝 자리에
-        fire.intensity = 18f;
+        if (masterTape) masterTape.position = sunk; // 프레임이 길어 중간에서 끝나도 끝 자리에
+        fire.intensity = 8f;
         ProceduralSfx.PlayAt(ProceduralSfx.Recorded("BodyFall") ?? ProceduralSfx.ButtonClick, home, 0.6f, 0.7f, 0.6f);
         StoryState.Say(Ray, "안 돼—!", 1.4f);
         Time.timeScale = 0.05f;
         yield return StoryState.Sleep(0.5f);
 
-        // 되감기: 횟수가 없으면 이번만 연습처럼(횟수를 쓰지 않는다)
+        // 되감기: 이야기의 일부라 언제나 횟수를 쓰지 않는다(전에는 횟수가 남아 있으면 진짜 1회가 빠져 아껴 둔 플레이어만 손해, 2026-11-05)
+        // 횟수가 하나도 없으면 R이 듣도록 이번만 1회를 빌려준다
         CassetteTape lent = null;
         if (walkman.CurrentCharges == 0)
         {
             lent = walkman.Inserted ?? (walkman.tapes.Count > 0 ? walkman.tapes[0] : null);
             if (lent != null) lent.charges = 1;
-            StoryState.FreeRewind = true;
         }
+        StoryState.FreeRewind = true;
         StoryState.CutsceneActive = false;
         if (walkman.CurrentCharges > 0)
         {
@@ -334,16 +349,18 @@ public class Chapter5Director : MonoBehaviour
             yield return FadeTo(0f, 0.6f);
         }
         Time.timeScale = 1f;
-        if (lent != null) { lent.charges = 0; StoryState.FreeRewind = false; }
+        if (lent != null) lent.charges = 0;
+        StoryState.FreeRewind = false;
         if (masterTape) masterTape.position = home;
         if (masterUse) masterUse.gameObject.SetActive(true);
+        if (burnGlow) burnGlow.SetActive(false);
         Destroy(fire.gameObject);
         gameplayRig.SnapBehindTarget();
         Shot(gameplayCamera, 0f);
         hp.Invulnerable = false;
         StoryState.Objective = "마스터 테이프를 꺼낸다";
         StoryState.Waypoint = masterUse ? masterUse.transform : null;
-        StoryState.Say(Ray, "…1996. 개국한 해. 놈이 누르기 전에 연다.", 3f);
+        StoryState.Say(Ray, "…1996. 개국한 해. 같은 번호로, 이번엔 내가 먼저 연다.", 3f);
         caseBurning = false;
     }
 
@@ -426,6 +443,7 @@ public class Chapter5Director : MonoBehaviour
     {
         CurrentPhase = Phase.Choice;
         StoryState.RewindLocked = true; // R은 이 테이프에만
+        HoldTapeInHand(); // 지문은 "손 안의 테이프"인데 손이 비어 있었다(2026-11-05)
         // 레이를 앞에서 비스듬히(상반신과 손이 함께 들어오게)
         Vector3 pf = player.transform.forward, pr = player.transform.right, pp = player.transform.position;
         Place(dynamicA, pp + pf * 2.6f + pr * 0.9f + Vector3.up * 1.55f, pp + Vector3.up * 1.35f, 40f);
@@ -443,7 +461,7 @@ public class Chapter5Director : MonoBehaviour
             yield return Wait(t + 0.2f);
         }
         StoryState.SkipRequested = false;
-        StoryState.Prompt = "R 길게: 일주일 전으로 되감는다   ·   F: 테이프를 부순다";
+        StoryState.Prompt = "R 길게: 대니가 살아 있던 밤으로 되감는다   ·   F: 테이프를 부순다";
         float held = 0f;
         int chosen = 0;
         while (chosen == 0)
@@ -456,11 +474,26 @@ public class Chapter5Director : MonoBehaviour
                 else if (kb.fKey.wasPressedThisFrame) chosen = 2;
             }
             if (ForcedChoice != 0) chosen = ForcedChoice;
+            StoryState.PromptProgress = held / 1.2f; // 안내 상자 아래 막대가 차오른다
             yield return null;
         }
         StoryState.Prompt = null;
+        StoryState.PromptProgress = 0f;
         yield return chosen == 1 ? EndingRewind() : EndingBreak();
     }
+
+    /// <summary>마스터 테이프를 레이 오른손에 쥐여 준다(세계 크기는 받침대 위와 비슷하게)</summary>
+    void HoldTapeInHand()
+    {
+        var hand = masterTape && player.animator ? player.animator.GetBoneTransform(HumanBodyBones.RightHand) : null;
+        if (!hand) return;
+        masterTape.SetParent(hand, false);
+        masterTape.localScale = Vector3.one * (1.2f / Mathf.Max(0.0001f, hand.lossyScale.x));
+        masterTape.localPosition = HandTapeOffset / Mathf.Max(0.0001f, hand.lossyScale.x);
+        masterTape.localRotation = Quaternion.Euler(HandTapeEuler);
+        masterTape.gameObject.SetActive(true);
+    }
+    public static Vector3 HandTapeOffset = new(0f, 0.09f, 0.035f), HandTapeEuler = new(0f, 90f, 90f);
 
     /// <summary>시험용: 1 = 되감기, 2 = 부수기</summary>
     public static int ForcedChoice;
@@ -470,7 +503,7 @@ public class Chapter5Director : MonoBehaviour
     {
         CurrentPhase = Phase.EndingA;
         if (rewindEffect) { rewindEffect.StartWhir(); rewindEffect.SetWeight(1f); }
-        StoryState.Say("", "(단추를 누른 채, 일주일 전 그 밤까지 감는다. 테이프가 비명처럼 감긴다)", 2.8f);
+        StoryState.Say("", "(단추를 누른 채, 대니가 살아 있던 그 밤까지 감는다. 테이프가 비명처럼 감긴다)", 2.8f);
         StoryState.FadeColor = Color.white;
         yield return FadeTo(1f, 3.2f);
         if (rewindEffect) { rewindEffect.StopWhir(); rewindEffect.SetWeight(0f); }
@@ -486,6 +519,7 @@ public class Chapter5Director : MonoBehaviour
         CurrentPhase = Phase.EndingB;
         StoryState.Say("", "(테이프를 바닥에 내리친다. 플라스틱이 갈라지고, 갈색 테이프가 엉켜 쏟아진다)", 3f);
         ProceduralSfx.PlayAt(ProceduralSfx.PlasticHit, player.transform.position, 1.2f, 0f, 0.8f);
+        if (masterTape) masterTape.gameObject.SetActive(false); // 부서졌다
         yield return StoryState.Sleep(3.2f);
         StoryState.FadeColor = Color.black;
         yield return FadeTo(1f, 2f);
@@ -516,7 +550,7 @@ public class Chapter5Director : MonoBehaviour
         Checkpoint(shopSave, CpShop);
         if (shopGreeted) return;
         shopGreeted = true;
-        StoryState.Say(Seven, "…올 줄 알았어요. 다른 사람들이 숨겨 준 테이프예요. 저 아래, 0번이 있어요. 조심해요.", 5f);
+        StoryState.Say(Seven, "…올 줄 알았어요. 직원 통로로 들어왔어요. 연구소에서 몰래 빼돌려 둔 테이프예요. 저 아래, 0번이 있어요. 조심해요.", 5f);
     }
 
     void OnTraded(TapeShop at, CassetteTape given, CassetteTape received)
@@ -539,13 +573,15 @@ public class Chapter5Director : MonoBehaviour
         StoryState.ControlLocked = true;
         if (phase >= Phase.Lab) liftUsed = true;
         if (phase >= Phase.Hall) doorUsed = true;
+        if (phase >= Phase.Master && zero) zero.gameObject.SetActive(false); // 0번은 이미 쓰러뜨렸다(경비는 Update가 치운다)
         if (at) player.Teleport(at.position, at.rotation);
         gameplayRig.SnapBehindTarget();
         if (GameManager.Instance && at) GameManager.Instance.Save(at);
         yield return Wait(0.4f);
         yield return FadeTo(0f, 1.2f);
         StoryState.ControlLocked = false;
-        if (phase == Phase.Hall) yield return FromHall();
+        if (phase == Phase.Master) yield return TakeMaster();
+        else if (phase == Phase.Hall) yield return FromHall();
         else if (phase == Phase.Lab) yield return FromLab();
         else yield return FromGarage();
     }
