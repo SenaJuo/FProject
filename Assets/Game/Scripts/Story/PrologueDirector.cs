@@ -103,7 +103,7 @@ public class PrologueDirector : MonoBehaviour
 
     void Start()
     {
-        homeDoor.Used += () => homeDoorUsed = true;
+        homeDoor.Used += () => { if (phase != Phase.Home) { StoryInteractable.Refuse(); return; } homeDoorUsed = true; }; // 소포를 열기 전엔 나가지 않는다
         friendDoor.Used += () => friendDoorUsed = true;
         if (friendWindow)
         {

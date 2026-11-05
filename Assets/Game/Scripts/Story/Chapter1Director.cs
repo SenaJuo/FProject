@@ -145,7 +145,7 @@ public class Chapter1Director : MonoBehaviour
         plateTrigger.Entered += () => plateSeen = true;
         shopApproach.Entered += OnShopApproach;
         if (shop2Approach) shop2Approach.Entered += OnShop2Approach;
-        if (gateUse) gateUse.Used += () => gateUsed = true;
+        if (gateUse) gateUse.Used += () => { if (CurrentPhase != Phase.Harbor) { StoryInteractable.Refuse(); return; } gateUsed = true; };
         TapeShop.Opened += OnShopOpened;
         TapeShop.Traded += OnTraded;
         CombatZone.Entered += OnZoneEntered;
@@ -284,6 +284,8 @@ public class Chapter1Director : MonoBehaviour
         Arm(squareTrigger, false);
         Arm(harborTrigger, false);
         Arm(pierTrigger, false);
+        GateZone(checkpointZone, false); // 공원 싸움 중 북쪽으로 달려가 검문소·옥상 싸움이 미리 시작되지 않게(2026-11-05)
+        GateZone(roofZone, false);
         StoryState.Fade = 1f;
         StoryState.ControlLocked = true;
         StoryState.Title = "1장   B면";
@@ -308,6 +310,8 @@ public class Chapter1Director : MonoBehaviour
     IEnumerator FromAvenue()
     {
         CurrentPhase = Phase.Avenue;
+        GateZone(checkpointZone, false);
+        GateZone(roofZone, false);
         yield return Wait(0.8f);
         StoryState.Say(Ray, "…하아. 놈들 차가 시내 쪽으로 빠졌어. 따라가 보자.", 3.2f);
         StoryState.Objective = "큰길을 따라 시내 쪽으로 간다";
@@ -322,6 +326,7 @@ public class Chapter1Director : MonoBehaviour
     IEnumerator FromCheckpointScene()
     {
         yield return CheckpointScene();
+        GateZone(checkpointZone, true);
         CurrentPhase = Phase.Checkpoint;
         Checkpoint(zone2Start, CpZone2); // 구역 시작점 자동 저장
         StoryState.Objective = "검문소를 지나 시장 광장으로 들어간다";
@@ -332,6 +337,7 @@ public class Chapter1Director : MonoBehaviour
 
         yield return new WaitUntil(() => Reached(squareTrigger));
         yield return SniperIntro();
+        GateZone(roofZone, true);
         CurrentPhase = Phase.Square;
         StoryState.Objective = "엄폐물 사이로 다가가 옥상의 저격수를 처리한다";
 
@@ -500,10 +506,15 @@ public class Chapter1Director : MonoBehaviour
         gate.SetPositionAndRotation(toP, toR);
     }
 
+    static void GateZone(CombatZone zone, bool on)
+    {
+        if (zone && zone.TryGetComponent(out Collider c)) c.enabled = on;
+    }
+
     /// <summary>광장에 들어서는 순간: 옥상에서 붉은 조준선이 내려온다(잠깐 느려진 화면으로 저격수를 보여 준다)</summary>
     IEnumerator SniperIntro()
     {
-        if (!sniper) yield break;
+        if (!sniper || sniper.Health.IsDead) yield break; // 먼저 올라가 쓰러뜨렸다: 시체를 비추며 '저격수다!'라 하지 않는다
         Vector3 p = player.transform.position + Vector3.up * 1.6f;
         Vector3 s = sniper.transform.position + Vector3.up * 1.5f;
         Vector3 dir = Flat(s - p).normalized;
@@ -817,14 +828,29 @@ public class Chapter1Director : MonoBehaviour
                 Shot(dynamicA, 0.35f);
             }
             float started = StoryState.Now;
-            yield return new WaitUntil(() => intercepted || boss.Health.IsDead
+            bool respawned = false;
+            void OnRespawn() => respawned = true;
+            GameManager.PlayerRespawned += OnRespawn;
+            yield return new WaitUntil(() => intercepted || boss.Health.IsDead || respawned
                                               || Flat(boss.transform.position - throwSpot).magnitude < 0.6f
                                               || StoryState.Now - started > 9f);
+            GameManager.PlayerRespawned -= OnRespawn;
             boss.Health.Damaged -= OnHit;
             boss.Health.Invulnerable = false;
             if (memoryLine) memoryLine.enabled = false;
             if (agent && agent.enabled && agent.isOnNavMesh) agent.isStopped = true;
             if (intercepted || boss.Health.IsDead) break;
+            // 쓰러져 다시 시작했거나 멀리 떨어져 있었다: 태운 걸로 치지 않는다(2026-11-05 — 저장 지점에서 돌아오는 사이
+            // 시간 제한이 '불에 닿음'이 되어 되감기를 거듭 요구해 횟수를 다 써 버렸다). 가까이 돌아오면 다시 달린다
+            if (!firstRun && (respawned || Flat(player.transform.position - burnBarrel.position).magnitude > 25f))
+            {
+                StoryState.Objective = "반장에게 돌아간다";
+                StoryState.Waypoint = boss.transform;
+                yield return new WaitUntil(() => !boss || boss.Health.IsDead
+                                                  || Flat(player.transform.position - boss.transform.position).magnitude < 14f);
+                if (!boss || boss.Health.IsDead) break;
+                continue;
+            }
 
             // 불에 닿았다
             boss.transform.rotation = Quaternion.LookRotation(Flat(burnBarrel.position - boss.transform.position));

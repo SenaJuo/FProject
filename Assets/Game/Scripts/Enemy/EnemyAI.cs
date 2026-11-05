@@ -157,13 +157,18 @@ public class EnemyAI : MonoBehaviour, IRewindable
     {
         var s = (Snapshot)saved;
         StopAllCoroutines();
+        // 감독이 숨긴 적(살아 있는데 꺼져 있다): 되감아도 숨긴 채로(2026-11-05 — 2장 탈출 때 물러난 경찰,
+        // 3장 금고 장면 전의 파트너, 5장 이어하기의 0번이 되감기로 나타나 끼어들었다)
+        bool storyHidden = state != State.Dead && !gameObject.activeSelf;
 
         if (preview)
         {
             // 역재생 중: AI는 돌리지 않고 포즈(그리고 거꾸로 되돌아가는 사망 축소 연출)만 보여준다.
             if (!s.dead && ragdoll && ragdoll.IsActive) ragdoll.Restore(); // 쓰러지기 전으로 감기면 다시 선다
             HideLaser();
-            if (gameObject.activeSelf != s.visible) gameObject.SetActive(s.visible);
+            // 쓰러진 적만 보이기를 되돌린다. 살아 있는 적의 숨김은 이야기(감독)가 정한 것 — 되감기가 건드리지 않는다
+            if (state == State.Dead && gameObject.activeSelf != s.visible) gameObject.SetActive(s.visible);
+            if (!gameObject.activeSelf) return;
             if (agent.enabled) agent.enabled = false;
             transform.SetPositionAndRotation(s.pose.position, s.pose.rotation);
             transform.localScale = s.scale;
@@ -184,6 +189,7 @@ public class EnemyAI : MonoBehaviour, IRewindable
         HideLaser();
         if (aimIK) aimIK.aim = false;
 
+        if (storyHidden) return;
         // 스냅샷 시점에 살아 있었다 — 그 뒤에 죽었다면 되살린다.
         gameObject.SetActive(true);
         // 쓰러질 때 끈 충돌체만 다시 켠다(그사이 몸에 붙은 다른 충돌체 — 예: 떨어졌다 다시 쥔 방패의 상자 — 는 건드리지 않는다)
@@ -625,8 +631,9 @@ public class EnemyAI : MonoBehaviour, IRewindable
     {
         var s = (Snapshot)saved;
         if (s.dead || state != State.Dead) return false;
+        // 쓰러졌다 = 그사이 모습을 드러냈었다: 보이게 되살린다(저장 때 숨어 있었다고 다시 숨기면 구역이 그 적을 세느라
+        // 영영 끝나지 않았다 — 2장 1층 복도 뒷문, 3장 실험체. 따로 숨겨야 하는 적은 감독이 다시 숨긴다)
         RestoreState(saved, false);
-        if (!s.visible) gameObject.SetActive(false);
         return true;
     }
 

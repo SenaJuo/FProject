@@ -154,14 +154,24 @@ public static class GameSettings
     {
         if (QualitySettings.GetQualityLevel() != 1 && QualitySettings.names.Length > 1) QualitySettings.SetQualityLevel(1, true);
         if (!(UnityEngine.Rendering.GraphicsSettings.currentRenderPipeline is UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset rp)) return;
-        if (webScale < 0f) { webScale = rp.renderScale; webShadow = rp.shadowDistance; webMeshLod = QualitySettings.meshLodThreshold; }
+        if (webScale < 0f)
+        {
+            webScale = rp.renderScale; webShadow = rp.shadowDistance; webMeshLod = QualitySettings.meshLodThreshold;
+            webCascades = rp.shadowCascadeCount; webShadowRes = rp.mainLightShadowmapResolution;
+        }
         bool low = Quality == 0;
         rp.renderScale = low ? 0.75f : webScale;
         rp.shadowDistance = low ? 50f : webShadow;
+        // 낮음(2026-11-05 "웹 최적화"): 그림자 단계 4 → 2, 해의 그림자 판 2048 → 1024, 화면 공간 음영(SSAO) 끔 — 웹 GPU에서 가장 비싼 전체 화면 패스
+        rp.shadowCascadeCount = low ? 2 : webCascades;
+        rp.mainLightShadowmapResolution = low ? 1024 : webShadowRes;
+        foreach (var f in Resources.FindObjectsOfTypeAll<UnityEngine.Rendering.Universal.ScriptableRendererFeature>())
+            if (f.GetType().Name == "ScreenSpaceAmbientOcclusion") f.SetActive(!low);
         // 단순화 단계(Mesh LOD)를 더 일찍: 1장 공원 시작 화면 삼각형 422만 → 234만, 화면 차이는 보이지 않았다(2026-11-05, 생울타리 하나가 4만 3천)
         QualitySettings.meshLodThreshold = low ? 3f : webMeshLod;
     }
     static float webScale = -1f, webShadow, webMeshLod;
+    static int webCascades, webShadowRes;
 
     public static void SetQuality(int level)
     {

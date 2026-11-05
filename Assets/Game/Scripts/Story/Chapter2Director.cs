@@ -494,10 +494,10 @@ public class Chapter2Director : MonoBehaviour
     {
         CurrentPhase = Phase.Alarm;
         if (backDoorOut) backDoorOut.gameObject.SetActive(true);
-        Checkpoint(recordsInside, CpAlarm);
         Show(zoneUpstairs);
         Show(zoneDownstairs);
         Show(zoneLot);
+        Checkpoint(recordsInside, CpAlarm); // 무리를 꺼낸 뒤에 저장한다(먼저 저장하면 다시 시작 때 '숨은 적'으로 되살아났다)
         // 방송: 배신자의 목소리(얼굴은 아직)
         StoryState.Say("구내 방송", "정보과다. 2층 기록실에 침입자. 근무자는 전원 정문으로 나가 대기한다. …안쪽은 우리가 맡는다.", 5f);
         yield return Wait(5.2f);

@@ -424,7 +424,9 @@ public class Chapter3Director : MonoBehaviour
             front.SetPositionAndRotation(new Vector3(332f, 0.05f, 121f), Quaternion.identity);
             GameManager.Instance.SetCheckpoint(front);
         }
-        yield return new WaitUntil(() => (!zoneRoof || zoneRoof.IsCleared) && Reached(vaultTrigger));
+        // 정리한 뒤 금고실에 실제로 들어가야 시작(먼저 밟아 둔 트리거로 어디서든 장면이 시작되지 않게)
+        yield return new WaitUntil(() => (!zoneRoof || zoneRoof.IsCleared) &&
+            (!vaultTrigger || (vaultTrigger.TryGetComponent(out Collider vc) && vc.bounds.Contains(player.transform.position))));
         yield return Vault();
     }
 
