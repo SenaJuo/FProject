@@ -425,14 +425,14 @@ public class Chapter1Director : MonoBehaviour
         yield return StoryState.Sleep(2f);
         if (Demo.Active)
         {
-            // 체험판 끝: 본편에서 이어지는 것을 짧게 보여 주고 타이틀로(다음 사람이 바로 시작한다)
+            // 체험판 끝: 본편에서 이어지는 것을 짧게 보여 주고 게임을 닫는다(전시 런처로 — 다음 사람이 바로 고른다)
             StoryState.Title = "체험판 끝";
             StoryState.Say("", "(본편에서 이어집니다 — 경찰서 잠입, 음반사의 지하 실험실, 송신소의 결투, 그리고 마스터 테이프)", 5.4f);
             yield return StoryState.Sleep(5.6f);
             StoryState.Say("", "플레이해 주셔서 감사합니다.", 3f);
             yield return StoryState.Sleep(3.2f);
             StoryState.Title = null;
-            SceneLoader.Load(Demo.TitleScene);
+            Demo.Finish(); // 게임을 닫고 전시 런처로(에디터에서는 타이틀로)
             yield break;
         }
         // 2장으로: 테이프·회복약을 그대로 들고 간다

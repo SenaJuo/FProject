@@ -5,7 +5,8 @@ using UnityEngine.SceneManagement;
 /// <summary>
 /// 체험판(2026-11-06, 게임 박람회용 약 10분): 프롤로그 → 1장 3번 부두 반장전 → 체험판 끝 화면 → 타이틀.
 /// 빌드에 2장이 없으면 체험판이다(Title · Prologue · Chapter1만 넣어 빌드). 시험은 Force로 켠다.
-/// 박람회에서 다음 사람이 바로 할 수 있게: 이어하기가 없고(저장 파일을 쓰지 않는다), 2분 동안 아무 입력이 없으면 타이틀로 돌아간다.
+/// 박람회에서 다음 사람이 바로 할 수 있게: 이어하기가 없고(저장 파일을 쓰지 않는다), 체험판이 끝나거나 2분 동안 아무 입력이 없으면
+/// 게임을 닫아 전시 런처(GstarLauncher)로 돌아간다.
 /// </summary>
 public class Demo : MonoBehaviour
 {
@@ -33,13 +34,23 @@ public class Demo : MonoBehaviour
 
     void Update()
     {
-        if (AnyInput() || SceneManager.GetActiveScene().name == TitleScene) { lastInput = Time.unscaledTime; return; }
+        if (AnyInput()) { lastInput = Time.unscaledTime; return; }
         if (Time.unscaledTime - lastInput < IdleSeconds) return;
-        // 아무도 하지 않는다: 다음 사람을 위해 처음(타이틀)으로
+        // 아무도 하지 않는다: 다음 사람을 위해 전시 런처로 돌아간다(타이틀 화면에 멈춰 있어도)
         lastInput = Time.unscaledTime;
+        Finish();
+    }
+
+    /// <summary>
+    /// 체험판을 끝낸다(2026-11-06 지스타 런처): 게임을 닫으면 GstarLauncher 화면으로 돌아가 다음 관람객이 게임을 고른다.
+    /// 에디터(시험)에서는 닫을 수 없으니 타이틀로
+    /// </summary>
+    public static void Finish()
+    {
         Time.timeScale = 1f;
         AudioListener.pause = false;
-        SceneLoader.Load(TitleScene);
+        if (Application.isEditor) { SceneLoader.Load(TitleScene); return; }
+        Application.Quit();
     }
 
     static bool AnyInput()
