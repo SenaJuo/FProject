@@ -84,7 +84,7 @@ public class Chapter3Director : MonoBehaviour
             rainAudio.loop = true;
             rainAudio.Play();
         }
-        if (serviceDoor) serviceDoor.Used += () => doorUsed = true;
+        if (serviceDoor) serviceDoor.Used += () => { if (CurrentPhase != Phase.Dock) { StoryInteractable.Refuse(); return; } doorUsed = true; }; // 부두에 들어서기 전에 누르면 나중에 부두 장면이 건너뛰어졌다
         if (switchUse) switchUse.Used += OnSwitch;
         if (elevatorUse) elevatorUse.Used += () => { if (CurrentPhase == Phase.ToLift) liftUsed = true; else StoryInteractable.Refuse(); };
         if (booth) booth.Collapsed += OnCollapsed;

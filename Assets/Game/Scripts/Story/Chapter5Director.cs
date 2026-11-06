@@ -238,7 +238,14 @@ public class Chapter5Director : MonoBehaviour
         StoryState.SkipRequested = false;
         CurrentPhase = Phase.Boss;
         StoryState.Objective = "실험체 0번을 쓰러뜨린다";
-        if (zero) { zero.GetComponent<Health>().Invulnerable = false; zero.Activate(); }
+        if (zero)
+        {
+            var zh = zero.GetComponent<Health>();
+            zh.Invulnerable = false;
+            // 큰 한 방이 50%를 건너뛰어 경비 호출 없이 쓰러지지 않게: 경비를 부를 때까지 절반에서 멈춘다(OnZeroHit가 푼다)
+            zh.floor = zeroHalf ? 0 : Mathf.CeilToInt(zh.Max * 0.5f);
+            zero.Activate();
+        }
         yield return new WaitUntil(() => !zero || zero.Health.IsDead);
         // 0번이 쓰러진 순간부터 다시 기록한다: 유리장 소각을 되감다가 0번이 살아나 다시 덤비지 않게(되감기는 이 뒤로만 간다)
         TimeRewind.Clear();
@@ -257,6 +264,7 @@ public class Chapter5Director : MonoBehaviour
         var h = zero.GetComponent<Health>();
         if (h.Current > h.Max * 0.5f) return;
         zeroHalf = true;
+        h.floor = 0;
         StoryState.Say("회장", "경비! 들어가!", 1.8f);
         foreach (var g in guards) if (g) { g.SetActive(true); if (g.TryGetComponent(out EnemyAI e)) e.Activate(); }
     }

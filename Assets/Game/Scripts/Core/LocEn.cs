@@ -394,6 +394,8 @@ public static partial class Loc
         "이번엔 도망 못 간다.", "He's not running this time.",
         "산길을 올라 송신소로 간다", "Climb the mountain road to the transmitter",
         "…길을 막은 걸 보니, 위에 있긴 있군.", "…If they're blocking the road, he's up there all right.",
+        "…달고 들어갈 순 없다. 먼저 정리한다.", "…Can't drag them in with me. Deal with them first.",
+        "쫓아온 정리반을 정리한다", "Take out the cleaners on your tail",
         "올라온다! 길 막아!", "He's coming up! Block the road!",
         "…거기 있는 거 안다.", "…I know you're there.",
         "송신탑 발판의 저격수를 먼저 처리한다", "Take out the sniper on the tower platform first",

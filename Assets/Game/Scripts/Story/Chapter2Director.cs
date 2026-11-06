@@ -286,6 +286,7 @@ public class Chapter2Director : MonoBehaviour
         if (CurrentPhase != Phase.EvidenceRoom || keyFound) return;
         StopCoroutine(nameof(ClerkInside));
         CurrentPhase = Phase.Floor2;
+        RestoreClerk();
         StartCoroutine(SwingDoor(evidenceDoor, false, 0.01f, 0f));
         if (keypadUse) keypadUse.enabled = true;
         StoryState.Objective = "증거물 보관실에 들어간다";
@@ -327,6 +328,16 @@ public class Chapter2Director : MonoBehaviour
         StoryState.Waypoint = dannyBox ? dannyBox.transform : null;
     }
 
+    /// <summary>보관실 밖으로 되돌아왔다(나가거나 쓰러져 다시): 살아 있는 담당은 다시 쓰러지지 않게(경보 때 번호를 눌러야 한다), 덤비기 전이면 원래대로 오간다</summary>
+    void RestoreClerk()
+    {
+        if (!clerk) return;
+        var ai = clerk.GetComponent<EnemyAI>();
+        if (!ai || ai.Health.IsDead) return;
+        ai.Health.floor = 1; // 2026-11-05: 쓰러져 다시 하면 바닥이 0인 채로 남아 휴게실에서 담당을 쓰러뜨릴 수 있었다
+        if (!ai.IsActive) clerk.enabled = true;
+    }
+
     /// <summary>증거물 보관실 안(2층, x 326~340 · z 20~30 — 문턱은 빼고)</summary>
     static bool InEvidenceRoom(Vector3 p) => p.x > 326.3f && p.x < 340f && p.z > 20.6f && p.z < 30f && p.y > 3.5f && p.y < 8f;
 
@@ -335,12 +346,8 @@ public class Chapter2Director : MonoBehaviour
         StopCoroutine(nameof(ClerkInside));
         CurrentPhase = Phase.Floor2;
         if (keypadUse) keypadUse.enabled = true;
-        if (clerk)
-        {
-            clerk.LockedFromInside = false;
-            var ai = clerk.GetComponent<EnemyAI>();
-            if (ai && !ai.Health.IsDead && !ai.IsActive) clerk.enabled = true; // 덤비기 전이면 원래대로 오간다
-        }
+        if (clerk) clerk.LockedFromInside = false;
+        RestoreClerk();
         StoryState.Objective = "증거물 보관실에 들어간다";
         StoryState.Waypoint = keypadUse ? keypadUse.transform : null;
     }

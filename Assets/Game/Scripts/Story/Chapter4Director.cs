@@ -46,6 +46,7 @@ public class Chapter4Director : MonoBehaviour
     /// <summary>레이가 겪은 매복(되감아도 레이는 기억한다)</summary>
     public bool KnowsAmbush { get; private set; }
     bool ambushArmed, ambushSprung, ambushRevealed, springing, ambushDone, ambushLineSaid;
+    bool yardRetry;
     int seenGeneration;
     Bounds ambushArea; // 꺼 둔 충돌체의 bounds는 비어 있으므로 끄기 전에 적어 둔다
     Vector3[] ambushHome;
@@ -278,10 +279,28 @@ public class Chapter4Director : MonoBehaviour
         ArmAmbush();
         StoryState.Objective = "산길을 올라 송신소로 간다";
         StoryState.Waypoint = gateTrigger ? gateTrigger.transform : null;
-        bool saved = false;
-        while (!Reached(gateTrigger))
+        bool saved = false, warned = false;
+        while (true)
         {
             if (!saved && zoneAmbush && zoneAmbush.IsCleared) { saved = true; Checkpoint(roadSave, CpRoad); StoryState.Say(Ray, "…길을 막은 걸 보니, 위에 있긴 있군.", 2.6f); }
+            bool atGate = warned ? Inside(gateTrigger) : Reached(gateTrigger);
+            if (atGate)
+            {
+                // 매복과 싸우던 중 문까지 달려왔다: 달고 들어가면 결투에 끼어든다(2026-11-05) — 가까이 쫓아온 놈부터 정리
+                if (!AmbushChasing()) break;
+                if (!warned)
+                {
+                    warned = true;
+                    StoryState.Say(Ray, "…달고 들어갈 순 없다. 먼저 정리한다.", 2.4f);
+                    StoryState.Objective = "쫓아온 정리반을 정리한다";
+                    StoryState.Waypoint = null;
+                }
+            }
+            else if (warned && !AmbushChasing() && StoryState.Objective != "산길을 올라 송신소로 간다")
+            {
+                StoryState.Objective = "산길을 올라 송신소로 간다";
+                StoryState.Waypoint = gateTrigger ? gateTrigger.transform : null;
+            }
             yield return null;
         }
         Checkpoint(gateSave, CpGate);
@@ -303,7 +322,8 @@ public class Chapter4Director : MonoBehaviour
         StoryState.Objective = KnowsSniper ? "송신탑 발판의 저격수를 먼저 처리한다" : "송신소 마당으로 들어간다";
         StoryState.Waypoint = KnowsSniper && sniper ? sniper.transform : yardTrigger ? yardTrigger.transform : null;
         if (KnowsSniper && sniper && !sniper.Health.IsDead) yield return Hunt();
-        yield return new WaitUntil(() => Reached(yardTrigger) || inYardFight);
+        // 쓰러져 정문부터 다시: 전에 밟은 마당 트리거로 결투 소개가 정문에서 바로 시작되지 않게, 실제로 마당에 들어가야 시작
+        yield return new WaitUntil(() => (yardRetry ? Inside(yardTrigger) : Reached(yardTrigger)) || inYardFight);
         yield return DuelIntro();
     }
 
@@ -476,6 +496,8 @@ public class Chapter4Director : MonoBehaviour
         StoryState.Objective = "송신탑 발판의 저격수를 먼저 처리한다";
         StoryState.Waypoint = sniper ? sniper.transform : null;
         yield return new WaitUntil(() => !sniper || sniper.Health.IsDead);
+        // 저격수를 잡은 자리를 저장 지점으로(결투에서 쓰러져도 저격수가 되살아나 사냥을 다시 하지 않게, 2026-11-05)
+        if (GameManager.Instance && gateSave) GameManager.Instance.Save(gateSave);
         StoryState.Say(Ray, "…이번엔 네가 먼저야.", 2f);
         yield return Wait(1.2f);
         CurrentPhase = Phase.Gate;
@@ -541,6 +563,7 @@ public class Chapter4Director : MonoBehaviour
     {
         if (CurrentPhase == Phase.Road && KnowsAmbush && zoneAmbush && !zoneAmbush.IsCleared) ambushRevealed = false; // 다시 숨은 자리에(시야도 다시 보인다)
         if (CurrentPhase is not (Phase.Duel1 or Phase.Duel2 or Phase.Hunt or Phase.Gate)) return;
+        yardRetry = true;
         if (main != null) StopCoroutine(main);
         StoryState.CutsceneActive = false;
         main = StartCoroutine(FromGate());
@@ -594,6 +617,20 @@ public class Chapter4Director : MonoBehaviour
 
     bool Reached(StoryTrigger trigger) =>
         !trigger || trigger.Fired || (trigger.enabled && trigger.TryGetComponent(out Collider c) && c.bounds.Contains(player.transform.position));
+
+    /// <summary>지금 그 자리 안에 있는가(한 번 밟아 둔 것은 치지 않는다)</summary>
+    bool Inside(StoryTrigger trigger) =>
+        !trigger || (trigger.TryGetComponent(out Collider c) && c.bounds.Contains(player.transform.position));
+
+    /// <summary>싸움이 붙은 매복조 중 살아서 레이 가까이(35m) 쫓아온 놈이 있는가</summary>
+    bool AmbushChasing()
+    {
+        if (!zoneAmbush || !zoneAmbush.Started || zoneAmbush.IsCleared) return false;
+        foreach (var e in zoneAmbush.enemies)
+            if (e && e.gameObject.activeInHierarchy && e.IsActive && !e.Health.IsDead
+                && (e.transform.position - player.transform.position).sqrMagnitude < 35f * 35f) return true;
+        return false;
+    }
 
     static void Place(CinemachineCamera cam, Vector3 position, Vector3 lookAt, float fov)
     {
