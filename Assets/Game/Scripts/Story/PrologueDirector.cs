@@ -673,6 +673,15 @@ public class PrologueDirector : MonoBehaviour
         phase = Phase.End;
         BeginCutscene();
         yield return FadeTo(1f, 1.4f);
+        // 체험판: 프롤로그 끝 → 1장 3번 부두 반장전으로 바로(테이프를 채우고 장르 테이프 하나를 더 준다)
+        if (Demo.Active && Application.CanStreamedLevelBeLoaded(Demo.Stage))
+        {
+            yield return StoryState.Sleep(0.8f);
+            Demo.GiveStageTapes(walkman);
+            SaveGame.CarryOver(Demo.Stage, Demo.StageCheckpoint, walkman);
+            SceneLoader.Load(Demo.Stage);
+            yield break;
+        }
         // 프롤로그 끝 → 1장(대니 집 뒷마당에서 그대로 이어진다)
         if (Application.CanStreamedLevelBeLoaded(Chapter1Scene))
         {

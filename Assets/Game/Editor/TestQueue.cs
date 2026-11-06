@@ -24,7 +24,7 @@ public static class TestQueue
         "MemoryTest|Chapter1|2", "ExecuteMemoryTest|Chapter4|2", "RollTest|Chapter1|2", "TapeAbilityTest|Chapter1|2", "SaveTest|Chapter1|1",
         "PauseMenuTest|Chapter1|1",
         "Chapter2Test|Chapter2|2", "Chapter3Test|Chapter3|2", "Chapter4Test|Chapter4|2", "Chapter5Test|Chapter5|E1", "Chapter5Test|Chapter5|E2",
-        "TitleDeckTest|Title|T",
+        "TitleDeckTest|Title|T", "DemoTest|Prologue|2",
     };
 
     public static void RunAll() => Run(All);

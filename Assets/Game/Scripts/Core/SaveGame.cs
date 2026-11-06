@@ -43,7 +43,7 @@ public static class SaveGame
     /// </summary>
     public const int Version = 2;
 
-    public static bool HasSave => Read() is { } d && SceneLoader.Has(d.scene); // 이 빌드에 없는 장면의 저장(체험판)은 없는 것으로
+    public static bool HasSave => !Demo.Active && Read() is { } d && SceneLoader.Has(d.scene); // 이 빌드에 없는 장면의 저장(체험판)은 없는 것으로. 체험판은 이어하기가 없다
 
     /// <summary>타이틀에서 시작했을 때만 저장한다(에디터에서 장면을 바로 틀거나 시험 도구가 돌 때 실제 저장을 덮어쓰지 않게)</summary>
     public static bool Enabled;
@@ -69,7 +69,7 @@ public static class SaveGame
     /// <summary>지금 상태를 저장 지점 이름과 함께 기록한다</summary>
     public static void Write(string checkpoint, Walkman walkman)
     {
-        if (!Enabled) return;
+        if (!Enabled || Demo.Active) return; // 체험판은 파일에 쓰지 않는다(박람회: 다음 사람은 늘 처음부터)
         var d = new Data { scene = SceneManager.GetActiveScene().name, checkpoint = checkpoint, savedAt = DateTime.Now.ToString("yyyy-MM-dd HH:mm") };
         if (walkman)
         {
@@ -119,7 +119,7 @@ public static class SaveGame
             d.potions = walkman.potions;
         }
         pending = d;
-        if (!Enabled) return;
+        if (!Enabled || Demo.Active) return;
         try { StoreText(JsonUtility.ToJson(d, true)); }
         catch (Exception e) { Debug.LogWarning("저장하지 못했다: " + e.Message); }
     }

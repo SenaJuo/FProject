@@ -396,6 +396,12 @@ public static partial class Loc
         "…길을 막은 걸 보니, 위에 있긴 있군.", "…If they're blocking the road, he's up there all right.",
         "…달고 들어갈 순 없다. 먼저 정리한다.", "…Can't drag them in with me. Deal with them first.",
         "쫓아온 정리반을 정리한다", "Take out the cleaners on your tail",
+        // 체험판(2026-11-06)
+        "체험판   3번 부두", "Demo   Pier 3",
+        "(대니가 남긴 테이프를 쫓아, 레이는 새벽의 3번 부두에 닿았다)", "(Chasing the tape Danny left behind, Ray reaches Pier 3 before dawn)",
+        "체험판 끝", "End of Demo",
+        "(본편에서 이어집니다 — 경찰서 잠입, 음반사의 지하 실험실, 송신소의 결투, 그리고 마스터 테이프)", "(Continued in the full game — a police station infiltration, the label's underground lab, a showdown at the transmitter, and the master tape)",
+        "플레이해 주셔서 감사합니다.", "Thank you for playing.",
         "올라온다! 길 막아!", "He's coming up! Block the road!",
         "…거기 있는 거 안다.", "…I know you're there.",
         "송신탑 발판의 저격수를 먼저 처리한다", "Take out the sniper on the tower platform first",

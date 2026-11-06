@@ -210,9 +210,24 @@ public class Chapter1Director : MonoBehaviour
         if (at) player.Teleport(at.position, at.rotation);
         gameplayRig.SnapBehindTarget();
         if (GameManager.Instance && at) GameManager.Instance.Save(at); // 쓰러지면 여기서 다시
+        bool demoStage = Demo.Active && id == CpZone3;
+        if (demoStage)
+        {
+            // 체험판: 프롤로그에서 바로 넘어왔다 — 어디인지 알려 준다
+            StoryState.Title = "체험판   3번 부두";
+            StoryState.Say("", "(대니가 남긴 테이프를 쫓아, 레이는 새벽의 3번 부두에 닿았다)", 3.6f);
+            yield return Wait(3.8f);
+            StoryState.Title = null;
+        }
         yield return Wait(0.4f);
         yield return FadeTo(0f, 1.2f);
         StoryState.ControlLocked = false;
+        if (demoStage && walkman)
+        {
+            // 받은 장르 테이프를 끼운다: R을 누르면 되감기 / 장르 능력을 고를 수 있다(처음 끼울 때 설명이 뜬다)
+            int g = walkman.tapes.FindIndex(t => t.Genre != TapeGenre.None && t.charges > 0);
+            if (g >= 0) walkman.EquipIndex(g);
+        }
         yield return next;
     }
 
@@ -396,12 +411,30 @@ public class Chapter1Director : MonoBehaviour
             yield return LastStand();
             yield return Finale();
         }
+        yield return ChapterEnd();
+    }
+
+    /// <summary>1장 끝: 2장으로(체험판이면 체험판 끝 화면 → 타이틀)</summary>
+    IEnumerator ChapterEnd()
+    {
         CurrentPhase = Phase.End;
         StoryState.ControlLocked = true;
         StoryState.Objective = null;
         StoryState.Waypoint = null;
         yield return FadeTo(1f, 1.4f);
         yield return StoryState.Sleep(2f);
+        if (Demo.Active)
+        {
+            // 체험판 끝: 본편에서 이어지는 것을 짧게 보여 주고 타이틀로(다음 사람이 바로 시작한다)
+            StoryState.Title = "체험판 끝";
+            StoryState.Say("", "(본편에서 이어집니다 — 경찰서 잠입, 음반사의 지하 실험실, 송신소의 결투, 그리고 마스터 테이프)", 5.4f);
+            yield return StoryState.Sleep(5.6f);
+            StoryState.Say("", "플레이해 주셔서 감사합니다.", 3f);
+            yield return StoryState.Sleep(3.2f);
+            StoryState.Title = null;
+            SceneLoader.Load(Demo.TitleScene);
+            yield break;
+        }
         // 2장으로: 테이프·회복약을 그대로 들고 간다
         SaveGame.CarryOver("Chapter2", "c2_start", walkman);
         SceneLoader.Load("Chapter2");

@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>REWIND 게임 소개</title>
+<style>
+  @page { size: A4; margin: 14mm 14mm 12mm; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #fff; color: #1d1d1f; }
+  body { font-family: "Malgun Gothic", "Noto Sans KR", sans-serif; font-size: 10.5pt; line-height: 1.6; word-break: keep-all; }
+  header { display: flex; align-items: baseline; justify-content: space-between; border-bottom: 2.5px solid #1d1d1f; padding-bottom: 6px; margin-bottom: 12px; }
+  header h1 { margin: 0; font-size: 26pt; letter-spacing: 0.08em; font-weight: 800; }
+  header h1 .rew { color: #c8321e; }
+  header p { margin: 0; color: #666; font-size: 9.5pt; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+  th, td { border: 1px solid #d0d0d4; padding: 7px 10px; vertical-align: top; text-align: left; }
+  th { width: 25%; background: #f3f3f5; font-weight: 700; white-space: nowrap; }
+  td ul { margin: 0; padding-left: 1.1em; }
+  td li { margin: 0 0 3px; }
+  td li:last-child { margin-bottom: 0; }
+  .sub { color: #666; font-size: 9pt; }
+  h2 { font-size: 11.5pt; margin: 0 0 6px; padding-left: 8px; border-left: 4px solid #c8321e; }
+  figure { margin: 0; }
+  figure img { width: 100%; display: block; border-radius: 3px; }
+  figcaption { font-size: 8.5pt; color: #555; margin-top: 3px; }
+  .main { margin-bottom: 8px; }
+  .main img { height: 82mm; object-fit: cover; object-position: 60% 50%; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .pair img { height: 47mm; object-fit: cover; }
+  .abilities { break-before: page; }
+  .lead { margin: 0 0 10px; }
+  h2.gap { margin-top: 16px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 10px; }
+  .grid figcaption { font-size: 9pt; color: #333; line-height: 1.5; }
+</style>
+</head>
+<body>
+  <header>
+    <h1><span class="rew">◀◀</span> REWIND</h1>
+    <p>Unity 6 · Windows PC · 웹 브라우저(itch.io)</p>
+  </header>
+
+  <table>
+    <tr><th>게임 타이틀</th><td>REWIND</td></tr>
+    <tr><th>게임 장르</th><td>3인칭 액션 · 잠입 <span class="sub">(선형 스토리, 현대 도시 누아르)</span></td></tr>
+    <tr><th>게임 소개</th><td>
+      <ul>
+        <li>경찰 비리를 캐다 쫓겨난 전직 형사 레이. 친구 대니가 보낸 낡은 카세트 플레이어에는 시간을 되감는 힘이 있습니다.</li>
+        <li>죽음 직전 카세트를 되감으면 5초 전으로 돌아가고, 지워진 시간은 레이만 기억합니다. 들켰던 순찰의 시야, 맞았던 공격의 타이밍이 다음 시도의 무기가 됩니다.</li>
+        <li>되감기는 테이프에 든 횟수만큼만 쓰는 자원이고, 재즈 · 시티팝 같은 장르 테이프에는 시간 감속 등 저마다의 능력이 담겨 있습니다.</li>
+        <li>대니의 죽음을 쫓아 경찰서 증거물 보관실, 음반사 「한결 레코드」의 지하 실험실, 산 위 송신소를 지나 모든 것의 중심인 마스터 테이프에 다가갑니다.</li>
+      </ul>
+    </td></tr>
+    <tr><th>플레이 타임</th><td>본편 약 1시간 <span class="sub">(프롤로그 → 1~5장 → 엔딩, 엔딩 2종)</span><br>체험판 약 10분</td></tr>
+  </table>
+
+  <h2>홍보 이미지 · 대표 스크린샷</h2>
+  <figure class="main">
+    <img src="../images/title.jpg" alt="REWIND 타이틀 화면">
+    <figcaption>① 타이틀 — 대니가 보낸 카세트 플레이어, 붉은 REW 단추</figcaption>
+  </figure>
+  <div class="pair">
+    <figure>
+      <img src="../images/ui_rewind_prompt.jpg" alt="되감기 중인 게임 화면">
+      <figcaption>② 되감기 — 테이프 횟수를 써서 5초 전으로</figcaption>
+    </figure>
+    <figure>
+      <img src="../images/combat_kick.jpg" alt="전투 장면">
+      <figcaption>③ 전투 — 주먹 · 발차기 · 반격 · 구르기</figcaption>
+    </figure>
+  </div>
+
+  <section class="abilities">
+    <h2>장르 테이프 능력</h2>
+    <p class="lead">장르가 있는 테이프를 끼우고 R을 누르면 시간이 느려지며 두 가지 중 하나를 고릅니다 — <b>Q 되감기</b> 또는 <b>E 장르 능력</b>(횟수 1회).</p>
+    <div class="grid">
+      <figure>
+        <img src="../images/ability_neon.jpg" alt="시티팝 네온 러시">
+        <figcaption><b>시티팝 · 네온 러시</b> (7초) — 세상이 0.25배로 느려지고 레이만 제 속도로 움직인다. 네온 잔상</figcaption>
+      </figure>
+      <figure>
+        <img src="../images/ability_jazz.jpg" alt="재즈 즉흥">
+        <figcaption><b>재즈 · 즉흥</b> (8초) — 구르기 무적 시간 2배, 반격 시간 1.6배 · 반격 피해 1.5배</figcaption>
+      </figure>
+      <figure>
+        <img src="../images/ability_soul.jpg" alt="소울 그루브">
+        <figcaption><b>소울 · 그루브</b> (8초) — 주먹 피해 1.5배, 방패 경찰의 방패를 무시</figcaption>
+      </figure>
+      <figure>
+        <img src="../images/ability_ambient.jpg" alt="앰비언트 고요">
+        <figcaption><b>앰비언트 · 고요</b> (10초) — 받는 피해 절반, 적을 쓰러뜨릴 때마다 체력 +8</figcaption>
+      </figure>
+    </div>
+
+    <h2 class="gap">체험판 (약 10분)</h2>
+    <table class="demo">
+      <tr><th>구성</th><td>프롤로그(대니의 택배 → 죽음과 첫 되감기 → 첫 싸움, 약 5분) → 1장 3번 부두 반장전(전투 · 테이프 태우기 되감기, 약 5분) → 체험판 끝 → 타이틀</td></tr>
+      <tr><th>박람회용 설정</th><td>이어하기 없이 늘 처음부터 · 2분 동안 입력이 없으면 타이틀로 돌아감 · 부두에서 시티팝 테이프를 받아 장르 능력을 써 볼 수 있음</td></tr>
+      <tr><th>조작</th><td>WASD 이동 · 마우스 시점 · Shift 달리기 · 좌클릭 공격(연타) · 우클릭 구르기 · Q 몰래 제압 · F 상호작용 · R(길게) 되감기(장르 테이프는 R → Q 되감기 / E 능력) · I 인벤토리 · 1 회복약 · Esc 메뉴</td></tr>
+    </table>
+  </section>
+</body>
+</html>
